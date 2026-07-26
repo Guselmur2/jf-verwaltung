@@ -1,21 +1,51 @@
 <%- include('partials/kopf') %>
-<% const zurueck = '/lager'; %>
+<%
+  const zurueck = '/lager' + (ort ? '?ort=' + encodeURIComponent(ort) : '');
+  // Ablage-Ziele fuer die Verschieben-Auswahl: erst Lagerorte, dann Spinte.
+%>
 
 <div class="seitenkopf">
   <h1>Lager</h1>
-  <span class="klein"><%= items.length %> Teile ohne Spint</span>
+  <span class="klein"><%= items.length %> Teile</span>
+  <% if (user) { %><a class="btn btn-still" href="/lagerorte">Lagerorte</a><% } %>
 </div>
+
+<% if (storages.length) { %>
+  <div class="kacheln kacheln-schmal">
+    <% storages.forEach(function (s) { %>
+      <a class="kachel kachel-lager <%= String(s.id) === String(ort) ? 'kachel-aktiv' : '' %>" href="/lager?ort=<%= s.id %>">
+        <div class="kachel-kopf">
+          <span class="kachel-nr"><%= s.name %></span>
+          <span class="kachel-anzahl"><%= s.item_count %></span>
+        </div>
+        <% if (s.location) { %><div class="kachel-ort"><%= s.location %></div><% } %>
+      </a>
+    <% }); %>
+    <a class="kachel kachel-lager <%= ort === 'ohne' ? 'kachel-aktiv' : '' %>" href="/lager?ort=ohne">
+      <div class="kachel-kopf"><span class="kachel-nr">Ohne Ort</span></div>
+      <div class="kachel-ort">noch nicht einsortiert</div>
+    </a>
+  </div>
+<% } %>
 
 <form method="get" action="/lager" class="filterleiste">
   <input name="q" value="<%= search %>" placeholder="Größe, Inv.-Nr. oder Art" aria-label="Suchen">
+  <button class="btn btn-klein btn-still" type="button" data-scan="feld" data-ziel="input[name='q']" data-absenden>📷 Scannen</button>
   <select name="art" aria-label="Art">
     <option value="">alle Arten</option>
     <% types.forEach(function (t) { %>
       <option value="<%= t.id %>" <%= String(t.id) === String(typeId) ? 'selected' : '' %>><%= t.name %></option>
     <% }); %>
   </select>
+  <select name="ort" aria-label="Lagerort">
+    <option value="">alle Orte</option>
+    <% storages.forEach(function (s) { %>
+      <option value="<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+    <% }); %>
+    <option value="ohne" <%= ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
+  </select>
   <button class="btn btn-klein" type="submit">Filtern</button>
-  <% if (search || typeId) { %><a class="btn btn-klein btn-still" href="/lager">zurücksetzen</a><% } %>
+  <% if (search || typeId || ort) { %><a class="btn btn-klein btn-still" href="/lager">zurücksetzen</a><% } %>
 </form>
 
 <% if (items.length === 0) { %>
@@ -25,8 +55,8 @@
     <table class="tabelle">
       <thead>
         <tr>
-          <th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Zustand</th><th>Notiz</th>
-          <% if (user) { %><th>In Spint legen</th><% } %>
+          <th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Lagerort</th><th>Zustand</th>
+          <% if (user) { %><th>Verschieben nach</th><% } %>
         </tr>
       </thead>
       <tbody>
@@ -35,18 +65,30 @@
             <td data-label="Art"><%= it.type_name %></td>
             <td data-label="Größe"><%= it.size || '–' %></td>
             <td data-label="Inv.-Nr."><%= it.inventory_no || '–' %></td>
+            <td data-label="Lagerort">
+              <% if (it.storage_id) { %>
+                <a href="/lagerort/<%= it.storage_id %>"><%= it.storage_name %></a>
+              <% } else { %><span class="klein">ohne Ort</span><% } %>
+            </td>
             <td data-label="Zustand"><span class="chip chip-<%= it.condition %>"><%= it.condition %></span></td>
-            <td data-label="Notiz"><%= it.note || '' %></td>
             <% if (user) { %>
-              <td data-label="Zuweisen">
+              <td data-label="Verschieben">
                 <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="zurueck" value="<%= zurueck %>">
-                  <select name="locker_id" aria-label="Spint">
+                  <select name="ziel" aria-label="Ziel">
                     <option value="">— wählen —</option>
-                    <% lockers.forEach(function (l) { %>
-                      <option value="<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
-                    <% }); %>
+                    <optgroup label="Lagerorte">
+                      <% storages.forEach(function (s) { %>
+                        <option value="lager:<%= s.id %>" <%= s.id === it.storage_id ? 'selected' : '' %>><%= s.name %></option>
+                      <% }); %>
+                      <option value="lager" <%= it.storage_id ? '' : 'selected' %>>ohne Ort</option>
+                    </optgroup>
+                    <optgroup label="Spinte">
+                      <% lockers.forEach(function (l) { %>
+                        <option value="spint:<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
+                      <% }); %>
+                    </optgroup>
                   </select>
                   <button class="btn btn-klein" type="submit">→</button>
                 </form>
@@ -67,7 +109,7 @@
 
 <% if (user) { %>
 <section class="block">
-  <h2>Neues Teil ins Lager</h2>
+  <h2>Neue Teile ins Lager</h2>
   <form method="post" action="/ausruestung/neu" class="teilform">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="zurueck" value="<%= zurueck %>">
@@ -78,7 +120,17 @@
       <% }); %>
     </select>
     <input name="size" placeholder="Größe" aria-label="Größe" size="8">
+    <label class="kasten">Anzahl
+      <input type="number" name="anzahl" value="1" min="1" max="100" aria-label="Anzahl" style="width:4.5rem">
+    </label>
     <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+    <button class="btn btn-klein btn-still" type="button" data-scan="feld">📷</button>
+    <select name="ziel" aria-label="Lagerort">
+      <% storages.forEach(function (s) { %>
+        <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+      <% }); %>
+      <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
+    </select>
     <select name="condition" aria-label="Zustand">
       <option value="gut">gut</option>
       <option value="gebraucht">gebraucht</option>
@@ -87,6 +139,10 @@
     <input name="note" placeholder="Notiz" aria-label="Notiz" class="wachsend">
     <button class="btn btn-klein" type="submit">Hinzufügen</button>
   </form>
+  <p class="klein">
+    Mehrere gleiche Teile auf einmal: Anzahl hochsetzen (z.&nbsp;B. 20 Paar Schuhe Gr. 38).
+    Die Inventarnummer bleibt dann leer und wird später je Teil nachgetragen.
+  </p>
 </section>
 <% } %>
 

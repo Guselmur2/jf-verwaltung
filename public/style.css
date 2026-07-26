@@ -235,6 +235,60 @@ button.link { background: none; border: none; padding: 0; color: var(--rot); cur
 .feldgruppe { border: 1px solid var(--linie); border-radius: 8px; padding: .5rem .7rem; display: grid; gap: .4rem; margin: 0; }
 .feldgruppe legend { font-size: .8rem; color: var(--gedaempft); padding: 0 .3rem; }
 
+/* ---------- Barcode-Scanner ---------- */
+.scanknopf { background: rgba(255, 255, 255, .18); border: none; color: #fff; cursor: pointer;
+  border-radius: 999px; font-size: 1.1rem; line-height: 1; padding: .4rem .6rem; }
+.scanknopf:hover { background: rgba(255, 255, 255, .3); }
+.scan-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .75);
+  display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.scan-box { background: var(--flaeche); border-radius: var(--radius); padding: 1rem;
+  width: min(30rem, 100%); display: grid; gap: .75rem; }
+.scan-kopf { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.scan-buehne { position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 12rem; }
+.scan-buehne video { width: 100%; display: none; max-height: 60vh; object-fit: cover; }
+.scan-buehne #scan-ziel { width: 100%; }
+.scan-buehne #scan-ziel video { display: block !important; }
+.scan-linie { position: absolute; left: 8%; right: 8%; top: 50%; height: 2px;
+  background: var(--rot); box-shadow: 0 0 8px var(--rot); pointer-events: none; }
+.scan-status { margin: 0; font-size: .88rem; color: var(--gedaempft); }
+.scan-fehler { color: var(--rot); }
+.scan-manuell { display: flex; gap: .4rem; }
+.scan-manuell input { flex: 1; }
+.btn-gross { font-size: 1.1rem; padding: .8rem 1.4rem; }
+
+/* ---------- Aufgaben ---------- */
+.zaehler { background: #fff; color: var(--rot); border-radius: 999px; padding: 0 .4rem;
+  font-size: .75rem; font-weight: 700; }
+.aufgabenliste { display: grid; gap: .6rem; }
+.aufgabe { background: var(--flaeche); border: 1px solid var(--linie); border-left: 4px solid var(--rot);
+  border-radius: var(--radius); padding: .75rem; display: grid; gap: .35rem; }
+.aufgabe-erledigt { border-left-color: var(--ok); opacity: .7; }
+.aufgabe-abgebrochen { border-left-color: var(--gedaempft); opacity: .6; }
+.aufgabe-kopf { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
+.groessenwechsel { font-variant-numeric: tabular-nums; }
+.aufgabe-notiz { background: var(--hintergrund); border-radius: 6px; padding: .4rem .6rem; font-size: .9rem; }
+.aufgabe-aktionen { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .25rem; }
+.chip-bestellung { background: var(--warn); color: #fff; border-color: var(--warn); }
+
+/* ---------- Lagerorte ---------- */
+.kachel-lager { border-left-color: var(--warn); }
+.kachel-aktiv { border-color: var(--rot); box-shadow: 0 0 0 2px rgba(192, 38, 31, .25); }
+.kacheln-schmal { grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); margin-bottom: 1rem; }
+.spintnummer-lager { background: var(--warn); }
+.summenzeile { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.summe { background: var(--hintergrund); border: 1px solid var(--linie); border-radius: 999px; padding: .25rem .7rem; }
+.artgruppe { margin-bottom: 1.25rem; }
+.artkopf { display: flex; gap: .5rem; align-items: baseline; margin: 0 0 .4rem;
+  border-bottom: 1px solid var(--linie); padding-bottom: .25rem; color: var(--text); font-size: 1rem; }
+.groessenzeile { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .5rem; }
+.teile-kompakt .teil { padding: .4rem .6rem; }
+.block-treffer { border-left: 4px solid var(--ok); }
+.fundstelle { border: 1px solid var(--linie); border-radius: 8px; padding: .6rem; margin-bottom: .5rem; display: grid; gap: .4rem; }
+.fundort { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.funddetails { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.tag-mini { padding: .15rem .5rem; font-size: .8rem; }
+.druckkopf { margin: 1.25rem 0 .5rem; }
+
 /* ---------- Listen und Tabellen ---------- */
 .liste { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
 .liste li { padding: .5rem .7rem; border: 1px solid var(--linie); border-radius: 8px; background: var(--flaeche); }

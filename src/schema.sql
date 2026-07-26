@@ -68,7 +68,22 @@ CREATE TABLE IF NOT EXISTS equipment_types (
   active          INTEGER NOT NULL DEFAULT 1
 );
 
--- Einzelne Ausruestungsstuecke. locker_id NULL = liegt im Lager.
+-- Lagerorte (Schrank, Regal, Kiste ...). Jeder bekommt einen eigenen QR-Code.
+CREATE TABLE IF NOT EXISTS storages (
+  id         INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE COLLATE NOCASE,   -- z.B. "Schrank 1"
+  location   TEXT,                                   -- z.B. "Gerätehaus, Raum 2"
+  note       TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 100,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Einzelne Ausruestungsstuecke. Wo ein Teil liegt, ergibt sich so:
+--   locker_id gesetzt                  -> in diesem Spint
+--   locker_id NULL, storage_id gesetzt -> an diesem Lagerort
+--   beide NULL                         -> im Lager, noch ohne Ort
+-- Beides gleichzeitig gesetzt gibt es nicht; das stellt der Code sicher
+-- (setPlacement in model.js), damit alte und neue Datenbanken gleich sind.
 CREATE TABLE IF NOT EXISTS equipment (
   id           INTEGER PRIMARY KEY,
   type_id      INTEGER NOT NULL REFERENCES equipment_types(id),
@@ -77,12 +92,37 @@ CREATE TABLE IF NOT EXISTS equipment (
   condition    TEXT NOT NULL DEFAULT 'gut' CHECK (condition IN ('gut', 'gebraucht', 'defekt')),
   note         TEXT,
   locker_id    INTEGER REFERENCES lockers(id) ON DELETE SET NULL,
+  storage_id   INTEGER REFERENCES storages(id) ON DELETE SET NULL,
   retired      INTEGER NOT NULL DEFAULT 0,
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS equipment_locker_idx ON equipment(locker_id);
-CREATE INDEX IF NOT EXISTS equipment_inv_idx    ON equipment(inventory_no);
+CREATE INDEX IF NOT EXISTS equipment_locker_idx  ON equipment(locker_id);
+CREATE INDEX IF NOT EXISTS equipment_storage_idx ON equipment(storage_id);
+CREATE INDEX IF NOT EXISTS equipment_inv_idx     ON equipment(inventory_no);
+
+-- Aufgaben, die beim Jugendwart auflaufen: Kleidungsstueck in anderer Groesse
+-- besorgen oder ersetzen. Art, Mitglied und Spint stehen zusaetzlich als eigene
+-- Spalten drin, damit die Aufgabe lesbar bleibt, wenn das Teil spaeter wegfaellt.
+CREATE TABLE IF NOT EXISTS tasks (
+  id           INTEGER PRIMARY KEY,
+  kind         TEXT NOT NULL CHECK (kind IN ('tausch', 'bestellung')),
+  status       TEXT NOT NULL DEFAULT 'offen' CHECK (status IN ('offen', 'erledigt', 'abgebrochen')),
+  equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL,
+  type_id      INTEGER REFERENCES equipment_types(id),
+  member_id    INTEGER REFERENCES members(id) ON DELETE SET NULL,
+  locker_id    INTEGER REFERENCES lockers(id) ON DELETE SET NULL,
+  from_size    TEXT,
+  to_size      TEXT,
+  reason       TEXT,
+  note         TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  created_by   TEXT,
+  done_at      TEXT,
+  done_by      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks(status, id DESC);
 
 -- Aenderungsprotokoll
 CREATE TABLE IF NOT EXISTS audit_log (

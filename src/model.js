@@ -8,6 +8,8 @@ const q = {
   typeById: db.prepare('SELECT * FROM equipment_types WHERE id = ?'),
   equipmentById: db.prepare('SELECT * FROM equipment WHERE id = ?'),
   areaById: db.prepare('SELECT * FROM areas WHERE id = ?'),
+  storageById: db.prepare('SELECT * FROM storages WHERE id = ?'),
+  taskById: db.prepare('SELECT * FROM tasks WHERE id = ?'),
 };
 
 // Geschlechter und ihre Beschriftungen an einer Stelle.
@@ -51,26 +53,138 @@ function equipmentOfLocker(lockerId) {
     .all(lockerId);
 }
 
-function storageEquipment({ typeId = null, search = '' } = {}) {
+/**
+ * Ausruestung im Lager, also alles ausserhalb der Spinte.
+ * storageId: Zahl = nur dieser Lagerort, 'ohne' = ohne Ort, null = alles.
+ */
+function storageEquipment({ typeId = null, search = '', storageId = null } = {}) {
   const where = ['e.locker_id IS NULL', 'e.retired = 0'];
   const params = {};
   if (typeId) {
     where.push('e.type_id = @typeId');
     params.typeId = Number(typeId);
   }
+  if (storageId === 'ohne') {
+    where.push('e.storage_id IS NULL');
+  } else if (storageId) {
+    where.push('e.storage_id = @storageId');
+    params.storageId = Number(storageId);
+  }
   if (search) {
-    where.push('(e.inventory_no LIKE @s OR e.size LIKE @s OR t.name LIKE @s)');
+    where.push('(e.inventory_no LIKE @s OR e.size LIKE @s OR t.name LIKE @s OR st.name LIKE @s)');
     params.s = `%${search}%`;
   }
   return db
     .prepare(
-      `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory
+      `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory, st.name AS storage_name
          FROM equipment e
          JOIN equipment_types t ON t.id = e.type_id
+         LEFT JOIN storages st ON st.id = e.storage_id
         WHERE ${where.join(' AND ')}
-        ORDER BY t.sort_order, t.name COLLATE NOCASE, e.size, e.inventory_no`
+        ORDER BY st.sort_order, st.name COLLATE NOCASE, t.sort_order, t.name COLLATE NOCASE, e.size, e.inventory_no`
     )
     .all(params);
+}
+
+// ----------------------------------------------------------------- Lagerorte
+
+function storagesAll() {
+  return db
+    .prepare(
+      `SELECT s.*,
+              (SELECT COUNT(*) FROM equipment e
+                WHERE e.storage_id = s.id AND e.locker_id IS NULL AND e.retired = 0) AS item_count
+         FROM storages s
+        ORDER BY s.sort_order, s.name COLLATE NOCASE`
+    )
+    .all();
+}
+
+/** Teile eines Lagerorts, nach Art gruppiert — "10 x Jacke, 20 x Schuhe". */
+function storageContents(storageId) {
+  const items = db
+    .prepare(
+      `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory, t.sort_order
+         FROM equipment e
+         JOIN equipment_types t ON t.id = e.type_id
+        WHERE e.storage_id = @id AND e.locker_id IS NULL AND e.retired = 0
+        ORDER BY t.sort_order, t.name COLLATE NOCASE,
+                 CASE WHEN e.size GLOB '[0-9]*' THEN 0 ELSE 1 END,
+                 CAST(e.size AS INTEGER), e.size, e.inventory_no`
+    )
+    .all({ id: storageId });
+
+  const gruppen = [];
+  for (const it of items) {
+    let g = gruppen.find((x) => x.type_id === it.type_id);
+    if (!g) {
+      g = { type_id: it.type_id, type_name: it.type_name, has_size: it.has_size, items: [], sizes: new Map() };
+      gruppen.push(g);
+    }
+    g.items.push(it);
+    const key = it.size || '—';
+    g.sizes.set(key, (g.sizes.get(key) || 0) + 1);
+  }
+  for (const g of gruppen) {
+    g.count = g.items.length;
+    g.sizeList = [...g.sizes.entries()].map(([size, n]) => ({ size, n }));
+    delete g.sizes;
+
+    // Zwanzig gleiche Paar Schuhe einzeln aufzulisten hilft niemandem. Einzeln
+    // erscheint nur, was sich unterscheidet — Inventarnummer, Notiz oder ein
+    // Zustand ausser "gut". Der Rest steckt in der Groessen-Zusammenfassung.
+    g.detail = g.items.filter((it) => it.inventory_no || it.note || it.condition !== 'gut');
+    g.plainCount = g.count - g.detail.length;
+  }
+  return { items, gruppen, total: items.length };
+}
+
+/**
+ * Sucht im Lager ein passendes Ersatzteil: gleiche Art, gewuenschte Groesse,
+ * nicht defekt, nicht ausgemustert, in keinem Spint.
+ */
+function findReplacement(typeId, size) {
+  const wanted = String(size ?? '').trim();
+  return db
+    .prepare(
+      `SELECT e.*, t.name AS type_name, st.name AS storage_name
+         FROM equipment e
+         JOIN equipment_types t ON t.id = e.type_id
+         LEFT JOIN storages st ON st.id = e.storage_id
+        WHERE e.type_id = @typeId
+          AND e.locker_id IS NULL
+          AND e.retired = 0
+          AND e.condition <> 'defekt'
+          AND TRIM(COALESCE(e.size, '')) = @size COLLATE NOCASE
+        ORDER BY CASE e.condition WHEN 'gut' THEN 0 ELSE 1 END, st.sort_order, e.id`
+    )
+    .all({ typeId: Number(typeId), size: wanted });
+}
+
+/** Wo liegt ein Teil? Fuer Protokoll und Anzeige. */
+function placementLabel(item) {
+  if (!item) return '—';
+  if (item.retired) return 'ausgemustert';
+  if (item.locker_id) {
+    const l = q.lockerById.get(item.locker_id);
+    return l ? `Spint ${l.code}` : 'Spint';
+  }
+  if (item.storage_id) {
+    const s = q.storageById.get(item.storage_id);
+    return s ? s.name : 'Lager';
+  }
+  return 'Lager ohne Ort';
+}
+
+/**
+ * Setzt den Ablageort eines Teils. Spint und Lagerort schliessen sich aus —
+ * hier an einer Stelle erzwungen, statt an jeder Aufrufstelle.
+ */
+function setPlacement(equipmentId, { lockerId = null, storageId = null } = {}) {
+  const locker = lockerId ? Number(lockerId) : null;
+  const storage = locker ? null : storageId ? Number(storageId) : null;
+  db.prepare('UPDATE equipment SET locker_id = ?, storage_id = ? WHERE id = ?').run(locker, storage, equipmentId);
+  return { lockerId: locker, storageId: storage };
 }
 
 // -------------------------------------------------------------------- Spinte
@@ -269,16 +383,72 @@ function search(term) {
       .all({ s }),
     equipment: db
       .prepare(
-        `SELECT e.*, t.name AS type_name, l.id AS locker_id, l.code AS locker_code, m.name AS member_name
+        `SELECT e.*, t.name AS type_name, l.id AS locker_id, l.code AS locker_code,
+                st.name AS storage_name, m.name AS member_name
            FROM equipment e
            JOIN equipment_types t ON t.id = e.type_id
            LEFT JOIN lockers l ON l.id = e.locker_id
+           LEFT JOIN storages st ON st.id = e.storage_id
            LEFT JOIN members m ON m.id = l.member_id
           WHERE e.inventory_no LIKE @s OR e.size LIKE @s OR t.name LIKE @s OR e.note LIKE @s
+                OR st.name LIKE @s
           ORDER BY e.retired, t.sort_order, e.inventory_no`
       )
       .all({ s }),
+    storages: db
+      .prepare(
+        `SELECT s.*,
+                (SELECT COUNT(*) FROM equipment e
+                  WHERE e.storage_id = s.id AND e.locker_id IS NULL AND e.retired = 0) AS item_count
+           FROM storages s
+          WHERE s.name LIKE @s OR s.location LIKE @s OR s.note LIKE @s
+          ORDER BY s.sort_order, s.name COLLATE NOCASE`
+      )
+      .all({ s }),
   };
+}
+
+// ------------------------------------------------------------------ Aufgaben
+
+const TASK_KIND = { tausch: 'Tausch', bestellung: 'Bestellung' };
+const TASK_STATUS = { offen: 'offen', erledigt: 'erledigt', abgebrochen: 'abgebrochen' };
+
+function tasksList(status = 'offen') {
+  const where = status === 'alle' ? '' : 'WHERE k.status = @status';
+  return db
+    .prepare(
+      `SELECT k.*, t.name AS type_name, m.name AS member_name, l.code AS locker_code, l.id AS locker_id
+         FROM tasks k
+         LEFT JOIN equipment_types t ON t.id = k.type_id
+         LEFT JOIN members m ON m.id = k.member_id
+         LEFT JOIN lockers l ON l.id = k.locker_id
+         ${where}
+        ORDER BY CASE k.status WHEN 'offen' THEN 0 ELSE 1 END, k.id DESC`
+    )
+    .all({ status });
+}
+
+function openTaskCount() {
+  return db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE status = 'offen'").get().n;
+}
+
+/** Exakte Treffer zu einer Inventarnummer — Grundlage fuer den Barcode-Scan. */
+function findByInventoryNo(nr) {
+  const s = String(nr ?? '').trim();
+  if (!s) return [];
+  return db
+    .prepare(
+      `SELECT e.*, t.name AS type_name, l.id AS locker_id, l.code AS locker_code,
+              st.name AS storage_name, m.name AS member_name
+         FROM equipment e
+         JOIN equipment_types t ON t.id = e.type_id
+         LEFT JOIN lockers l ON l.id = e.locker_id
+         LEFT JOIN storages st ON st.id = e.storage_id
+         LEFT JOIN members m ON m.id = l.member_id
+        WHERE TRIM(e.inventory_no) = @s COLLATE NOCASE
+        ORDER BY e.retired, e.id`
+    )
+    .all({ s });
 }
 
 function stats() {
@@ -290,6 +460,7 @@ function stats() {
     equipment: one('SELECT COUNT(*) AS n FROM equipment WHERE retired = 0'),
     storage: one('SELECT COUNT(*) AS n FROM equipment WHERE retired = 0 AND locker_id IS NULL'),
     defect: one("SELECT COUNT(*) AS n FROM equipment WHERE retired = 0 AND condition = 'defekt'"),
+    tasks: one("SELECT COUNT(*) AS n FROM tasks WHERE status = 'offen'"),
   };
 }
 
@@ -307,10 +478,20 @@ module.exports = {
   GENDER,
   GENDER_GROUP,
   DEFAULT_AREA_NAME,
+  TASK_KIND,
+  TASK_STATUS,
   activeTypes,
   allTypes,
   equipmentOfLocker,
   storageEquipment,
+  storagesAll,
+  storageContents,
+  findReplacement,
+  placementLabel,
+  setPlacement,
+  tasksList,
+  openTaskCount,
+  findByInventoryNo,
   lockerOverview,
   allLockers,
   lockersInArea,

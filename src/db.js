@@ -33,6 +33,10 @@ function migrate() {
   if (!hasColumn('lockers', 'area_id')) {
     db.exec('ALTER TABLE lockers ADD COLUMN area_id INTEGER REFERENCES areas(id)');
   }
+  if (!hasColumn('equipment', 'storage_id')) {
+    db.exec('ALTER TABLE equipment ADD COLUMN storage_id INTEGER REFERENCES storages(id)');
+    db.exec('CREATE INDEX IF NOT EXISTS equipment_storage_idx ON equipment(storage_id)');
+  }
   dropGlobalCodeUniqueIfPresent();
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS lockers_area_code ON lockers(area_id, code)');
 }

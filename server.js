@@ -26,9 +26,21 @@ app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: false }));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '7d' }));
 
+// Barcode-Bibliothek direkt aus node_modules ausliefern. So bleibt sie beim
+// Update automatisch aktuell und es braucht keinen Build-Schritt — wichtig,
+// weil der Pi offline laeuft und nichts von einem CDN nachladen kann.
+app.use(
+  '/vendor',
+  express.static(path.join(__dirname, 'node_modules', 'html5-qrcode'), {
+    maxAge: '30d',
+    index: false,
+    extensions: false,
+  })
+);
+
 // CSS und JS werden lange gecacht. Damit nach einem Update trotzdem die neue
 // Fassung ankommt, haengt an den URLs der Aenderungszeitpunkt der Dateien.
-app.locals.assetVersion = ['style.css', 'app.js']
+app.locals.assetVersion = ['style.css', 'app.js', 'scanner.js']
   .map((f) => Math.round(fs.statSync(path.join(__dirname, 'public', f)).mtimeMs))
   .reduce((a, b) => Math.max(a, b), 0)
   .toString(36);
@@ -36,6 +48,7 @@ app.locals.assetVersion = ['style.css', 'app.js']
 // In allen Vorlagen verfuegbar: Geschlechts-Beschriftungen und Datumsformat.
 app.locals.GENDER = model.GENDER;
 app.locals.GENDER_GROUP = model.GENDER_GROUP;
+app.locals.TASK_KIND = model.TASK_KIND;
 app.locals.datum = formatGermanDate;
 
 const SqliteStore = require('./src/session-store')(session);
@@ -56,14 +69,18 @@ app.use(
 );
 
 app.use(auth.locals);
-app.use(auth.csrf);
 
-// Ob nach Umkleidebereichen unterschieden wird, brauchen viele Vorlagen.
+// Ob nach Umkleidebereichen unterschieden wird und wie viele Aufgaben offen
+// sind, brauchen viele Vorlagen (Navigation, Uebersicht). Muss vor der
+// CSRF-Pruefung stehen, weil auch deren Fehlerseite die Navigation rendert.
 app.use((req, res, next) => {
   if (req.path.startsWith('/static')) return next();
   res.locals.showAreas = model.showAreas();
+  res.locals.offeneAufgaben = req.session.user ? model.openTaskCount() : 0;
   next();
 });
+
+app.use(auth.csrf);
 
 // Solange kein Benutzer existiert, fuehrt jede Seite zur Ersteinrichtung.
 app.use((req, res, next) => {
@@ -77,7 +94,9 @@ app.use(require('./src/routes/auth'));
 app.use(require('./src/routes/public'));
 app.use(require('./src/routes/areas'));
 app.use(require('./src/routes/lockers'));
+app.use(require('./src/routes/storages'));
 app.use(require('./src/routes/equipment'));
+app.use(require('./src/routes/tasks'));
 app.use(require('./src/routes/members'));
 app.use(require('./src/routes/types'));
 app.use(require('./src/routes/users'));
@@ -99,7 +118,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Spintverwaltung laeuft auf http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+// Browser geben die Kamera nur in einem "sicheren Kontext" frei, also ueber
+// HTTPS oder auf localhost. Fuer den Barcode-Scan am Handy braucht es deshalb
+// ein Zertifikat; ohne TLS_KEY/TLS_CERT laeuft alles wie bisher ueber HTTP.
+function createServer() {
+  const keyFile = process.env.TLS_KEY;
+  const certFile = process.env.TLS_CERT;
+  if (!keyFile || !certFile) return { server: require('http').createServer(app), schema: 'http' };
+
+  try {
+    const options = { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
+    return { server: require('https').createServer(options, app), schema: 'https' };
+  } catch (err) {
+    console.error(`TLS-Zertifikat konnte nicht gelesen werden (${err.message}).`);
+    console.error('Server startet ohne HTTPS — der Barcode-Scan funktioniert dann nur auf localhost.');
+    return { server: require('http').createServer(app), schema: 'http' };
+  }
+}
+
+const { server, schema } = createServer();
+
+server.listen(PORT, HOST, () => {
+  console.log(`Spintverwaltung laeuft auf ${schema}://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   console.log(`Datenbank: ${DB_FILE}`);
+  if (schema === 'http') {
+    console.log('Hinweis: ohne HTTPS gibt der Browser die Kamera nur auf localhost frei (Barcode-Scan).');
+  }
 });

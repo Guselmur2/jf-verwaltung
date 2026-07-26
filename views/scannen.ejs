@@ -1,0 +1,26 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Barcode scannen</h1>
+  <p>
+    Inventarnummer vom Etikett scannen — die Software springt direkt zu dem Spint
+    oder Lagerort, in dem das Teil liegt.
+  </p>
+
+  <p><button class="btn btn-gross" type="button" data-scan="suche">📷 Kamera öffnen</button></p>
+
+  <form method="get" action="/scannen" class="formstapel">
+    <label>
+      <span>oder Nummer eintippen</span>
+      <input name="nr" inputmode="numeric" autocomplete="off" autofocus placeholder="z. B. 112000172">
+    </label>
+    <button class="btn btn-still" type="submit">Suchen</button>
+  </form>
+
+  <p class="klein">
+    Die Kamera geben Browser nur über HTTPS oder auf localhost frei. Läuft die Seite über
+    <code>http://</code> im WLAN, bleibt das Eintippen — oder HTTPS einrichten (siehe README).
+  </p>
+</div>
+
+<%- include('partials/fuss') %>

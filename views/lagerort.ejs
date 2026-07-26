@@ -1,0 +1,78 @@
+<%- include('partials/kopf') %>
+
+<article class="spintkarte">
+  <div class="spintkopf">
+    <div class="spintnummer spintnummer-lager">
+      <span class="klein">Lagerort</span>
+      <strong><%= total %></strong>
+      <span class="klein">Teile</span>
+    </div>
+    <div class="spintinfo">
+      <p class="besitzer"><strong><%= storage.name %></strong></p>
+      <p class="meta"><% if (storage.location) { %><%= storage.location %><% } %></p>
+    </div>
+  </div>
+
+  <h2>Hier liegen</h2>
+
+  <% if (total === 0) { %>
+    <p class="leer">Für diesen Lagerort ist noch nichts eingetragen.</p>
+  <% } else { %>
+    <div class="summenzeile">
+      <% gruppen.forEach(function (g) { %>
+        <span class="summe"><strong><%= g.count %> ×</strong> <%= g.type_name %></span>
+      <% }); %>
+    </div>
+
+    <% gruppen.forEach(function (g) { %>
+      <section class="artgruppe">
+        <h3 class="artkopf"><%= g.type_name %> <span class="klein"><%= g.count %> Stück</span></h3>
+
+        <% if (g.has_size && g.sizeList.length) { %>
+          <div class="groessenzeile">
+            <% g.sizeList.forEach(function (s) { %>
+              <span class="mini">Gr. <%= s.size %><% if (s.n > 1) { %> · <%= s.n %>×<% } %></span>
+            <% }); %>
+          </div>
+        <% } %>
+
+        <% if (g.plainCount) { %>
+          <p class="klein sammelzeile">
+            <%= g.plainCount %> Stück ohne Inventarnummer<%= g.detail.length ? ', dazu einzeln:' : '' %>
+          </p>
+        <% } %>
+
+        <% if (g.detail.length) { %>
+          <ul class="teile teile-kompakt">
+            <% g.detail.forEach(function (it) { %>
+              <li class="teil <%= it.condition === 'defekt' ? 'teil-defekt' : '' %>">
+                <span class="teil-werte">
+                  <% if (it.size) { %><span class="wert"><span class="wert-label">Größe</span><%= it.size %></span><% } %>
+                  <% if (it.inventory_no) { %><span class="wert"><span class="wert-label">Inv.-Nr.</span><%= it.inventory_no %></span><% } %>
+                  <% if (it.condition !== 'gut') { %><span class="chip chip-<%= it.condition %>"><%= it.condition %></span><% } %>
+                </span>
+                <% if (it.note) { %><span class="teil-notiz"><%= it.note %></span><% } %>
+              </li>
+            <% }); %>
+          </ul>
+        <% } %>
+      </section>
+    <% }); %>
+  <% } %>
+
+  <% if (storage.note) { %>
+    <p class="notizfeld"><strong>Notiz:</strong> <%= storage.note %></p>
+  <% } %>
+
+  <div class="aktionen">
+    <% if (user) { %>
+      <a class="btn" href="/lager?ort=<%= storage.id %>">Inhalt bearbeiten</a>
+      <a class="btn btn-still" href="/lagerorte">Alle Lagerorte</a>
+    <% } else { %>
+      <a class="btn btn-still" href="/anmelden">Als Betreuer anmelden zum Bearbeiten</a>
+    <% } %>
+    <button class="btn btn-still" type="button" data-scan="suche">Barcode scannen</button>
+  </div>
+</article>
+
+<%- include('partials/fuss') %>

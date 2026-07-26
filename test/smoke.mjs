@@ -203,5 +203,124 @@ await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'jugend
 r = await req('/verlauf');
 check('Verlauf protokolliert Änderungen', r.status === 200 && r.text.includes('Max Wart') && r.text.includes('angelegt'));
 
+console.log('\n11) Lagerorte mit QR-Code');
+token = await csrf('/lagerorte');
+r = await req('/lagerorte/neu', { method: 'POST', form: { _csrf: token, name: 'Schrank 1', location: 'Gerätehaus' } });
+const schrank = Number((r.location || '').match(/\/lagerort\/(\d+)/)?.[1]);
+check('Lagerort angelegt', !!schrank, r.location);
+
+token = await csrf('/lagerorte');
+r = await req('/lagerorte/neu', { method: 'POST', form: { _csrf: token, name: 'Schrank 1' } });
+check('doppelter Name wird abgelehnt', r.status === 302 && (await req('/lagerorte')).text.includes('gibt es schon'));
+
+// 10 Jacken und 20 Paar Schuhe per Mengenangabe
+token = await csrf('/lager');
+r = await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '176', anzahl: '10', condition: 'gut' },
+});
+check('10 Jacken auf einmal angelegt', r.status === 302);
+r = await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '5', size: '38', anzahl: '20', condition: 'gut' },
+});
+check('20 Paar Schuhe auf einmal angelegt', r.status === 302);
+
+r = await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '170', anzahl: '5', inventory_no: 'X-1' },
+});
+check('Menge + Inventarnummer wird abgelehnt', (await req('/lager')).text.includes('bitte die Inventarnummer leer lassen'));
+
+r = await req(`/lagerort/${schrank}`);
+check('Lagerort zeigt 10 × Jacke', r.text.includes('10 ×') && r.text.includes('Jacke'));
+check('Lagerort zeigt 20 × Schuhe', r.text.includes('20 ×') && r.text.includes('Schuhe'));
+check('Lagerort zeigt Größen', r.text.includes('Gr. 176') && r.text.includes('Gr. 38'));
+
+const angemeldet = cookie;
+cookie = '';
+r = await req(`/lagerort/${schrank}`);
+check('Lagerort ohne Login lesbar (QR-Ziel)', r.status === 200 && r.text.includes('Schrank 1'));
+cookie = angemeldet;
+
+r = await req('/qr');
+check('QR-Seite enthält Lagerort-Etikett', r.text.includes(`/lagerort/${schrank}`) && r.text.includes('Lagerorte'));
+
+console.log('\n12) Barcode-Scan');
+r = await req('/scannen?nr=HE-0042');
+check('Scan einer eindeutigen Nummer springt zum Spint', r.status === 302 && r.location === `/spint/${boys01.id}`, r.location);
+r = await req('/scannen?nr=gibtesnicht');
+check('unbekannte Nummer landet auf der Suche', r.status === 302 && r.location.startsWith('/suche?q='), r.location);
+r = await req('/scannen');
+check('Scan-Seite ohne Nummer rendert', r.status === 200 && r.text.includes('Barcode scannen'));
+r = await req('/vendor/html5-qrcode.min.js');
+check('Barcode-Bibliothek wird lokal ausgeliefert', r.status === 200 && r.text.length > 10000, String(r.status));
+
+console.log('\n13) Tauschen: passendes Stück im Lager');
+// Max hat Jacke 164; im Schrank liegen Jacken 176.
+const jacke = boys01.id;
+r = await req(`/spint/${jacke}/bearbeiten`);
+const jackenId = Number(r.text.match(/\/ausruestung\/(\d+)\/tauschen/)?.[1]);
+check('Tausch-Aktion am Teil vorhanden', !!jackenId);
+
+token = await csrf(`/ausruestung/${jackenId}/tauschen`);
+r = await req(`/ausruestung/${jackenId}/tauschen`, {
+  method: 'POST',
+  form: { _csrf: token, to_size: '176', reason: 'zu klein' },
+});
+check('Lagertreffer wird gemeldet statt Aufgabe angelegt', r.status === 200 && r.text.includes('Passendes Stück ist im Lager'));
+check('Fundort wird genannt', r.text.includes('Schrank 1'));
+
+const ersatzId = Number(r.text.match(/name="ersatz_id" value="(\d+)"/)?.[1]);
+token = await csrf(`/ausruestung/${jackenId}/tauschen`);
+r = await req(`/ausruestung/${jackenId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { _csrf: token, ersatz_id: String(ersatzId), verbleib: 'lager' },
+});
+check('Direkttausch führt zurück zum Spint', r.status === 302 && r.location === `/spint/${boys01.id}/bearbeiten`, r.location);
+r = await req(`/spint/${boys01.id}`);
+check('neue Jacke Gr. 176 liegt im Spint', r.text.includes('176'));
+
+console.log('\n14) Tauschen: nichts im Lager → Aufgabe');
+// Ab hier zählt die getauschte Jacke (Gr. 176), die jetzt in Max' Spint liegt —
+// die alte 164er ist beim Tausch ins Lager gewandert.
+token = await csrf(`/ausruestung/${ersatzId}/tauschen`);
+r = await req(`/ausruestung/${ersatzId}/tauschen`, {
+  method: 'POST',
+  form: { _csrf: token, to_size: '188', reason: 'zu klein', note: 'wächst schnell' },
+});
+check('ohne Lagertreffer wird Aufgabe angelegt', r.status === 302 && r.location === '/aufgaben', r.location);
+
+r = await req('/aufgaben');
+check('Aufgabe erscheint im Tab', r.text.includes('188') && r.text.includes('wächst schnell'));
+check('Aufgabe nennt das Mitglied', r.text.includes('Max Muster'));
+check('Zähler in der Navigation', r.text.includes('zaehler'));
+
+const aufgabeId = Number(r.text.match(/\/aufgaben\/(\d+)\/erledigt/)?.[1]);
+token = await csrf('/aufgaben');
+r = await req(`/aufgaben/${aufgabeId}/erledigt`, { method: 'POST', form: { _csrf: token } });
+check('Aufgabe abhakbar', r.status === 302);
+r = await req('/aufgaben');
+check('erledigte Aufgabe nicht mehr offen', !r.text.includes('wächst schnell'));
+r = await req('/aufgaben?status=erledigt');
+check('erledigte Aufgabe im Archiv', r.text.includes('wächst schnell'));
+
+console.log('\n15) Größenschritte im Formular');
+r = await req(`/ausruestung/${ersatzId}/tauschen`);
+check('Vorschlag aus 176: eine Nummer größer = 182', r.text.includes('182'));
+check('Vorschlag aus 176: eine Nummer kleiner = 170', r.text.includes('170'));
+
+// Schuhe: 38 + 2 Nummern = 40
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+token = await csrf('/lager');
+r = await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: 'lager', type_id: '5', size: '38', anzahl: '1' },
+});
+r = await req('/lager?q=38');
+const schuhId = Number(r.text.match(/\/ausruestung\/(\d+)\/verschieben/)?.[1]);
+r = await req(`/ausruestung/${schuhId}/tauschen`);
+check('Schuh 38: zwei Nummern größer = 40', r.text.includes('40'));
+
 console.log(fails === 0 ? '\nAlles grün.\n' : `\n${fails} Fehler.\n`);
 process.exit(fails ? 1 : 0);

@@ -6,13 +6,14 @@
 
 <form method="get" action="/suche" class="filterleiste">
   <input name="q" value="<%= term %>" placeholder="Name, Spintnummer oder Inventarnummer" autofocus aria-label="Suchbegriff" class="wachsend">
+  <button class="btn btn-still" type="button" data-scan="feld" data-ziel="input[name='q']" data-absenden>📷 Scannen</button>
   <button class="btn" type="submit">Suchen</button>
 </form>
 
 <% if (!results) { %>
   <p class="klein">Sucht gleichzeitig in Spinten, Mitgliedern und Ausrüstung. Zum Beispiel „Helm“, „164“ oder eine Inventarnummer.</p>
 <% } else { %>
-  <% const leer = !results.lockers.length && !results.members.length && !results.equipment.length; %>
+  <% const leer = !results.lockers.length && !results.members.length && !results.equipment.length && !results.storages.length; %>
   <% if (leer) { %>
     <p class="leer">Nichts gefunden zu „<%= term %>“.</p>
   <% } %>
@@ -35,8 +36,10 @@
                   <% } else if (it.locker_id) { %>
                     <a href="/spint/<%= it.locker_id %>">Spint <%= it.locker_code %></a>
                     <% if (it.member_name) { %><span class="klein">(<%= it.member_name %>)</span><% } %>
+                  <% } else if (it.storage_id) { %>
+                    <a href="/lagerort/<%= it.storage_id %>"><%= it.storage_name %></a>
                   <% } else { %>
-                    <a href="/lager">Lager</a>
+                    <a href="/lager">Lager ohne Ort</a>
                   <% } %>
                 </td>
                 <td data-label="Zustand"><span class="chip chip-<%= it.condition %>"><%= it.condition %></span></td>
@@ -62,6 +65,21 @@
               — <span class="klein">kein Spint</span>
             <% } %>
             <% if (!mem.active) { %><span class="chip">ausgetreten</span><% } %>
+          </li>
+        <% }); %>
+      </ul>
+    </section>
+  <% } %>
+
+  <% if (results.storages.length) { %>
+    <section class="block">
+      <h2>Lagerorte (<%= results.storages.length %>)</h2>
+      <ul class="liste">
+        <% results.storages.forEach(function (s) { %>
+          <li>
+            <a href="/lagerort/<%= s.id %>"><strong><%= s.name %></strong></a>
+            — <%= s.item_count %> Teile
+            <% if (s.location) { %><span class="klein"><%= s.location %></span><% } %>
           </li>
         <% }); %>
       </ul>

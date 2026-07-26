@@ -1,0 +1,141 @@
+<%- include('partials/kopf') %>
+<% const zurueckSpint = item.locker_id ? '/spint/' + item.locker_id + '/bearbeiten' : '/lager'; %>
+
+<div class="seitenkopf">
+  <h1><%= item.type_name %> tauschen oder bestellen</h1>
+  <a class="btn btn-still" href="<%= zurueckSpint %>">Zurück</a>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
+
+<section class="block">
+  <h2>Aktuelles Teil</h2>
+  <p class="teil-werte">
+    <span class="teil-art"><%= item.type_name %></span>
+    <% if (item.size) { %><span class="wert"><span class="wert-label">Größe</span><%= item.size %></span><% } %>
+    <% if (item.inventory_no) { %><span class="wert"><span class="wert-label">Inv.-Nr.</span><%= item.inventory_no %></span><% } %>
+    <span class="chip chip-<%= item.condition %>"><%= item.condition %></span>
+  </p>
+  <p class="klein">
+    <% if (item.member_name) { %>Gehört <strong><%= item.member_name %></strong>, <% } %>
+    <% if (item.locker_code) { %>Spint <%= item.locker_code %><% } else { %>liegt im Lager<% } %>
+  </p>
+</section>
+
+<% if (treffer && treffer.length) { %>
+  <section class="block block-treffer">
+    <h2>Passendes Stück ist im Lager</h2>
+    <p>
+      <%= item.type_name %> in Größe <strong><%= zielGroesse %></strong> ist vorrätig —
+      <%= treffer.length === 1 ? 'ein Stück' : treffer.length + ' Stück' %>. Kein Bestellen nötig.
+    </p>
+
+    <% fundorte.forEach(function (g) { %>
+      <div class="fundstelle">
+        <div class="fundort">
+          <strong><%= g.storage_name || 'Lager ohne festen Ort' %></strong>
+          <span class="mini"><%= g.count %> Stück</span>
+          <% if (g.size) { %><span class="mini">Gr. <%= g.size %></span><% } %>
+          <% if (g.condition !== 'gut') { %><span class="chip chip-<%= g.condition %>"><%= g.condition %></span><% } %>
+          <% if (g.storage_id) { %>
+            <a class="klein" href="/lagerort/<%= g.storage_id %>">Lagerort ansehen</a>
+          <% } %>
+        </div>
+
+        <% if (item.locker_id) { %>
+          <form method="post" action="/ausruestung/<%= item.id %>/tauschen/ausfuehren" class="teilform">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <% if (g.mitNummer.length > 1) { %>
+              <label class="kasten">Welches
+                <select name="ersatz_id" aria-label="Ersatzteil">
+                  <% g.mitNummer.forEach(function (t) { %>
+                    <option value="<%= t.id %>">Inv. <%= t.inventory_no %></option>
+                  <% }); %>
+                </select>
+              </label>
+            <% } else { %>
+              <input type="hidden" name="ersatz_id" value="<%= g.items[0].id %>">
+              <% if (g.mitNummer.length === 1) { %>
+                <span class="mini">Inv. <%= g.mitNummer[0].inventory_no %></span>
+              <% } %>
+            <% } %>
+
+            <label class="kasten">Altes Teil
+              <select name="verbleib" aria-label="Verbleib des alten Teils">
+                <% if (reason === 'defekt' || item.condition === 'defekt') { %>
+                  <option value="ausmustern" selected>ausmustern</option>
+                <% } %>
+                <option value="lager">zurück ins Lager (ohne Ort)</option>
+                <% storages.forEach(function (s) { %>
+                  <option value="<%= s.id %>">zurück in <%= s.name %></option>
+                <% }); %>
+                <% if (reason !== 'defekt' && item.condition !== 'defekt') { %>
+                  <option value="ausmustern">ausmustern</option>
+                <% } %>
+              </select>
+            </label>
+            <button class="btn" type="submit">Jetzt tauschen</button>
+          </form>
+        <% } else { %>
+          <p class="klein">Zum direkten Tauschen muss das alte Teil in einem Spint liegen.</p>
+        <% } %>
+      </div>
+    <% }); %>
+  </section>
+<% } %>
+
+<section class="block">
+  <h2><%= treffer && treffer.length ? 'Trotzdem bestellen' : 'Andere Größe suchen oder bestellen' %></h2>
+  <p class="klein">
+    Erst wird das Lager geprüft. Ist nichts Passendes da, landet die Sache als Aufgabe beim Jugendwart.
+  </p>
+
+  <form method="post" action="/ausruestung/<%= item.id %>/tauschen" class="formraster">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>
+      <span>Wunschgröße</span>
+      <input name="to_size" id="wunschgroesse" value="<%= wunsch || '' %>"
+             placeholder="<%= item.size || 'Größe' %>" autocomplete="off">
+      <% if (vorschlaege.length) { %>
+        <small>
+          Aus <%= item.size %>:
+          <% vorschlaege.forEach(function (v) { %>
+            <button type="button" class="tag tag-mini" data-groesse="<%= v.size %>"><%= v.size %> <span class="klein">(<%= v.label %>)</span></button>
+          <% }); %>
+        </small>
+      <% } %>
+    </label>
+
+    <label>
+      <span>Grund</span>
+      <select name="reason">
+        <% reasons.forEach(function (r) { %>
+          <option value="<%= r %>" <%= reason === r ? 'selected' : '' %>><%= r %></option>
+        <% }); %>
+      </select>
+    </label>
+
+    <label class="breit">
+      <span>Notiz für den Jugendwart</span>
+      <input name="note" value="<%= typeof note !== 'undefined' && note ? note : '' %>" placeholder="optional">
+    </label>
+
+    <div class="formfuss breit">
+      <button class="btn" type="submit">Lager prüfen</button>
+      <a class="btn btn-still" href="<%= zurueckSpint %>">Abbrechen</a>
+    </div>
+  </form>
+</section>
+
+<script>
+  // Vorschlagsknoepfe fuellen das Groessenfeld.
+  document.querySelectorAll('[data-groesse]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById('wunschgroesse').value = b.dataset.groesse;
+    });
+  });
+</script>
+
+<%- include('partials/fuss') %>

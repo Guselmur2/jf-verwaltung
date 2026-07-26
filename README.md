@@ -9,11 +9,16 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Seite | Adresse | Wer |
 |---|---|---|
 | Spint-Detail (Ziel des QR-Codes) | `/spint/7` | alle im WLAN, nur lesen |
+| Lagerort-Detail (Ziel des QR-Codes) | `/lagerort/3` | alle im WLAN, nur lesen |
 | Übersicht aller Spinte | `/` | alle |
 | Lager (Ausrüstung ohne Spint) | `/lager` | alle lesen, Betreuer ändern |
 | Mitglieder | `/mitglieder` | alle lesen, Betreuer ändern |
 | Suche über alles | `/suche` | alle |
+| Barcode scannen | `/scannen` | alle |
 | Spint bearbeiten | `/spint/7/bearbeiten` | Betreuer |
+| Tauschen / Bestellen | `/ausruestung/12/tauschen` | Betreuer |
+| Aufgaben | `/aufgaben` | Betreuer, zuständig ist der Jugendwart |
+| Lagerorte verwalten | `/lagerorte` | Betreuer |
 | Ausrüstungsarten | `/ausruestungsarten` | Betreuer |
 | Ausgemusterte Teile | `/ausgemustert` | Betreuer |
 | QR-Etiketten drucken | `/qr` | Betreuer |
@@ -77,6 +82,96 @@ Jedes Mitglied hat ein Geschlecht (männlich, weiblich, divers). Spinte liegen i
 Unter `/bereiche` (Jugendwart) lassen sich Bereiche umbenennen, die Nummerierung ändern,
 Geschlechter zuordnen sowie Bereiche anlegen und löschen (leere Bereiche).
 
+## Lagerorte
+
+Was in keinem Spint liegt, ist „im Lager". Damit man es auch findet, bekommt jeder Schrank,
+jedes Regal und jede Kiste einen **Lagerort** mit eigenem QR-Code. Scannen zeigt sofort,
+was drin ist — zusammengefasst als „10 × Jacke, 20 × Schuhe" plus Aufschlüsselung nach Größe.
+
+Einzeln aufgelistet wird nur, was sich unterscheidet: Teile mit Inventarnummer, Notiz oder
+einem Zustand außer „gut". Zwanzig gleiche Paar Schuhe erscheinen als eine Zeile, nicht als
+zwanzig — sonst wäre die Seite unlesbar.
+
+Beim Anlegen gibt es ein Feld **Anzahl**: 20 Paar Schuhe Gr. 38 auf einen Schlag. Die
+Inventarnummer bleibt dann leer und wird später je Teil nachgetragen (mehrere Teile können
+schlecht dieselbe Nummer haben — die Software weist das ab).
+
+Ausrüstung ohne Lagerort ist nicht verloren, sie läuft unter „ohne Ort" und lässt sich von
+dort einsortieren. Wird ein Lagerort gelöscht, wandert sein Inhalt genau dorthin.
+
+## Barcode scannen
+
+Auf den Etiketten der Einsatzkleidung steht die Inventarnummer meist auch als Strichcode.
+Der 📷-Knopf in der Kopfleiste öffnet die Kamera; erkannt werden Code 128, Code 39, EAN,
+UPC, ITF, Codabar und QR-Codes.
+
+Drei Stellen nutzen den Scanner:
+
+- **Kopfleiste und `/scannen`** — Nummer scannen, die Software springt direkt zu dem Spint
+  oder Lagerort, in dem das Teil liegt. Bei mehreren Treffern landet man auf der Suche.
+- **Suchfeld** — scannen statt tippen.
+- **Jedes Inventarnummer-Feld** — beim Erfassen neuer Ausrüstung die Nummer einscannen.
+
+Erkannt wird zuerst über die im Browser eingebaute `BarcodeDetector`-Schnittstelle
+(Chrome/Android, ohne Download). Fehlt sie, lädt die Seite `html5-qrcode` nach — **lokal vom
+Pi aus `/vendor`**, nicht von einem CDN. Der Scan funktioniert damit auch ohne Internet.
+
+### Wichtig: die Kamera braucht HTTPS
+
+Browser geben `getUserMedia` nur in einem **sicheren Kontext** frei — also über HTTPS oder
+auf `localhost`. Ruft man die Seite im WLAN über `http://192.168.1.50:3000` auf, bleibt die
+Kamera gesperrt. Das ist eine Browser-Regel, keine Einstellung der Software; der Scan-Dialog
+sagt das dann auch klar und bietet die Eingabe per Tastatur an.
+
+Wer am Handy scannen will, braucht also ein Zertifikat. Selbstsigniert genügt:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+  -keyout /opt/jf-spinte/tls.key -out /opt/jf-spinte/tls.crt \
+  -subj "/CN=192.168.1.50" -addext "subjectAltName=IP:192.168.1.50"
+```
+
+Dann in der Service-Datei ergänzen:
+
+```ini
+Environment=TLS_KEY=/opt/jf-spinte/tls.key
+Environment=TLS_CERT=/opt/jf-spinte/tls.crt
+Environment=BASE_URL=https://192.168.1.50:3000
+```
+
+Beim ersten Aufruf warnt das Handy vor dem unbekannten Zertifikat — einmal bestätigen, dann
+ist die Seite ein sicherer Kontext und die Kamera funktioniert. **Nach dem Umstieg auf HTTPS
+müssen die QR-Codes neu gedruckt werden**, weil `http://` darin steht.
+
+Fehlt `TLS_KEY`/`TLS_CERT`, läuft alles unverändert über HTTP — nur eben ohne Kamera.
+
+Eine Alternative ohne Zertifikat: ein USB- oder Bluetooth-Handscanner. Der verhält sich wie
+eine Tastatur, tippt die Nummer ins fokussierte Feld und braucht keinen Kamerazugriff.
+
+## Tauschen und Bestellen
+
+Wächst ein Jugendlicher aus der Jacke heraus oder geht etwas kaputt, klickt der Betreuer im
+Spint beim betreffenden Teil auf **Tauschen / Bestellen**.
+
+1. **Wunschgröße wählen.** Für die gängigen Zahlenschemata schlägt die Software die nächsten
+   Größen vor: Körpergrößen in Schritten von 6 (164 → 170 → 176), Schuh- und
+   Handschuhgrößen in Einerschritten (32 → 34 bei zwei Nummern größer). Freitext-Größen wie
+   „S/M/L" bekommen keinen Vorschlag, dort tippt man selbst.
+2. **Lager wird geprüft.** Liegt ein passendes Stück da, sagt die Software, **wo** es ist
+   („Schrank 1, 6 Stück, Gr. 176") — mit Knopf zum direkten Tauschen. Das Ersatzteil wandert
+   in den Spint, das alte wahlweise zurück ins Lager, in einen bestimmten Schrank oder in die
+   Ausmusterung. Defekte Teile stehen dabei auf „ausmustern" vorbelegt.
+3. **Nichts da? Dann wird es eine Aufgabe.** Sie landet im Tab **Aufgaben** und bleibt dort
+   offen, bis jemand sie abhakt.
+
+Der Aufgaben-Tab zeigt Art, Mitglied, Spint, Größenwechsel (`164 → 188`), Grund, Notiz und
+wer sie wann angelegt hat. Ein Zähler in der Navigation zeigt die offenen Aufgaben. Aufgaben
+lassen sich erledigen, abbrechen und wieder öffnen; löschen darf nur der Jugendwart. Über
+„Aufgabe ohne konkretes Teil" geht auch eine reine Bestellung wie „5 Paar Stiefel Gr. 42".
+
+Zuständig für die Aufgaben ist der Jugendwart — sichtbar und bearbeitbar sind sie aber für
+alle Betreuer, weil in der Praxis oft der die Lieferung annimmt, der gerade da ist.
+
 ### Einstellungen (Umgebungsvariablen)
 
 | Variable | Standard | Zweck |
@@ -86,6 +181,7 @@ Geschlechter zuordnen sowie Bereiche anlegen und löschen (leere Bereiche).
 | `SESSION_SECRET` | fester Vorgabewert | **auf dem Pi unbedingt setzen**, sonst sind Sitzungs-Cookies fälschbar |
 | `DATA_DIR` | `./data` | Ablageort der Datenbank |
 | `BASE_URL` | Adresse der Anfrage | Adresse, die in den QR-Codes steht |
+| `TLS_KEY` / `TLS_CERT` | leer | Pfade zu Schlüssel und Zertifikat. Nur gesetzt läuft die Seite über HTTPS — nötig für den Barcode-Scan per Kamera |
 
 ## Installation auf dem Raspberry Pi
 
@@ -173,11 +269,15 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
   Geschlecht ist genau einem Bereich zugeordnet.
 - **Spint** — trägt die Nummer vom Etikett (je Bereich eindeutig), liegt in einem Bereich,
   gehört keinem oder genau einem Mitglied.
-- **Ausrüstungsstück** — liegt in genau einem Spint oder im Lager (kein Spint).
-  Ausgemusterte Teile verschwinden aus allen Listen, bleiben aber unter `/ausgemustert`
-  auffindbar und lassen sich zurückholen.
+- **Lagerort** — Schrank, Regal, Kiste. Eigener QR-Code.
+- **Ausrüstungsstück** — liegt entweder in einem Spint **oder** an einem Lagerort **oder**
+  im Lager ohne Ort. Nie an zwei Stellen gleichzeitig; das stellt `setPlacement()` in
+  `model.js` an einer einzigen Stelle sicher. Ausgemusterte Teile verschwinden aus allen
+  Listen, bleiben aber unter `/ausgemustert` auffindbar und lassen sich zurückholen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
+- **Aufgabe** — Tausch- oder Bestellwunsch. Art, Mitglied und Spint stehen zusätzlich als
+  eigene Felder darin, damit die Aufgabe lesbar bleibt, wenn das Teil später wegfällt.
 
 Nichts wird beim Löschen mitgerissen: Wird ein Spint gelöscht, wandert sein Inhalt ins
 Lager. Tritt ein Mitglied aus, wird sein Spint frei, die Ausrüstung bleibt liegen.
@@ -193,16 +293,17 @@ src/db.js              SQLite öffnen, Schema anwenden, migrieren, Standardarten
 src/schema.sql         Tabellen
 src/auth.js            Anmeldung, Rollen, CSRF
 src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
-src/model.js           Abfragen, Bereichs- und Geschlechtslogik
+src/sizes.js           Größenschritte (164 -> 170, Schuh 32 -> 34)
+src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
 views/                 EJS-Vorlagen
-public/                CSS und ein kleines Skript
+public/                CSS, kleine Skripte, Barcode-Scanner
 ```
 
 Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig.
 
 `npm test` startet einen eigenen Server mit leerer Datenbank in einem temporären Ordner
-und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Spint anlegen,
-Ausrüstung ein- und auslagern, Suche, QR, öffentlicher Lesezugriff. Die echte Datenbank
-wird dabei nicht angefasst.
+und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Umkleidebereiche,
+Spinte, Lagerorte mit Mengenanlage, Barcode-Endpunkt, Tauschen mit und ohne Lagertreffer,
+Aufgaben, Suche, QR und öffentlicher Lesezugriff. Die echte Datenbank wird nicht angefasst.

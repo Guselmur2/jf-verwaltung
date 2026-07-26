@@ -1,0 +1,102 @@
+<%- include('partials/kopf') %>
+<% const filter = [['offen','offene'],['erledigt','erledigte'],['abgebrochen','abgebrochene'],['alle','alle']]; %>
+
+<div class="seitenkopf">
+  <h1>Aufgaben</h1>
+  <span class="klein"><%= tasks.length %> <%= status === 'alle' ? 'gesamt' : status %></span>
+</div>
+
+<p class="klein">
+  Hier laufen Bestellungen und Tauschwünsche auf, für die im Lager nichts Passendes vorrätig war.
+  Angelegt werden sie direkt am Kleidungsstück im Spint.
+</p>
+
+<nav class="filterleiste">
+  <% filter.forEach(function (f) { %>
+    <a class="tag <%= status === f[0] ? 'tag-aktiv' : '' %>" href="/aufgaben?status=<%= f[0] %>"><%= f[1] %></a>
+  <% }); %>
+</nav>
+
+<% if (tasks.length === 0) { %>
+  <p class="leer">
+    <%= status === 'offen' ? 'Keine offenen Aufgaben. ' : 'Nichts vorhanden. ' %>
+  </p>
+<% } else { %>
+  <div class="aufgabenliste">
+    <% tasks.forEach(function (t) { %>
+      <article class="aufgabe aufgabe-<%= t.status %>">
+        <div class="aufgabe-kopf">
+          <span class="chip <%= t.kind === 'bestellung' ? 'chip-bestellung' : '' %>"><%= TASK_KIND[t.kind] %></span>
+          <strong><%= t.type_name || 'Ausrüstung' %></strong>
+          <% if (t.from_size && t.to_size && t.from_size !== t.to_size) { %>
+            <span class="groessenwechsel"><%= t.from_size %> → <strong><%= t.to_size %></strong></span>
+          <% } else if (t.to_size) { %>
+            <span class="groessenwechsel">Größe <strong><%= t.to_size %></strong></span>
+          <% } %>
+          <% if (t.status !== 'offen') { %><span class="chip"><%= t.status %></span><% } %>
+        </div>
+
+        <div class="aufgabe-zeile klein">
+          <% if (t.member_name) { %>
+            für <strong><%= t.member_name %></strong><% if (t.locker_code) { %>,
+              <a href="/spint/<%= t.locker_id %>">Spint <%= t.locker_code %></a><% } %>
+          <% } else { %>
+            ohne Zuordnung zu einem Mitglied
+          <% } %>
+          <% if (t.reason) { %> · Grund: <%= t.reason %><% } %>
+        </div>
+
+        <% if (t.note) { %><div class="aufgabe-notiz"><%= t.note %></div><% } %>
+
+        <div class="aufgabe-fuss klein">
+          angelegt <%= t.created_at.replace('T', ' ') %><% if (t.created_by) { %> von <%= t.created_by %><% } %>
+          <% if (t.done_at) { %> · <%= t.status %> <%= t.done_at %><% if (t.done_by) { %> von <%= t.done_by %><% } %><% } %>
+        </div>
+
+        <div class="aufgabe-aktionen">
+          <% if (t.status === 'offen') { %>
+            <form method="post" action="/aufgaben/<%= t.id %>/erledigt" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein" type="submit">Erledigt</button>
+            </form>
+            <form method="post" action="/aufgaben/<%= t.id %>/abbrechen" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein btn-still" type="submit">Abbrechen</button>
+            </form>
+          <% } else { %>
+            <form method="post" action="/aufgaben/<%= t.id %>/oeffnen" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein btn-still" type="submit">Wieder öffnen</button>
+            </form>
+          <% } %>
+          <% if (isJugendwart) { %>
+            <form method="post" action="/aufgaben/<%= t.id %>/loeschen" class="inline"
+                  onsubmit="return confirm('Aufgabe löschen?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+            </form>
+          <% } %>
+        </div>
+      </article>
+    <% }); %>
+  </div>
+<% } %>
+
+<section class="block">
+  <h2>Aufgabe ohne konkretes Teil</h2>
+  <p class="klein">Zum Beispiel „10 Paar Schuhe Gr. 38 nachbestellen“.</p>
+  <form method="post" action="/aufgaben/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="type_id" aria-label="Art">
+      <option value="">— Art —</option>
+      <% types.forEach(function (t) { %>
+        <option value="<%= t.id %>"><%= t.name %></option>
+      <% }); %>
+    </select>
+    <input name="to_size" placeholder="Größe" aria-label="Größe" size="8">
+    <input name="note" placeholder="Was ist zu tun?" aria-label="Beschreibung" class="wachsend">
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>

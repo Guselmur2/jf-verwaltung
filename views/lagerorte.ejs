@@ -1,0 +1,71 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Lagerorte</h1>
+  <a class="btn btn-still" href="/lager">Lagerbestand</a>
+  <a class="btn btn-still" href="/qr">QR-Etiketten</a>
+</div>
+
+<p class="klein">
+  Ein Lagerort ist ein Schrank, Regal oder eine Kiste. Jeder bekommt einen eigenen QR-Code —
+  einmal scannen zeigt, was darin liegt.
+</p>
+
+<% if (storages.length === 0) { %>
+  <p class="leer">Noch keine Lagerorte angelegt.</p>
+<% } else { %>
+  <div class="kacheln">
+    <% storages.forEach(function (s) { %>
+      <a class="kachel kachel-lager" href="/lagerort/<%= s.id %>">
+        <div class="kachel-kopf">
+          <span class="kachel-nr"><%= s.name %></span>
+          <span class="kachel-anzahl"><%= s.item_count %> Teile</span>
+        </div>
+        <% if (s.location) { %><div class="kachel-ort"><%= s.location %></div><% } %>
+      </a>
+    <% }); %>
+  </div>
+
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead><tr><th>Name</th><th>Standort</th><th>Reihenfolge</th><th>Teile</th><th></th></tr></thead>
+      <tbody>
+        <% storages.forEach(function (s) { %>
+          <tr>
+            <td colspan="3" data-label="Lagerort">
+              <form method="post" action="/lagerort/<%= s.id %>/bearbeiten" class="teilform">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input name="name" value="<%= s.name %>" required aria-label="Name" class="wachsend">
+                <input name="location" value="<%= s.location || '' %>" placeholder="Standort" aria-label="Standort" class="wachsend">
+                <input name="note" value="<%= s.note || '' %>" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+                <input type="number" name="sort_order" value="<%= s.sort_order %>" aria-label="Reihenfolge" style="width:5rem">
+                <button class="btn btn-klein" type="submit">Speichern</button>
+              </form>
+            </td>
+            <td data-label="Teile"><%= s.item_count %></td>
+            <td data-label="Aktion">
+              <form method="post" action="/lagerort/<%= s.id %>/loeschen" class="inline"
+                    onsubmit="return confirm('Lagerort „<%= s.name %>“ löschen? Der Inhalt bleibt erhalten und liegt danach im Lager ohne Ort.');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<section class="block">
+  <h2>Neuer Lagerort</h2>
+  <form method="post" action="/lagerorte/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="z. B. Schrank 1 *" required aria-label="Name" class="wachsend">
+    <input name="location" placeholder="Standort, z. B. Gerätehaus Raum 2" aria-label="Standort" class="wachsend">
+    <input name="note" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>

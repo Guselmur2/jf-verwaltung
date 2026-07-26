@@ -24,6 +24,27 @@ router.get('/suche', (req, res) => {
   });
 });
 
+/**
+ * Ziel des Barcode-Scans. Genau ein Treffer fuehrt direkt zum Ablageort,
+ * sonst landet man auf der Suche und sieht alle Kandidaten.
+ */
+router.get('/scannen', (req, res) => {
+  const nr = (req.query.nr || '').trim();
+  if (!nr) return res.render('scannen', { title: 'Barcode scannen' });
+
+  const treffer = m.findByInventoryNo(nr);
+  if (treffer.length === 1) {
+    const t = treffer[0];
+    if (t.locker_id) return res.redirect(`/spint/${t.locker_id}`);
+    if (t.storage_id) return res.redirect(`/lagerort/${t.storage_id}`);
+    return res.redirect(`/lager?q=${encodeURIComponent(nr)}`);
+  }
+  if (treffer.length === 0) {
+    req.session.flash = { type: 'warn', text: `Keine Ausrüstung mit Inventarnummer „${nr}“ gefunden.` };
+  }
+  res.redirect(`/suche?q=${encodeURIComponent(nr)}`);
+});
+
 // Ziel des QR-Codes am Spint. Angesprochen ueber die id, weil Nummern je Bereich
 // doppelt vorkommen duerfen.
 router.get('/spint/:id(\\d+)', (req, res) => {
@@ -45,13 +66,16 @@ router.get('/spint/:id(\\d+)', (req, res) => {
 
 router.get('/lager', (req, res) => {
   const typeId = req.query.art || '';
+  const ort = req.query.ort || '';
   const search = (req.query.q || '').trim();
   res.render('lager', {
     title: 'Lager',
-    items: m.storageEquipment({ typeId: typeId || null, search }),
+    items: m.storageEquipment({ typeId: typeId || null, search, storageId: ort || null }),
     types: m.activeTypes(),
     lockers: m.allLockers(),
+    storages: m.storagesAll(),
     typeId,
+    ort,
     search,
   });
 });
@@ -62,23 +86,26 @@ router.get('/qr', auth.requireLogin, async (req, res, next) => {
       /\/+$/,
       ''
     );
-    const lockers = m.allLockers().map((l) => ({
-      ...l,
-      member_name: l.member_id ? m.q.memberById.get(l.member_id)?.name : null,
-    }));
+    const svg = (url) => QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
 
     const codes = await Promise.all(
-      lockers.map(async (l) => {
-        const url = `${base}/spint/${l.id}`;
-        return {
-          ...l,
-          url,
-          svg: await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }),
-        };
+      m
+        .allLockers()
+        .map((l) => ({ ...l, member_name: l.member_id ? m.q.memberById.get(l.member_id)?.name : null }))
+        .map(async (l) => {
+          const url = `${base}/spint/${l.id}`;
+          return { ...l, url, svg: await svg(url) };
+        })
+    );
+
+    const storageCodes = await Promise.all(
+      m.storagesAll().map(async (s) => {
+        const url = `${base}/lagerort/${s.id}`;
+        return { ...s, url, svg: await svg(url) };
       })
     );
 
-    res.render('qr', { title: 'QR-Etiketten', codes, base });
+    res.render('qr', { title: 'QR-Etiketten', codes, storageCodes, base });
   } catch (err) {
     next(err);
   }

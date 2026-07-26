@@ -35,6 +35,7 @@ function formData(locker, extra = {}) {
     items: locker ? m.equipmentOfLocker(locker.id) : [],
     types: m.activeTypes(),
     storage: locker ? m.storageEquipment() : [],
+    storagePlaces: m.storagesAll(),
     error: null,
     ...extra,
   };

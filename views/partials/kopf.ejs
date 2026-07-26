@@ -20,15 +20,20 @@
     <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
     <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
     <% if (user) { %>
+      <a href="/aufgaben" class="<%= path.startsWith('/aufgaben') ? 'aktiv' : '' %>">
+        Aufgaben<% if (offeneAufgaben) { %> <span class="zaehler"><%= offeneAufgaben %></span><% } %>
+      </a>
       <a href="/qr" class="<%= path.startsWith('/qr') ? 'aktiv' : '' %>">QR</a>
       <a href="/verlauf" class="<%= path.startsWith('/verlauf') ? 'aktiv' : '' %>">Verlauf</a>
     <% } %>
   </nav>
+  <button class="scanknopf" type="button" data-scan="suche" title="Barcode scannen" aria-label="Barcode scannen">📷</button>
   <div class="userbox">
     <% if (user) { %>
       <details class="menu">
         <summary><%= user.name %><% if (isJugendwart) { %> <span class="chip chip-jw">JW</span><% } %></summary>
         <div class="menu-inhalt">
+          <a href="/lagerorte">Lagerorte</a>
           <a href="/ausruestungsarten">Ausrüstungsarten</a>
           <a href="/ausgemustert">Ausgemustert</a>
           <% if (isJugendwart) { %>

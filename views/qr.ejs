@@ -17,9 +17,12 @@
   <button class="btn btn-klein" type="submit">Übernehmen</button>
 </form>
 
-<% if (codes.length === 0) { %>
-  <p class="leer">Noch keine Spinte angelegt.</p>
-<% } else { %>
+<% if (codes.length === 0 && storageCodes.length === 0) { %>
+  <p class="leer">Noch keine Spinte und keine Lagerorte angelegt.</p>
+<% } %>
+
+<% if (codes.length) { %>
+  <h2 class="druckkopf">Spinte</h2>
   <div class="etiketten">
     <% codes.forEach(function (c) { %>
       <div class="etikett">
@@ -29,6 +32,23 @@
           <% if (showAreas && c.area_name) { %><span class="klein"><%= c.area_name %></span><% } %>
           <span><%= c.member_name || 'frei' %></span>
           <% if (c.location) { %><span class="klein"><%= c.location %></span><% } %>
+          <span class="url"><%= c.url %></span>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<% if (storageCodes.length) { %>
+  <h2 class="druckkopf">Lagerorte</h2>
+  <div class="etiketten">
+    <% storageCodes.forEach(function (c) { %>
+      <div class="etikett">
+        <div class="etikett-qr"><%- c.svg %></div>
+        <div class="etikett-text">
+          <strong><%= c.name %></strong>
+          <% if (c.location) { %><span class="klein"><%= c.location %></span><% } %>
+          <span><%= c.item_count %> Teile</span>
           <span class="url"><%= c.url %></span>
         </div>
       </div>

@@ -101,6 +101,7 @@
 
             <input name="size" value="<%= it.size || '' %>" placeholder="Größe" aria-label="Größe" size="8">
             <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+            <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
 
             <select name="condition" aria-label="Zustand">
               <% ['gut', 'gebraucht', 'defekt'].forEach(function (c) { %>
@@ -113,13 +114,21 @@
           </form>
 
           <div class="teilaktionen">
-            <form method="post" action="/ausruestung/<%= it.id %>/verschieben">
+            <a class="btn btn-klein" href="/ausruestung/<%= it.id %>/tauschen">Tauschen / Bestellen</a>
+
+            <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="zurueck" value="<%= zurueck %>">
-              <input type="hidden" name="locker_id" value="">
-              <button class="btn btn-klein btn-still" type="submit">→ Lager</button>
+              <select name="ziel" aria-label="Ins Lager legen">
+                <option value="lager">→ Lager (ohne Ort)</option>
+                <% storagePlaces.forEach(function (s) { %>
+                  <option value="lager:<%= s.id %>">→ <%= s.name %></option>
+                <% }); %>
+              </select>
+              <button class="btn btn-klein btn-still" type="submit">OK</button>
             </form>
-            <form method="post" action="/ausruestung/<%= it.id %>/ausmustern"
+
+            <form method="post" action="/ausruestung/<%= it.id %>/ausmustern" class="inline"
                   onsubmit="return confirm('<%= it.type_name %> wirklich ausmustern?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="zurueck" value="<%= zurueck %>">
@@ -145,6 +154,7 @@
     </select>
     <input name="size" placeholder="Größe" aria-label="Größe" size="8">
     <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+    <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
     <select name="condition" aria-label="Zustand">
       <option value="gut">gut</option>
       <option value="gebraucht">gebraucht</option>
