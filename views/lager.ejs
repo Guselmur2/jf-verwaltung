@@ -75,8 +75,10 @@
           </select>
 
           <input name="size" value="<%= it.size || '' %>" placeholder="Größe" aria-label="Größe" size="8">
-          <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
-          <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+          <span class="feldpaar">
+            <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+            <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+          </span>
 
           <select name="condition" aria-label="Zustand">
             <% ['gut', 'gebraucht', 'defekt'].forEach(function (c) { %>
@@ -135,8 +137,10 @@
     <label class="kasten">Anzahl
       <input type="number" name="anzahl" value="1" min="1" max="100" aria-label="Anzahl" style="width:4.5rem">
     </label>
-    <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
-    <button class="btn btn-klein btn-still" type="button" data-scan="feld">📷</button>
+    <span class="feldpaar">
+      <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+      <button class="btn btn-klein btn-still" type="button" data-scan="feld">📷</button>
+    </span>
     <select name="ziel" aria-label="Lagerort">
       <% storages.forEach(function (s) { %>
         <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>

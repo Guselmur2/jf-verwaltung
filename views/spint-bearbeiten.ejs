@@ -100,8 +100,10 @@
             </select>
 
             <input name="size" value="<%= it.size || '' %>" placeholder="Größe" aria-label="Größe" size="8">
-            <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
-            <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+            <span class="feldpaar">
+              <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+              <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+            </span>
 
             <select name="condition" aria-label="Zustand">
               <% ['gut', 'gebraucht', 'defekt'].forEach(function (c) { %>
@@ -114,7 +116,7 @@
           </form>
 
           <div class="teilaktionen">
-            <a class="btn btn-klein" href="/ausruestung/<%= it.id %>/tauschen">Tauschen / Bestellen</a>
+            <a class="btn btn-klein btn-still" href="/ausruestung/<%= it.id %>/tauschen">Tauschen / Bestellen</a>
 
             <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -153,8 +155,10 @@
       <% }); %>
     </select>
     <input name="size" placeholder="Größe" aria-label="Größe" size="8">
-    <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
-    <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+    <span class="feldpaar">
+      <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+      <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+    </span>
     <select name="condition" aria-label="Zustand">
       <option value="gut">gut</option>
       <option value="gebraucht">gebraucht</option>
