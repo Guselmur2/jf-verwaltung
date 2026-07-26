@@ -42,15 +42,21 @@ CREATE TABLE IF NOT EXISTS gender_area (
 
 -- Spinte. code ist nur je Bereich eindeutig, damit die Nummerierung pro Bereich
 -- neu beginnen darf. Angesprochen werden Spinte deshalb ueber die id.
+-- token ist das Geheimnis im QR-Code. Ohne Anmeldung ist ein Spint nur ueber
+-- diesen Token erreichbar — mit fortlaufenden IDs koennte sonst jeder im WLAN
+-- alle Spinte durchprobieren und die Daten aller Jugendlichen lesen.
 CREATE TABLE IF NOT EXISTS lockers (
   id        INTEGER PRIMARY KEY,
   code      TEXT NOT NULL COLLATE NOCASE,           -- steht auf dem QR-Etikett, z.B. "01"
+  token     TEXT,                                   -- Geheimnis fuer den QR-Link
   label     TEXT,                                   -- optionale Bezeichnung
   location  TEXT,                                   -- z.B. "Umkleide links"
   area_id   INTEGER REFERENCES areas(id),
   member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
   note      TEXT
 );
+-- Der Index auf token entsteht in migrate() (db.js), weil bei einer aelteren
+-- Datenbank erst die Spalte nachgeruestet werden muss.
 
 CREATE UNIQUE INDEX IF NOT EXISTS lockers_member_unique
   ON lockers(member_id) WHERE member_id IS NOT NULL;
@@ -72,11 +78,13 @@ CREATE TABLE IF NOT EXISTS equipment_types (
 CREATE TABLE IF NOT EXISTS storages (
   id         INTEGER PRIMARY KEY,
   name       TEXT NOT NULL UNIQUE COLLATE NOCASE,   -- z.B. "Schrank 1"
+  token      TEXT,                                   -- Geheimnis fuer den QR-Link
   location   TEXT,                                   -- z.B. "Gerätehaus, Raum 2"
   note       TEXT,
   sort_order INTEGER NOT NULL DEFAULT 100,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Index auf token: siehe migrate() in db.js.
 
 -- Einzelne Ausruestungsstuecke. Wo ein Teil liegt, ergibt sich so:
 --   locker_id gesetzt                  -> in diesem Spint

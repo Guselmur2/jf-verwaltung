@@ -89,6 +89,33 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ohne Anmeldung ist grundsaetzlich alles gesperrt. Offen sind nur die
+// Anmeldung, statische Dateien und die beiden Token-Adressen, die in den
+// QR-Codes stehen. Absichtlich als Positivliste: eine neue Seite ist damit
+// automatisch geschuetzt, statt versehentlich oeffentlich zu sein.
+const OHNE_ANMELDUNG = [
+  /^\/anmelden$/,
+  /^\/abmelden$/,
+  /^\/einrichtung$/,
+  /^\/static\//,
+  /^\/vendor\//,
+  /^\/s\/[a-z2-9]+$/, // Spint per QR-Code
+  /^\/l\/[a-z2-9]+$/, // Lagerort per QR-Code
+];
+
+app.use((req, res, next) => {
+  if (req.session.user) return next();
+  if (OHNE_ANMELDUNG.some((muster) => muster.test(req.path))) return next();
+
+  // Nach dem Anmelden dorthin zurueck, wo man hinwollte.
+  if (req.method === 'GET') req.session.returnTo = req.originalUrl;
+  req.session.flash = {
+    type: 'info',
+    text: 'Ohne Anmeldung sind nur die Spint-Seiten per QR-Code sichtbar. Bitte anmelden.',
+  };
+  res.redirect('/anmelden');
+});
+
 app.use(require('./src/routes/setup'));
 app.use(require('./src/routes/auth'));
 app.use(require('./src/routes/public'));

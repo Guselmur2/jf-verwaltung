@@ -5,6 +5,7 @@ const { db } = require('../db');
 const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
+const { neuerToken } = require('../tokens');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -69,10 +70,10 @@ router.post('/spinte/neu', login, (req, res) => {
   try {
     const info = db
       .prepare(
-        'INSERT INTO lockers (code, label, location, note, area_id, member_id) ' +
-          'VALUES (@code, @label, @location, @note, @area_id, @member_id)'
+        'INSERT INTO lockers (code, token, label, location, note, area_id, member_id) ' +
+          'VALUES (@code, @token, @label, @location, @note, @area_id, @member_id)'
       )
-      .run(data);
+      .run({ ...data, token: neuerToken() });
     audit.log(req, 'spint', info.lastInsertRowid, 'angelegt', `Spint ${data.code}${area ? ` (${area.name})` : ''}`);
     req.session.flash = { type: 'ok', text: `Spint ${data.code} angelegt.` };
     res.redirect(`/spint/${info.lastInsertRowid}/bearbeiten`);

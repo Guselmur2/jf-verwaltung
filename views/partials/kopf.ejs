@@ -10,24 +10,35 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">
-    <span class="brand-mark">JF</span>
-    <span>Spintverwaltung</span>
-  </a>
-  <nav class="mainnav">
-    <a href="/" class="<%= path === '/' ? 'aktiv' : '' %>">Spinte</a>
-    <a href="/lager" class="<%= path.startsWith('/lager') ? 'aktiv' : '' %>">Lager</a>
-    <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
-    <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
-    <% if (user) { %>
+  <% if (user) { %>
+    <a class="brand" href="/">
+      <span class="brand-mark">JF</span>
+      <span>Spintverwaltung</span>
+    </a>
+  <% } else { %>
+    <span class="brand">
+      <span class="brand-mark">JF</span>
+      <span>Spintverwaltung</span>
+    </span>
+  <% } %>
+  <%# Ohne Anmeldung gibt es keine Navigation — die Seite zeigt dann nur den
+      einen Spint bzw. Lagerort, dessen QR-Code gescannt wurde. %>
+  <% if (user) { %>
+    <nav class="mainnav">
+      <a href="/" class="<%= path === '/' ? 'aktiv' : '' %>">Spinte</a>
+      <a href="/lager" class="<%= path.startsWith('/lager') ? 'aktiv' : '' %>">Lager</a>
+      <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
+      <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
       <a href="/aufgaben" class="<%= path.startsWith('/aufgaben') ? 'aktiv' : '' %>">
         Aufgaben<% if (offeneAufgaben) { %> <span class="zaehler"><%= offeneAufgaben %></span><% } %>
       </a>
       <a href="/qr" class="<%= path.startsWith('/qr') ? 'aktiv' : '' %>">QR</a>
       <a href="/verlauf" class="<%= path.startsWith('/verlauf') ? 'aktiv' : '' %>">Verlauf</a>
-    <% } %>
-  </nav>
-  <button class="scanknopf" type="button" data-scan="suche" title="Barcode scannen" aria-label="Barcode scannen">📷</button>
+    </nav>
+    <button class="scanknopf" type="button" data-scan="suche" title="Barcode scannen" aria-label="Barcode scannen">📷</button>
+  <% } else { %>
+    <span class="mainnav"></span>
+  <% } %>
   <div class="userbox">
     <% if (user) { %>
       <details class="menu">

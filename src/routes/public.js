@@ -4,10 +4,12 @@ const express = require('express');
 const QRCode = require('qrcode');
 const auth = require('../auth');
 const m = require('../model');
+const { istToken } = require('../tokens');
 
 const router = express.Router();
+const login = auth.requireLogin;
 
-router.get('/', (req, res) => {
+router.get('/', login, (req, res) => {
   res.render('uebersicht', {
     title: 'Spinte',
     lockers: m.lockerOverview(),
@@ -15,7 +17,7 @@ router.get('/', (req, res) => {
   });
 });
 
-router.get('/suche', (req, res) => {
+router.get('/suche', login, (req, res) => {
   const term = (req.query.q || '').trim();
   res.render('suche', {
     title: 'Suche',
@@ -28,7 +30,7 @@ router.get('/suche', (req, res) => {
  * Ziel des Barcode-Scans. Genau ein Treffer fuehrt direkt zum Ablageort,
  * sonst landet man auf der Suche und sieht alle Kandidaten.
  */
-router.get('/scannen', (req, res) => {
+router.get('/scannen', login, (req, res) => {
   const nr = (req.query.nr || '').trim();
   if (!nr) return res.render('scannen', { title: 'Barcode scannen' });
 
@@ -45,16 +47,8 @@ router.get('/scannen', (req, res) => {
   res.redirect(`/suche?q=${encodeURIComponent(nr)}`);
 });
 
-// Ziel des QR-Codes am Spint. Angesprochen ueber die id, weil Nummern je Bereich
-// doppelt vorkommen duerfen.
-router.get('/spint/:id(\\d+)', (req, res) => {
-  const locker = m.q.lockerById.get(req.params.id);
-  if (!locker) {
-    return res.status(404).render('fehler', {
-      title: 'Spint unbekannt',
-      message: 'Zu diesem QR-Code gibt es keinen Spint mehr. Vielleicht wurde er gelöscht.',
-    });
-  }
+/** Rendert die Spint-Seite — gemeinsam fuer QR-Token und interne id. */
+function spintSeite(res, locker) {
   res.render('spint', {
     title: `Spint ${locker.code}`,
     locker,
@@ -62,9 +56,32 @@ router.get('/spint/:id(\\d+)', (req, res) => {
     member: locker.member_id ? m.q.memberById.get(locker.member_id) : null,
     items: m.equipmentOfLocker(locker.id),
   });
+}
+
+const SPINT_WEG = {
+  title: 'Spint unbekannt',
+  message: 'Zu diesem QR-Code gibt es keinen Spint mehr. Vielleicht wurde er gelöscht.',
+};
+
+// Ziel des QR-Codes am Spint. Der Token ist das Geheimnis: nur wer am Spint
+// steht und scannt, kommt ohne Anmeldung an diese Seite. Fremde Spinte lassen
+// sich damit nicht durchprobieren.
+router.get('/s/:token', (req, res) => {
+  if (!istToken(req.params.token)) return res.status(404).render('fehler', SPINT_WEG);
+  const locker = m.lockerByToken(req.params.token);
+  if (!locker) return res.status(404).render('fehler', SPINT_WEG);
+  spintSeite(res, locker);
 });
 
-router.get('/lager', (req, res) => {
+// Gleiche Seite ueber die interne Nummer — nur fuer angemeldete Betreuer, damit
+// die Verlinkung innerhalb der Software kurz bleibt.
+router.get('/spint/:id(\\d+)', login, (req, res) => {
+  const locker = m.q.lockerById.get(req.params.id);
+  if (!locker) return res.status(404).render('fehler', SPINT_WEG);
+  spintSeite(res, locker);
+});
+
+router.get('/lager', login, (req, res) => {
   const typeId = req.query.art || '';
   const ort = req.query.ort || '';
   const search = (req.query.q || '').trim();
@@ -88,19 +105,21 @@ router.get('/qr', auth.requireLogin, async (req, res, next) => {
     );
     const svg = (url) => QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
 
+    // Die QR-Codes tragen den Token, nicht die interne Nummer — sonst koennte
+    // jeder im WLAN von einem Etikett auf alle anderen Spinte schliessen.
     const codes = await Promise.all(
       m
         .allLockers()
         .map((l) => ({ ...l, member_name: l.member_id ? m.q.memberById.get(l.member_id)?.name : null }))
         .map(async (l) => {
-          const url = `${base}/spint/${l.id}`;
+          const url = `${base}/s/${l.token}`;
           return { ...l, url, svg: await svg(url) };
         })
     );
 
     const storageCodes = await Promise.all(
       m.storagesAll().map(async (s) => {
-        const url = `${base}/lagerort/${s.id}`;
+        const url = `${base}/l/${s.token}`;
         return { ...s, url, svg: await svg(url) };
       })
     );

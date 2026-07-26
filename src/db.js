@@ -39,6 +39,39 @@ function migrate() {
   }
   dropGlobalCodeUniqueIfPresent();
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS lockers_area_code ON lockers(area_id, code)');
+
+  addTokenColumn('lockers', 'lockers_token');
+  addTokenColumn('storages', 'storages_token');
+}
+
+// Geheimnis fuer die QR-Links. Bestehende Zeilen bekommen eines nachgetragen,
+// damit ohne Anmeldung niemand fremde Spinte durchprobieren kann.
+function addTokenColumn(table, indexName) {
+  const { neuerToken } = require('./tokens');
+
+  if (!hasColumn(table, 'token')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN token TEXT`);
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ${indexName} ON ${table}(token) WHERE token IS NOT NULL`);
+
+  const offen = db.prepare(`SELECT id FROM ${table} WHERE token IS NULL`).all();
+  if (!offen.length) return;
+
+  const setzen = db.prepare(`UPDATE ${table} SET token = ? WHERE id = ?`);
+  db.transaction(() => {
+    for (const row of offen) {
+      // Bei einer Kollision (praktisch unmoeglich) einfach neu wuerfeln.
+      for (let versuch = 0; versuch < 10; versuch++) {
+        try {
+          setzen.run(neuerToken(), row.id);
+          break;
+        } catch (err) {
+          if (!/UNIQUE/i.test(err.message)) throw err;
+        }
+      }
+    }
+  })();
+  console.log(`${offen.length} ${table}: QR-Token nachgetragen — Etiketten müssen neu gedruckt werden.`);
 }
 
 // Frueher war lockers.code global eindeutig (inline UNIQUE -> Auto-Index nur auf

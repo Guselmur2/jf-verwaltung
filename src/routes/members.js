@@ -56,7 +56,7 @@ function auditFelder(row) {
 }
 const AUDIT_LABELS = { ...FIELDS, Geburtstag: 'Geburtstag', Geschlecht: 'Geschlecht' };
 
-router.get('/mitglieder', (req, res) => {
+router.get('/mitglieder', login, (req, res) => {
   const showAll = req.query.alle === '1';
   res.render('mitglieder', {
     title: 'Mitglieder',

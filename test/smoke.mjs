@@ -175,20 +175,55 @@ check('Spint-Seite zeigt Bereichs-Kennzeichnung', r.text.includes('Umkleide Jung
 r = await req('/suche?q=HE-0042');
 check('Suche findet Inventarnummer', r.text.includes('Helm'));
 r = await req('/qr');
-check('QR-Seite rendert SVG mit id-Link', r.text.includes('<svg') && r.text.includes(`/spint/${boys01.id}`));
+check('QR-Seite rendert SVG mit Token-Link',
+  r.text.includes('<svg') && /\/s\/[a-z2-9]{8,}/.test(r.text) && !r.text.includes(`/spint/${boys01.id}`));
 
-console.log('\n8) Öffentlicher Zugriff (abgemeldet)');
+console.log('\n8) Ohne Anmeldung: nur der eigene QR-Code');
+// Token des Jungs-Spints aus der QR-Seite holen (dort steht die Adresse).
+r = await req('/qr');
+const tokenJungs = r.text.match(/\/s\/([a-z2-9]{8,})/)?.[1];
+const tokenMaedels = [...r.text.matchAll(/\/s\/([a-z2-9]{8,})/g)].map((x) => x[1])[1];
+check('QR-Codes tragen einen Token statt der Nummer', !!tokenJungs && tokenJungs !== String(boys01.id));
+check('jeder Spint hat einen eigenen Token', !!tokenMaedels && tokenMaedels !== tokenJungs);
+
 const merk = cookie;
 cookie = '';
+
+r = await req(`/s/${tokenJungs}`);
+check('Spint per QR-Token ohne Login lesbar', r.status === 200 && r.text.includes('Max Muster'));
+check('kein Bearbeiten-Knopf', !r.text.includes('/bearbeiten'));
+check('keine Navigation zu anderen Seiten', !r.text.includes('href="/mitglieder"') && !r.text.includes('href="/lager"'));
+check('kein Link auf die Spint-Übersicht', !r.text.includes('Alle Spinte'));
+
+// Der Kern: Durchprobieren darf nichts bringen.
 r = await req(`/spint/${boys01.id}`);
-check('Spint ohne Login lesbar', r.status === 200 && r.text.includes('Max Muster'));
-check('kein Bearbeiten-Knopf', !r.text.includes(`/spint/${boys01.id}/bearbeiten`));
-r = await req(`/spint/${boys01.id}/bearbeiten`);
-check('Bearbeiten leitet zum Login', r.status === 302 && r.location === '/anmelden', r.location);
+check('Spint über die laufende Nummer ist gesperrt', r.status === 302 && r.location === '/anmelden', r.location);
+r = await req('/');
+check('Übersicht ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/mitglieder');
+check('Mitgliederliste ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/suche?q=Muster');
+check('Suche ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/lager');
+check('Lagerbestand ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/scannen?nr=HE-0042');
+check('Scan-Weiterleitung ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/qr');
+check('QR-Druckseite ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/aufgaben');
+check('Aufgaben sind gesperrt', r.status === 302 && r.location === '/anmelden');
 r = await req('/bereiche');
-check('Bereiche-Seite nur mit Login', r.status === 302);
-r = await req('/spint/9999');
-check('unbekannter Spint → 404', r.status === 404);
+check('Bereiche sind gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req(`/s/${tokenJungs}/bearbeiten`);
+check('erfundene Unterseite am Token ist gesperrt', r.status === 302 && r.location === '/anmelden', r.location);
+r = await req('/s/abcdefghjkmn');
+check('geratener Token führt ins Leere', r.status === 404, String(r.status));
+
+// Der zweite Spint bleibt fremd, obwohl man den ersten kennt.
+r = await req(`/s/${tokenMaedels}`);
+check('anderer Spint zeigt nur dessen eigenes Mitglied',
+  r.status === 200 && r.text.includes('Lena Muster') && !r.text.includes('Max Muster'));
+
 cookie = merk;
 
 console.log('\n9) Rollen und Rechte');
@@ -246,14 +281,19 @@ check('Lagerort zeigt 10 × Jacke', r.text.includes('10 ×') && r.text.includes(
 check('Lagerort zeigt 20 × Schuhe', r.text.includes('20 ×') && r.text.includes('Schuhe'));
 check('Lagerort zeigt Größen', r.text.includes('Gr. 176') && r.text.includes('Gr. 38'));
 
+r = await req('/qr');
+const tokenSchrank = r.text.match(/\/l\/([a-z2-9]{8,})/)?.[1];
+check('QR-Seite enthält Lagerort-Etikett mit Token', !!tokenSchrank && r.text.includes('Lagerorte'));
+
 const angemeldet = cookie;
 cookie = '';
+r = await req(`/l/${tokenSchrank}`);
+check('Lagerort per QR-Token ohne Login lesbar', r.status === 200 && r.text.includes('Schrank 1'));
 r = await req(`/lagerort/${schrank}`);
-check('Lagerort ohne Login lesbar (QR-Ziel)', r.status === 200 && r.text.includes('Schrank 1'));
+check('Lagerort über die laufende Nummer ist gesperrt', r.status === 302 && r.location === '/anmelden');
+r = await req('/lagerorte');
+check('Lagerort-Verwaltung ist gesperrt', r.status === 302 && r.location === '/anmelden');
 cookie = angemeldet;
-
-r = await req('/qr');
-check('QR-Seite enthält Lagerort-Etikett', r.text.includes(`/lagerort/${schrank}`) && r.text.includes('Lagerorte'));
 
 console.log('\n12) Barcode-Scan');
 r = await req('/scannen?nr=HE-0042');

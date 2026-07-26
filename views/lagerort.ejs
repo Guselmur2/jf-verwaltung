@@ -68,10 +68,10 @@
     <% if (user) { %>
       <a class="btn" href="/lager?ort=<%= storage.id %>">Inhalt bearbeiten</a>
       <a class="btn btn-still" href="/lagerorte">Alle Lagerorte</a>
+      <button class="btn btn-still" type="button" data-scan="suche">Barcode scannen</button>
     <% } else { %>
       <a class="btn btn-still" href="/anmelden">Als Betreuer anmelden zum Bearbeiten</a>
     <% } %>
-    <button class="btn btn-still" type="button" data-scan="suche">Barcode scannen</button>
   </div>
 </article>
 

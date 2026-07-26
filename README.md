@@ -8,13 +8,14 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 
 | Seite | Adresse | Wer |
 |---|---|---|
-| Spint-Detail (Ziel des QR-Codes) | `/spint/7` | alle im WLAN, nur lesen |
-| Lagerort-Detail (Ziel des QR-Codes) | `/lagerort/3` | alle im WLAN, nur lesen |
-| Übersicht aller Spinte | `/` | alle |
-| Lager (Ausrüstung ohne Spint) | `/lager` | alle lesen, Betreuer ändern |
-| Mitglieder | `/mitglieder` | alle lesen, Betreuer ändern |
-| Suche über alles | `/suche` | alle |
-| Barcode scannen | `/scannen` | alle |
+| Spint-Detail (Ziel des QR-Codes) | `/s/<token>` | **jeder, der diesen QR-Code scannt** |
+| Lagerort-Detail (Ziel des QR-Codes) | `/l/<token>` | **jeder, der diesen QR-Code scannt** |
+| Übersicht aller Spinte | `/` | Betreuer |
+| Lager (Ausrüstung ohne Spint) | `/lager` | Betreuer |
+| Mitglieder | `/mitglieder` | Betreuer |
+| Suche über alles | `/suche` | Betreuer |
+| Barcode scannen | `/scannen` | Betreuer |
+| Spint-Detail intern | `/spint/7` | Betreuer |
 | Spint bearbeiten | `/spint/7/bearbeiten` | Betreuer |
 | Tauschen / Bestellen | `/ausruestung/12/tauschen` | Betreuer |
 | Aufgaben | `/aufgaben` | Betreuer, zuständig ist der Jugendwart |
@@ -26,9 +27,36 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
 | Betreuer verwalten | `/betreuer` | **nur Jugendwart** |
 
-Ein Spint wird über seine interne Nummer (`/spint/<id>`) angesprochen, nicht über die
-aufgedruckte Spint-Nummer — denn dieselbe Nummer darf in verschiedenen Umkleidebereichen
-doppelt vorkommen. Die id steckt im QR-Code; abtippen muss sie niemand.
+## Wer was sehen darf
+
+**Ohne Anmeldung ist alles gesperrt — bis auf die eine Seite, deren QR-Code man gerade
+gescannt hat.** Keine Übersicht, keine Mitgliederliste, keine Suche, kein Lagerbestand.
+
+Damit das hält, steht im QR-Code **nicht** die laufende Nummer, sondern ein zufälliger
+Token: `/s/t8exz96cepde` statt `/s/1`. Sonst könnte jeder im WLAN von einem Etikett auf alle
+anderen schließen und einfach `/spint/2`, `/spint/3` … durchprobieren — und hätte damit Namen
+und Kleidergrößen aller Jugendlichen. Der Token ist 12 Zeichen aus einem 31-stelligen
+Alphabet (rund 59 Bit); Durchprobieren ist ausgeschlossen.
+
+Die Spint-Seite zeigt nur **ihr eigenes** Mitglied und ihren eigenen Inhalt. Für Anonyme gibt
+es dort keine Navigation und keinen Link, der irgendwo anders hinführt — nur „Anmelden".
+
+Der Zugriffsschutz ist als **Positivliste** in `server.js` gebaut: gesperrt ist alles, was
+nicht ausdrücklich freigegeben ist (Anmeldung, statische Dateien, `/s/<token>`,
+`/l/<token>`). Eine neu hinzugefügte Seite ist damit automatisch geschützt, statt
+versehentlich offen zu stehen.
+
+Intern verlinkt die Software Spinte weiter über die kurze Nummer (`/spint/7`) — die
+funktioniert aber **nur angemeldet**. Nötig ist die interne Nummer, weil die aufgedruckte
+Spint-Nummer in verschiedenen Umkleidebereichen doppelt vorkommen darf.
+
+> **Beim Umstieg auf Token müssen alle Etiketten neu gedruckt werden.** Beim ersten Start
+> nach dem Update trägt die Software Token für bestehende Spinte und Lagerorte nach und weist
+> im Protokoll darauf hin. Alte Etiketten zeigen dann ins Leere.
+
+Was der Token **nicht** leistet: Wer einen QR-Code abfotografiert oder die Adresse notiert,
+kann diesen einen Spint weiter aufrufen. Ein Token lässt sich derzeit nicht einzeln
+zurücksetzen — wenn das gebraucht wird, sag Bescheid.
 
 **Rollen:** Betreuer pflegen Spinte, Ausrüstung, Mitglieder und Ausrüstungsarten.
 Jugendwarte sind Betreuer und dürfen zusätzlich Zugänge anlegen, Rollen ändern,
@@ -319,9 +347,12 @@ Netz mitliest, sieht Passwörter im Klartext. Deshalb gehört der Pi ins Heim-/V
 und **nicht** ins Internet — kein Portfreigeben am Router. Wer die Seite von außen braucht,
 setzt ein VPN davor.
 
-Das Lesen der Spint-Seiten ist bewusst ohne Anmeldung möglich, damit ein QR-Scan sofort
-etwas anzeigt. Damit sind Namen und Kleidergrößen der Jugendlichen für jeden im WLAN
-sichtbar. Wenn das nicht gewollt ist: Gastnetz vom Vereinsnetz trennen.
+Das Lesen **einer** Spint-Seite ist bewusst ohne Anmeldung möglich, damit ein QR-Scan sofort
+etwas anzeigt — aber nur die Seite, deren Token man gescannt hat (siehe „Wer was sehen
+darf"). Alles andere verlangt eine Anmeldung.
+
+Wer im Netz mitliest, sieht über HTTP allerdings auch die Token im Klartext. Für den
+Praxisbetrieb ist HTTPS deshalb doppelt sinnvoll: für die Kamera und für die Token.
 
 ## Datensicherung
 
@@ -367,6 +398,8 @@ src/schema.sql         Tabellen
 src/auth.js            Anmeldung, Rollen, CSRF
 src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
 src/sizes.js           Größenschritte (164 -> 170, Schuh 32 -> 34)
+src/tokens.js          Geheimnisse für die QR-Links
+scripts/               Testdaten anlegen, HTTPS-Testinstanz starten
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich

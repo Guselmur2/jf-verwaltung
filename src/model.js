@@ -240,6 +240,15 @@ function lockersInArea(areaId) {
   return db.prepare(`${LOCKER_SELECT} WHERE l.area_id = ? ${LOCKER_ORDER}`).all(areaId);
 }
 
+/** Spint anhand des QR-Geheimnisses. Nur exakte Treffer, kein LIKE. */
+function lockerByToken(token) {
+  return db.prepare(`${LOCKER_SELECT} WHERE l.token = ?`).get(token) || null;
+}
+
+function storageByToken(token) {
+  return db.prepare('SELECT * FROM storages WHERE token = ?').get(token) || null;
+}
+
 // ---------------------------------------------------------------- Bereiche
 
 function areasAll() {
@@ -507,6 +516,8 @@ module.exports = {
   lockerOverview,
   allLockers,
   lockersInArea,
+  lockerByToken,
+  storageByToken,
   areasAll,
   primaryArea,
   ensureDefaultArea,

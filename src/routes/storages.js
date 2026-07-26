@@ -5,6 +5,7 @@ const { db } = require('../db');
 const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
+const { neuerToken, istToken } = require('../tokens');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -22,20 +23,28 @@ function nextSort() {
   return (db.prepare('SELECT MAX(sort_order) AS mx FROM storages').get().mx || 90) + 10;
 }
 
-// Ziel des QR-Codes am Schrank — ohne Anmeldung lesbar, wie die Spint-Seite.
-router.get('/lagerort/:id(\\d+)', (req, res) => {
+const LAGER_WEG = {
+  title: 'Lagerort unbekannt',
+  message: 'Zu diesem QR-Code gibt es keinen Lagerort mehr. Vielleicht wurde er gelöscht.',
+};
+
+function lagerortSeite(res, storage) {
+  res.render('lagerort', { title: storage.name, storage, ...m.storageContents(storage.id) });
+}
+
+// Ziel des QR-Codes am Schrank — ohne Anmeldung nur ueber den Token erreichbar.
+router.get('/l/:token', (req, res) => {
+  if (!istToken(req.params.token)) return res.status(404).render('fehler', LAGER_WEG);
+  const storage = m.storageByToken(req.params.token);
+  if (!storage) return res.status(404).render('fehler', LAGER_WEG);
+  lagerortSeite(res, storage);
+});
+
+// Gleiche Seite ueber die interne Nummer, nur fuer angemeldete Betreuer.
+router.get('/lagerort/:id(\\d+)', login, (req, res) => {
   const storage = m.q.storageById.get(req.params.id);
-  if (!storage) {
-    return res.status(404).render('fehler', {
-      title: 'Lagerort unbekannt',
-      message: 'Zu diesem QR-Code gibt es keinen Lagerort mehr. Vielleicht wurde er gelöscht.',
-    });
-  }
-  res.render('lagerort', {
-    title: storage.name,
-    storage,
-    ...m.storageContents(storage.id),
-  });
+  if (!storage) return res.status(404).render('fehler', LAGER_WEG);
+  lagerortSeite(res, storage);
 });
 
 router.get('/lagerorte', login, (req, res) => {
@@ -50,8 +59,11 @@ router.post('/lagerorte/neu', login, (req, res) => {
   }
   try {
     const info = db
-      .prepare('INSERT INTO storages (name, location, note, sort_order) VALUES (@name, @location, @note, @sort_order)')
-      .run({ ...data, sort_order: Number(req.body.sort_order) || nextSort() });
+      .prepare(
+        'INSERT INTO storages (name, token, location, note, sort_order) ' +
+          'VALUES (@name, @token, @location, @note, @sort_order)'
+      )
+      .run({ ...data, token: neuerToken(), sort_order: Number(req.body.sort_order) || nextSort() });
     audit.log(req, 'lagerort', info.lastInsertRowid, 'angelegt', data.name);
     req.session.flash = { type: 'ok', text: `Lagerort „${data.name}“ angelegt.` };
     res.redirect(`/lagerort/${info.lastInsertRowid}`);
