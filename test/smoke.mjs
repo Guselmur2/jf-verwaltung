@@ -276,6 +276,21 @@ r = await req('/ausruestung/neu', {
 });
 check('Menge + Inventarnummer wird abgelehnt', (await req('/lager')).text.includes('bitte die Inventarnummer leer lassen'));
 
+// Teile im Lager müssen bearbeitbar sein — sonst kommt man an Größe und
+// Inventarnummer eines eingelagerten Teils nicht heran.
+r = await req(`/lager?ort=${schrank}`);
+const lagerTeilId = Number(r.text.match(/\/ausruestung\/(\d+)\/bearbeiten/)?.[1]);
+check('Lagerzeilen haben ein Bearbeiten-Formular', !!lagerTeilId);
+check('mit Feld für die Inventarnummer', r.text.includes('name="inventory_no"'));
+token = await csrf(`/lager?ort=${schrank}`);
+r = await req(`/ausruestung/${lagerTeilId}/bearbeiten`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: `/lager?ort=${schrank}`, type_id: '1', size: '176', inventory_no: 'IM-LAGER-1', condition: 'gut' },
+});
+check('Speichern führt zur gefilterten Ansicht zurück', r.status === 302 && r.location === `/lager?ort=${schrank}`, r.location);
+r = await req(`/lager?ort=${schrank}`);
+check('geänderte Inventarnummer ist gespeichert', r.text.includes('IM-LAGER-1'));
+
 r = await req(`/lagerort/${schrank}`);
 check('Lagerort zeigt 10 × Jacke', r.text.includes('10 ×') && r.text.includes('Jacke'));
 check('Lagerort zeigt 20 × Schuhe', r.text.includes('20 ×') && r.text.includes('Schuhe'));

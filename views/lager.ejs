@@ -1,13 +1,17 @@
 <%- include('partials/kopf') %>
 <%
-  const zurueck = '/lager' + (ort ? '?ort=' + encodeURIComponent(ort) : '');
-  // Ablage-Ziele fuer die Verschieben-Auswahl: erst Lagerorte, dann Spinte.
+  // Nach dem Speichern soll die Filterung erhalten bleiben.
+  const filterTeile = [];
+  if (search) filterTeile.push('q=' + encodeURIComponent(search));
+  if (typeId) filterTeile.push('art=' + encodeURIComponent(typeId));
+  if (ort) filterTeile.push('ort=' + encodeURIComponent(ort));
+  const zurueck = '/lager' + (filterTeile.length ? '?' + filterTeile.join('&') : '');
 %>
 
 <div class="seitenkopf">
   <h1>Lager</h1>
   <span class="klein"><%= items.length %> Teile</span>
-  <% if (user) { %><a class="btn btn-still" href="/lagerorte">Lagerorte</a><% } %>
+  <a class="btn btn-still" href="/lagerorte">Lagerorte</a>
 </div>
 
 <% if (storages.length) { %>
@@ -51,63 +55,71 @@
 <% if (items.length === 0) { %>
   <p class="leer">Keine passenden Teile im Lager.</p>
 <% } else { %>
-  <div class="tabellenrahmen">
-    <table class="tabelle">
-      <thead>
-        <tr>
-          <th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Lagerort</th><th>Zustand</th>
-          <% if (user) { %><th>Verschieben nach</th><% } %>
-        </tr>
-      </thead>
-      <tbody>
-        <% items.forEach(function (it) { %>
-          <tr class="<%= it.condition === 'defekt' ? 'zeile-defekt' : '' %>">
-            <td data-label="Art"><%= it.type_name %></td>
-            <td data-label="Größe"><%= it.size || '–' %></td>
-            <td data-label="Inv.-Nr."><%= it.inventory_no || '–' %></td>
-            <td data-label="Lagerort">
-              <% if (it.storage_id) { %>
-                <a href="/lagerort/<%= it.storage_id %>"><%= it.storage_name %></a>
-              <% } else { %><span class="klein">ohne Ort</span><% } %>
-            </td>
-            <td data-label="Zustand"><span class="chip chip-<%= it.condition %>"><%= it.condition %></span></td>
-            <% if (user) { %>
-              <td data-label="Verschieben">
-                <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="zurueck" value="<%= zurueck %>">
-                  <select name="ziel" aria-label="Ziel">
-                    <option value="">— wählen —</option>
-                    <optgroup label="Lagerorte">
-                      <% storages.forEach(function (s) { %>
-                        <option value="lager:<%= s.id %>" <%= s.id === it.storage_id ? 'selected' : '' %>><%= s.name %></option>
-                      <% }); %>
-                      <option value="lager" <%= it.storage_id ? '' : 'selected' %>>ohne Ort</option>
-                    </optgroup>
-                    <optgroup label="Spinte">
-                      <% lockers.forEach(function (l) { %>
-                        <option value="spint:<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
-                      <% }); %>
-                    </optgroup>
-                  </select>
-                  <button class="btn btn-klein" type="submit">→</button>
-                </form>
-                <form method="post" action="/ausruestung/<%= it.id %>/ausmustern" class="inline"
-                      onsubmit="return confirm('Wirklich ausmustern?');">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="zurueck" value="<%= zurueck %>">
-                  <button class="btn btn-klein btn-gefahr" type="submit">Ausmustern</button>
-                </form>
-              </td>
+  <%# Jede Zeile ist bearbeitbar — sonst käme man an Größe und Inventarnummer
+      eines Teils, das im Lager liegt, gar nicht heran. %>
+  <div class="teilliste">
+    <% items.forEach(function (it) { %>
+      <div class="teilzeile <%= it.condition === 'defekt' ? 'zeile-defekt' : '' %>">
+        <form method="post" action="/ausruestung/<%= it.id %>/bearbeiten" class="teilform">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="zurueck" value="<%= zurueck %>">
+
+          <select name="type_id" aria-label="Art">
+            <% types.forEach(function (t) { %>
+              <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>"
+                      <%= t.id === it.type_id ? 'selected' : '' %>><%= t.name %></option>
+            <% }); %>
+            <% if (!types.some(function (t) { return t.id === it.type_id; })) { %>
+              <option value="<%= it.type_id %>" selected><%= it.type_name %> (stillgelegt)</option>
             <% } %>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
+          </select>
+
+          <input name="size" value="<%= it.size || '' %>" placeholder="Größe" aria-label="Größe" size="8">
+          <input name="inventory_no" value="<%= it.inventory_no || '' %>" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+          <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+
+          <select name="condition" aria-label="Zustand">
+            <% ['gut', 'gebraucht', 'defekt'].forEach(function (c) { %>
+              <option value="<%= c %>" <%= it.condition === c ? 'selected' : '' %>><%= c %></option>
+            <% }); %>
+          </select>
+
+          <input name="note" value="<%= it.note || '' %>" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+          <button class="btn btn-klein" type="submit">Speichern</button>
+        </form>
+
+        <div class="teilaktionen">
+          <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="zurueck" value="<%= zurueck %>">
+            <select name="ziel" aria-label="Verschieben nach">
+              <optgroup label="Lagerorte">
+                <% storages.forEach(function (s) { %>
+                  <option value="lager:<%= s.id %>" <%= s.id === it.storage_id ? 'selected' : '' %>><%= s.name %></option>
+                <% }); %>
+                <option value="lager" <%= it.storage_id ? '' : 'selected' %>>ohne Ort</option>
+              </optgroup>
+              <optgroup label="Spinte">
+                <% lockers.forEach(function (l) { %>
+                  <option value="spint:<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
+                <% }); %>
+              </optgroup>
+            </select>
+            <button class="btn btn-klein btn-still" type="submit" title="Dorthin verschieben">→</button>
+          </form>
+
+          <form method="post" action="/ausruestung/<%= it.id %>/ausmustern" class="inline"
+                onsubmit="return confirm('<%= it.type_name %><%= it.inventory_no ? ' ' + it.inventory_no : '' %> wirklich ausmustern?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="zurueck" value="<%= zurueck %>">
+            <button class="btn btn-klein btn-gefahr" type="submit">Ausmustern</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
   </div>
 <% } %>
 
-<% if (user) { %>
 <section class="block">
   <h2>Neue Teile ins Lager</h2>
   <form method="post" action="/ausruestung/neu" class="teilform">
@@ -144,6 +156,5 @@
     Die Inventarnummer bleibt dann leer und wird später je Teil nachgetragen.
   </p>
 </section>
-<% } %>
 
 <%- include('partials/fuss') %>

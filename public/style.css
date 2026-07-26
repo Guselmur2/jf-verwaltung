@@ -312,7 +312,11 @@ details.block[open] summary { margin-bottom: .5rem; }
 .teilliste { display: grid; gap: .5rem; }
 .teilzeile { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
   border: 1px solid var(--linie); border-radius: 8px; padding: .5rem; }
-.teilzeile .teilform { flex: 1 1 22rem; }
+.teilzeile .teilform { flex: 1 1 30rem; }
+/* In einer Bearbeitungszeile darf das Notizfeld nicht wachsen — sonst frisst
+   es den restlichen Platz und der Speichern-Knopf rutscht in die naechste
+   Zeile. */
+.teilzeile .teilform .wachsend { flex: 0 1 8rem; min-width: 3.5rem; }
 .teilaktionen { display: flex; gap: .3rem; }
 .spintref { font-size: .85rem; }
 .blaettern { display: flex; gap: .75rem; align-items: center; justify-content: center; margin-top: 1rem; }
