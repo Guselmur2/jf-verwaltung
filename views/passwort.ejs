@@ -1,0 +1,25 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Passwort ändern</h1>
+  <% if (error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
+
+  <form method="post" action="/passwort" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Aktuelles Passwort</span>
+      <input type="password" name="current" required autocomplete="current-password">
+    </label>
+    <label>
+      <span>Neues Passwort</span>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <label>
+      <span>Neues Passwort wiederholen</span>
+      <input type="password" name="password2" required minlength="8" autocomplete="new-password">
+    </label>
+    <button class="btn" type="submit">Ändern</button>
+  </form>
+</div>
+
+<%- include('partials/fuss') %>

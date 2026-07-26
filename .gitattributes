@@ -1,0 +1,9 @@
+# Zeilenenden im Repo einheitlich als LF speichern, damit zwischen Windows
+# (Entwicklung) und Linux (Raspberry Pi) keine Schein-Aenderungen entstehen.
+* text=auto eol=lf
+
+# Binaerdateien nicht anfassen.
+*.png binary
+*.jpg binary
+*.ico binary
+*.7z binary

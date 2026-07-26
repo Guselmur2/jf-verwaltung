@@ -1,0 +1,74 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Betreuer</h1>
+</div>
+
+<p class="klein">
+  Betreuer dürfen Spinte, Ausrüstung und Mitglieder pflegen. Jugendwarte dürfen zusätzlich diese Seite hier bedienen.
+  Mindestens ein aktiver Jugendwart muss immer bestehen bleiben.
+</p>
+
+<div class="tabellenrahmen">
+  <table class="tabelle">
+    <thead>
+      <tr><th>Name</th><th>Benutzername</th><th>Rolle</th><th>Status</th><th>Neues Passwort</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% users.forEach(function (u) { %>
+        <tr class="<%= u.active ? '' : 'zeile-inaktiv' %>">
+          <td data-label="Name"><%= u.name %><% if (u.id === user.id) { %> <span class="chip">du</span><% } %></td>
+          <td data-label="Benutzername"><code><%= u.username %></code></td>
+          <td data-label="Rolle">
+            <span class="chip <%= u.role === 'jugendwart' ? 'chip-jw' : '' %>"><%= roleLabel[u.role] %></span>
+            <form method="post" action="/betreuer/<%= u.id %>/rolle" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="link" type="submit">→ <%= u.role === 'jugendwart' ? 'Betreuer' : 'Jugendwart' %></button>
+            </form>
+          </td>
+          <td data-label="Status">
+            <form method="post" action="/betreuer/<%= u.id %>/status" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein btn-still" type="submit"><%= u.active ? 'Deaktivieren' : 'Aktivieren' %></button>
+            </form>
+          </td>
+          <td data-label="Passwort">
+            <form method="post" action="/betreuer/<%= u.id %>/passwort" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="password" name="password" placeholder="mind. 8 Zeichen" minlength="8" required
+                     autocomplete="new-password" aria-label="Neues Passwort" size="16">
+              <button class="btn btn-klein" type="submit">Setzen</button>
+            </form>
+          </td>
+          <td data-label="Aktion">
+            <% if (u.id !== user.id) { %>
+              <form method="post" action="/betreuer/<%= u.id %>/loeschen" class="inline"
+                    onsubmit="return confirm('Zugang von <%= u.name %> löschen?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<section class="block">
+  <h2>Neuen Zugang anlegen</h2>
+  <form method="post" action="/betreuer/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="Vor- und Nachname *" required aria-label="Name" class="wachsend">
+    <input name="username" placeholder="Benutzername *" required aria-label="Benutzername" autocomplete="off" size="16">
+    <input type="password" name="password" placeholder="Passwort (mind. 8 Zeichen) *" required minlength="8"
+           autocomplete="new-password" aria-label="Passwort" size="20">
+    <select name="role" aria-label="Rolle">
+      <option value="betreuer">Betreuer</option>
+      <option value="jugendwart">Jugendwart</option>
+    </select>
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>

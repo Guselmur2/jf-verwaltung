@@ -1,0 +1,61 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Umkleidebereich für <%= groupLabel %>?</h1>
+  <p>
+    Gerade wurde das erste Mitglied mit Geschlecht <strong><%= genderLabel %></strong> angelegt.
+    Gibt es dafür einen eigenen Umkleidebereich mit eigenen Spinden, oder teilen sich alle denselben Bereich?
+  </p>
+
+  <form method="post" action="/bereiche/einrichten?geschlecht=<%= gender %>" class="formstapel" id="bereichform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="wahl">
+      <input type="radio" name="modus" value="eigen" checked>
+      <span><strong>Eigener Bereich</strong> mit eigenen Spinden für <%= groupLabel %></span>
+    </label>
+
+    <div class="untermenue" data-fuer="eigen">
+      <label>
+        <span>Name des Bereichs</span>
+        <input name="name" value="<%= vorschlag %>" maxlength="60">
+      </label>
+      <fieldset class="feldgruppe">
+        <legend>Spint-Nummerierung in diesem Bereich</legend>
+        <label class="wahl">
+          <input type="radio" name="numbering" value="eigen" checked>
+          <span>Beginnt neu (der Bereich hat eigene Nummern ab 1)</span>
+        </label>
+        <label class="wahl">
+          <input type="radio" name="numbering" value="fortlaufend">
+          <span>Läuft fort (setzt hinter der höchsten bestehenden Nummer an)</span>
+        </label>
+      </fieldset>
+    </div>
+
+    <% if (areas.length) { %>
+      <label class="wahl">
+        <input type="radio" name="modus" value="geteilt">
+        <span><strong>Gemeinsamer Bereich</strong> — dieselben Spinde wie bisher</span>
+      </label>
+      <div class="untermenue" data-fuer="geteilt">
+        <label>
+          <span>Welcher Bereich?</span>
+          <select name="area_id">
+            <% areas.forEach(function (a) { %>
+              <option value="<%= a.id %>"><%= a.name %></option>
+            <% }); %>
+          </select>
+        </label>
+      </div>
+    <% } %>
+
+    <div class="formfuss">
+      <button class="btn" type="submit">Übernehmen</button>
+      <a class="btn btn-still" href="/mitglieder">Später entscheiden</a>
+    </div>
+  </form>
+  <p class="klein">Lässt sich jederzeit unter „Bereiche“ ändern.</p>
+</div>
+
+<%- include('partials/fuss') %>

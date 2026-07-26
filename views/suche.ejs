@@ -1,0 +1,88 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Suche</h1>
+</div>
+
+<form method="get" action="/suche" class="filterleiste">
+  <input name="q" value="<%= term %>" placeholder="Name, Spintnummer oder Inventarnummer" autofocus aria-label="Suchbegriff" class="wachsend">
+  <button class="btn" type="submit">Suchen</button>
+</form>
+
+<% if (!results) { %>
+  <p class="klein">Sucht gleichzeitig in Spinten, Mitgliedern und Ausrüstung. Zum Beispiel „Helm“, „164“ oder eine Inventarnummer.</p>
+<% } else { %>
+  <% const leer = !results.lockers.length && !results.members.length && !results.equipment.length; %>
+  <% if (leer) { %>
+    <p class="leer">Nichts gefunden zu „<%= term %>“.</p>
+  <% } %>
+
+  <% if (results.equipment.length) { %>
+    <section class="block">
+      <h2>Ausrüstung (<%= results.equipment.length %>)</h2>
+      <div class="tabellenrahmen">
+        <table class="tabelle">
+          <thead><tr><th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Wo</th><th>Zustand</th></tr></thead>
+          <tbody>
+            <% results.equipment.forEach(function (it) { %>
+              <tr class="<%= it.retired ? 'zeile-inaktiv' : '' %>">
+                <td data-label="Art"><%= it.type_name %></td>
+                <td data-label="Größe"><%= it.size || '–' %></td>
+                <td data-label="Inv.-Nr."><%= it.inventory_no || '–' %></td>
+                <td data-label="Wo">
+                  <% if (it.retired) { %>
+                    ausgemustert
+                  <% } else if (it.locker_id) { %>
+                    <a href="/spint/<%= it.locker_id %>">Spint <%= it.locker_code %></a>
+                    <% if (it.member_name) { %><span class="klein">(<%= it.member_name %>)</span><% } %>
+                  <% } else { %>
+                    <a href="/lager">Lager</a>
+                  <% } %>
+                </td>
+                <td data-label="Zustand"><span class="chip chip-<%= it.condition %>"><%= it.condition %></span></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% } %>
+
+  <% if (results.members.length) { %>
+    <section class="block">
+      <h2>Mitglieder (<%= results.members.length %>)</h2>
+      <ul class="liste">
+        <% results.members.forEach(function (mem) { %>
+          <li>
+            <strong><%= mem.name %></strong>
+            <% if (mem.gender) { %><span class="klein"><%= GENDER[mem.gender] %></span><% } %>
+            <% if (mem.locker_id) { %>
+              — <a href="/spint/<%= mem.locker_id %>">Spint <%= mem.locker_code %></a>
+            <% } else { %>
+              — <span class="klein">kein Spint</span>
+            <% } %>
+            <% if (!mem.active) { %><span class="chip">ausgetreten</span><% } %>
+          </li>
+        <% }); %>
+      </ul>
+    </section>
+  <% } %>
+
+  <% if (results.lockers.length) { %>
+    <section class="block">
+      <h2>Spinte (<%= results.lockers.length %>)</h2>
+      <ul class="liste">
+        <% results.lockers.forEach(function (l) { %>
+          <li>
+            <a href="/spint/<%= l.id %>"><strong>Spint <%= l.code %></strong></a>
+            <% if (showAreas && l.area_name) { %><span class="chip"><%= l.area_name %></span><% } %>
+            — <%= l.member_name || 'frei' %>
+            <% if (l.location) { %><span class="klein"><%= l.location %></span><% } %>
+          </li>
+        <% }); %>
+      </ul>
+    </section>
+  <% } %>
+<% } %>
+
+<%- include('partials/fuss') %>

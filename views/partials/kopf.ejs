@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= title %> · Jugendfeuerwehr</title>
+  <link rel="stylesheet" href="/static/style.css?v=<%= assetVersion %>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>%F0%9F%9A%92</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark">JF</span>
+    <span>Spintverwaltung</span>
+  </a>
+  <nav class="mainnav">
+    <a href="/" class="<%= path === '/' ? 'aktiv' : '' %>">Spinte</a>
+    <a href="/lager" class="<%= path.startsWith('/lager') ? 'aktiv' : '' %>">Lager</a>
+    <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
+    <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
+    <% if (user) { %>
+      <a href="/qr" class="<%= path.startsWith('/qr') ? 'aktiv' : '' %>">QR</a>
+      <a href="/verlauf" class="<%= path.startsWith('/verlauf') ? 'aktiv' : '' %>">Verlauf</a>
+    <% } %>
+  </nav>
+  <div class="userbox">
+    <% if (user) { %>
+      <details class="menu">
+        <summary><%= user.name %><% if (isJugendwart) { %> <span class="chip chip-jw">JW</span><% } %></summary>
+        <div class="menu-inhalt">
+          <a href="/ausruestungsarten">Ausrüstungsarten</a>
+          <a href="/ausgemustert">Ausgemustert</a>
+          <% if (isJugendwart) { %>
+            <a href="/bereiche">Umkleidebereiche</a>
+            <a href="/betreuer">Betreuer verwalten</a>
+          <% } %>
+          <a href="/passwort">Passwort ändern</a>
+          <form method="post" action="/abmelden">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="link">Abmelden</button>
+          </form>
+        </div>
+      </details>
+    <% } else { %>
+      <a class="btn btn-klein" href="/anmelden">Anmelden</a>
+    <% } %>
+  </div>
+</header>
+
+<main class="inhalt">
+<% if (flash) { %>
+  <p class="hinweis hinweis-<%= flash.type %>"><%= flash.text %></p>
+<% } %>

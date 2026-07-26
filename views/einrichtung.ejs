@@ -1,0 +1,34 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Ersteinrichtung</h1>
+  <p>
+    Die Datenbank ist noch leer. Lege hier den ersten Zugang an — den bekommt automatisch die Rolle
+    <strong>Jugendwart</strong> und darf später weitere Betreuer hinzufügen.
+  </p>
+
+  <% if (error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
+
+  <form method="post" action="/einrichtung" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Vor- und Nachname</span>
+      <input name="name" value="<%= values.name || '' %>" required autofocus>
+    </label>
+    <label>
+      <span>Benutzername</span>
+      <input name="username" value="<%= values.username || '' %>" required autocomplete="username" autocapitalize="none">
+    </label>
+    <label>
+      <span>Passwort (mindestens 8 Zeichen)</span>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <label>
+      <span>Passwort wiederholen</span>
+      <input type="password" name="password2" required minlength="8" autocomplete="new-password">
+    </label>
+    <button class="btn" type="submit">Einrichten</button>
+  </form>
+</div>
+
+<%- include('partials/fuss') %>

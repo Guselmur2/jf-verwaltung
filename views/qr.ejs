@@ -1,0 +1,39 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf nichtdrucken">
+  <h1>QR-Etiketten</h1>
+  <button class="btn" type="button" onclick="window.print()">Drucken</button>
+</div>
+
+<form method="get" action="/qr" class="filterleiste nichtdrucken">
+  <label class="breit">
+    <span>Adresse, die im QR-Code steht</span>
+    <input name="basis" value="<%= base %>" size="40">
+    <small>
+      Muss von den Handys der Betreuer erreichbar sein — also die feste IP oder der Hostname des Raspberry Pi,
+      z.&nbsp;B. <code>http://192.168.1.50:3000</code>. Nach dem Ändern erst prüfen, dann drucken.
+    </small>
+  </label>
+  <button class="btn btn-klein" type="submit">Übernehmen</button>
+</form>
+
+<% if (codes.length === 0) { %>
+  <p class="leer">Noch keine Spinte angelegt.</p>
+<% } else { %>
+  <div class="etiketten">
+    <% codes.forEach(function (c) { %>
+      <div class="etikett">
+        <div class="etikett-qr"><%- c.svg %></div>
+        <div class="etikett-text">
+          <strong>Spint <%= c.code %></strong>
+          <% if (showAreas && c.area_name) { %><span class="klein"><%= c.area_name %></span><% } %>
+          <span><%= c.member_name || 'frei' %></span>
+          <% if (c.location) { %><span class="klein"><%= c.location %></span><% } %>
+          <span class="url"><%= c.url %></span>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<%- include('partials/fuss') %>

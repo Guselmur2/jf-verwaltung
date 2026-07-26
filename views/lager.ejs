@@ -1,0 +1,93 @@
+<%- include('partials/kopf') %>
+<% const zurueck = '/lager'; %>
+
+<div class="seitenkopf">
+  <h1>Lager</h1>
+  <span class="klein"><%= items.length %> Teile ohne Spint</span>
+</div>
+
+<form method="get" action="/lager" class="filterleiste">
+  <input name="q" value="<%= search %>" placeholder="Größe, Inv.-Nr. oder Art" aria-label="Suchen">
+  <select name="art" aria-label="Art">
+    <option value="">alle Arten</option>
+    <% types.forEach(function (t) { %>
+      <option value="<%= t.id %>" <%= String(t.id) === String(typeId) ? 'selected' : '' %>><%= t.name %></option>
+    <% }); %>
+  </select>
+  <button class="btn btn-klein" type="submit">Filtern</button>
+  <% if (search || typeId) { %><a class="btn btn-klein btn-still" href="/lager">zurücksetzen</a><% } %>
+</form>
+
+<% if (items.length === 0) { %>
+  <p class="leer">Keine passenden Teile im Lager.</p>
+<% } else { %>
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead>
+        <tr>
+          <th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Zustand</th><th>Notiz</th>
+          <% if (user) { %><th>In Spint legen</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% items.forEach(function (it) { %>
+          <tr class="<%= it.condition === 'defekt' ? 'zeile-defekt' : '' %>">
+            <td data-label="Art"><%= it.type_name %></td>
+            <td data-label="Größe"><%= it.size || '–' %></td>
+            <td data-label="Inv.-Nr."><%= it.inventory_no || '–' %></td>
+            <td data-label="Zustand"><span class="chip chip-<%= it.condition %>"><%= it.condition %></span></td>
+            <td data-label="Notiz"><%= it.note || '' %></td>
+            <% if (user) { %>
+              <td data-label="Zuweisen">
+                <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="zurueck" value="<%= zurueck %>">
+                  <select name="locker_id" aria-label="Spint">
+                    <option value="">— wählen —</option>
+                    <% lockers.forEach(function (l) { %>
+                      <option value="<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
+                    <% }); %>
+                  </select>
+                  <button class="btn btn-klein" type="submit">→</button>
+                </form>
+                <form method="post" action="/ausruestung/<%= it.id %>/ausmustern" class="inline"
+                      onsubmit="return confirm('Wirklich ausmustern?');">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="zurueck" value="<%= zurueck %>">
+                  <button class="btn btn-klein btn-gefahr" type="submit">Ausmustern</button>
+                </form>
+              </td>
+            <% } %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<% if (user) { %>
+<section class="block">
+  <h2>Neues Teil ins Lager</h2>
+  <form method="post" action="/ausruestung/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="zurueck" value="<%= zurueck %>">
+    <select name="type_id" required aria-label="Art">
+      <option value="">Art wählen …</option>
+      <% types.forEach(function (t) { %>
+        <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>"><%= t.name %></option>
+      <% }); %>
+    </select>
+    <input name="size" placeholder="Größe" aria-label="Größe" size="8">
+    <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" size="12">
+    <select name="condition" aria-label="Zustand">
+      <option value="gut">gut</option>
+      <option value="gebraucht">gebraucht</option>
+      <option value="defekt">defekt</option>
+    </select>
+    <input name="note" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+    <button class="btn btn-klein" type="submit">Hinzufügen</button>
+  </form>
+</section>
+<% } %>
+
+<%- include('partials/fuss') %>

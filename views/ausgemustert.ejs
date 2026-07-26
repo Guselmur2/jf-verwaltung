@@ -1,0 +1,35 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Ausgemustert</h1>
+  <span class="klein"><%= items.length %> Teile</span>
+</div>
+
+<% if (items.length === 0) { %>
+  <p class="leer">Nichts ausgemustert.</p>
+<% } else { %>
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead><tr><th>Art</th><th>Größe</th><th>Inv.-Nr.</th><th>Notiz</th><th></th></tr></thead>
+      <tbody>
+        <% items.forEach(function (it) { %>
+          <tr class="zeile-inaktiv">
+            <td data-label="Art"><%= it.type_name %></td>
+            <td data-label="Größe"><%= it.size || '–' %></td>
+            <td data-label="Inv.-Nr."><%= it.inventory_no || '–' %></td>
+            <td data-label="Notiz"><%= it.note || '' %></td>
+            <td data-label="Aktion">
+              <form method="post" action="/ausruestung/<%= it.id %>/reaktivieren" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="zurueck" value="/ausgemustert">
+                <button class="btn btn-klein btn-still" type="submit">Zurück ins Lager</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<%- include('partials/fuss') %>

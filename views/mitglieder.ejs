@@ -1,0 +1,107 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Mitglieder</h1>
+  <a class="btn btn-klein btn-still" href="/mitglieder<%= showAll ? '' : '?alle=1' %>">
+    <%= showAll ? 'nur aktive zeigen' : 'auch ausgetretene zeigen' %>
+  </a>
+</div>
+
+<% if (members.length === 0) { %>
+  <p class="leer">Noch keine Mitglieder erfasst.</p>
+<% } else { %>
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead>
+        <tr><th>Name</th><th>Geschl.</th><th>Spint</th><th>Geburtstag</th><th>Telefon</th><th>Notiz</th><% if (user) { %><th></th><% } %></tr>
+      </thead>
+      <tbody>
+        <% members.forEach(function (mem) { %>
+          <tr class="<%= mem.active ? '' : 'zeile-inaktiv' %>">
+            <% if (user) { %>
+              <td colspan="6" data-label="Mitglied">
+                <form method="post" action="/mitglieder/<%= mem.id %>/bearbeiten" class="teilform">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input name="name" value="<%= mem.name %>" required aria-label="Name" class="wachsend">
+                  <select name="gender" aria-label="Geschlecht">
+                    <option value="">— Geschl. —</option>
+                    <% genders.forEach(function (g) { %>
+                      <option value="<%= g %>" <%= mem.gender === g ? 'selected' : '' %>><%= GENDER[g] %></option>
+                    <% }); %>
+                  </select>
+                  <span class="spintref">
+                    <% if (mem.locker_id) { %>
+                      <a href="/spint/<%= mem.locker_id %>">Spint <%= mem.locker_code %></a>
+                    <% } else { %>
+                      <span class="klein">kein Spint</span>
+                    <% } %>
+                  </span>
+                  <input name="birthday" value="<%= datum(mem.birthday) %>" placeholder="TT.MM.JJJJ" aria-label="Geburtstag" size="11">
+                  <input name="phone" value="<%= mem.phone || '' %>" placeholder="Telefon" aria-label="Telefon" size="14">
+                  <input name="note" value="<%= mem.note || '' %>" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+                  <button class="btn btn-klein" type="submit">Speichern</button>
+                </form>
+              </td>
+              <td data-label="Aktion" class="zeilenaktionen">
+                <form method="post" action="/mitglieder/<%= mem.id %>/status" class="inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-klein btn-still" type="submit"><%= mem.active ? 'Austritt' : 'Reaktivieren' %></button>
+                </form>
+                <% if (isJugendwart && !mem.active) { %>
+                  <form method="post" action="/mitglieder/<%= mem.id %>/loeschen" class="inline"
+                        onsubmit="return confirm('<%= mem.name %> endgültig löschen?');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+                  </form>
+                <% } %>
+              </td>
+            <% } else { %>
+              <td data-label="Name"><%= mem.name %></td>
+              <td data-label="Geschl."><%= mem.gender ? GENDER[mem.gender] : '–' %></td>
+              <td data-label="Spint">
+                <% if (mem.locker_id) { %>
+                  <a href="/spint/<%= mem.locker_id %>">Spint <%= mem.locker_code %></a>
+                <% } else { %>–<% } %>
+              </td>
+              <td data-label="Geburtstag"><%= datum(mem.birthday) || '–' %></td>
+              <td data-label="Telefon"><%= mem.phone || '–' %></td>
+              <td data-label="Notiz"><%= mem.note || '' %></td>
+            <% } %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<% if (user) { %>
+<section class="block">
+  <h2>Neues Mitglied</h2>
+  <form method="post" action="/mitglieder/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="Name *" required aria-label="Name" class="wachsend">
+    <select name="gender" aria-label="Geschlecht">
+      <option value="">— Geschlecht —</option>
+      <% genders.forEach(function (g) { %>
+        <option value="<%= g %>"><%= GENDER[g] %></option>
+      <% }); %>
+    </select>
+    <input name="birthday" placeholder="Geb. TT.MM.JJJJ" aria-label="Geburtstag" size="13">
+    <input name="phone" placeholder="Telefon" aria-label="Telefon" size="14">
+    <select name="locker_id" aria-label="Spint">
+      <option value="">— Spint später —</option>
+      <% lockers.forEach(function (l) { %>
+        <option value="<%= l.id %>">Spint <%= l.code %><%= showAreas && l.area_name ? ' · ' + l.area_name : '' %></option>
+      <% }); %>
+    </select>
+    <input name="note" placeholder="Notiz" aria-label="Notiz" class="wachsend">
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+  <p class="klein">
+    Datum auch kurz: <code>5.5.16</code> wird zu 05.05.2016, <code>23.5.87</code> zu 23.05.1987.
+    Belegte Spinte werden beim Anlegen übersprungen.
+  </p>
+</section>
+<% } %>
+
+<%- include('partials/fuss') %>

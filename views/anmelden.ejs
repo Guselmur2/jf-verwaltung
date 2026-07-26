@@ -1,0 +1,23 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Anmelden</h1>
+  <% if (error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
+
+  <form method="post" action="/anmelden" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Benutzername</span>
+      <input name="username" value="<%= username %>" required autofocus autocomplete="username" autocapitalize="none">
+    </label>
+    <label>
+      <span>Passwort</span>
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button class="btn" type="submit">Anmelden</button>
+  </form>
+
+  <p class="klein">Zugangsdaten gibt der Jugendwart aus.</p>
+</div>
+
+<%- include('partials/fuss') %>

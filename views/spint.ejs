@@ -1,0 +1,58 @@
+<%- include('partials/kopf') %>
+
+<article class="spintkarte">
+  <div class="spintkopf">
+    <div class="spintnummer">
+      <span class="klein">Spint</span>
+      <strong><%= locker.code %></strong>
+    </div>
+    <div class="spintinfo">
+      <% if (member) { %>
+        <p class="besitzer">Dieser Spint gehört: <strong><%= member.name %></strong></p>
+      <% } else { %>
+        <p class="besitzer frei">Dieser Spint ist noch keinem Mitglied zugeordnet.</p>
+      <% } %>
+      <p class="meta">
+        <% if (showAreas && area) { %><span class="chip"><%= area.name %></span> <% } %>
+        <% if (locker.label) { %><%= locker.label %><% } %>
+        <% if (locker.label && locker.location) { %> · <% } %>
+        <% if (locker.location) { %><%= locker.location %><% } %>
+      </p>
+    </div>
+  </div>
+
+  <h2>In diesem Spint liegt</h2>
+
+  <% if (items.length === 0) { %>
+    <p class="leer">Für diesen Spint ist noch keine Ausrüstung eingetragen.</p>
+  <% } else { %>
+    <ul class="teile">
+      <% items.forEach(function (it) { %>
+        <li class="teil <%= it.condition === 'defekt' ? 'teil-defekt' : '' %>">
+          <span class="teil-art"><%= it.type_name %></span>
+          <span class="teil-werte">
+            <% if (it.size) { %><span class="wert"><span class="wert-label">Größe</span><%= it.size %></span><% } %>
+            <% if (it.inventory_no) { %><span class="wert"><span class="wert-label">Inv.-Nr.</span><%= it.inventory_no %></span><% } %>
+            <% if (it.condition !== 'gut') { %><span class="chip chip-<%= it.condition %>"><%= it.condition %></span><% } %>
+          </span>
+          <% if (it.note) { %><span class="teil-notiz"><%= it.note %></span><% } %>
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+
+  <% if (locker.note) { %>
+    <p class="notizfeld"><strong>Notiz:</strong> <%= locker.note %></p>
+  <% } %>
+
+  <div class="aktionen">
+    <% if (user) { %>
+      <a class="btn" href="/spint/<%= locker.id %>/bearbeiten">Bearbeiten</a>
+    <% } else { %>
+      <a class="btn btn-still" href="/anmelden">Als Betreuer anmelden zum Bearbeiten</a>
+    <% } %>
+    <a class="btn btn-still" href="/">Alle Spinte</a>
+  </div>
+</article>
+
+<%- include('partials/fuss') %>

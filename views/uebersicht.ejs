@@ -1,0 +1,69 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Spinte</h1>
+  <% if (user) { %><a class="btn" href="/spinte/neu">Neuer Spint</a><% } %>
+</div>
+
+<div class="kennzahlen">
+  <div class="kennzahl"><strong><%= stats.lockers %></strong><span>Spinte</span></div>
+  <div class="kennzahl"><strong><%= stats.lockersFree %></strong><span>davon frei</span></div>
+  <div class="kennzahl"><strong><%= stats.members %></strong><span>Mitglieder</span></div>
+  <div class="kennzahl"><strong><%= stats.equipment %></strong><span>Teile</span></div>
+  <div class="kennzahl"><strong><%= stats.storage %></strong><span>im Lager</span></div>
+  <div class="kennzahl <%= stats.defect ? 'kennzahl-warn' : '' %>"><strong><%= stats.defect %></strong><span>defekt</span></div>
+</div>
+
+<% if (lockers.length === 0) { %>
+  <p class="leer">
+    Noch keine Spinte angelegt.
+    <% if (user) { %><a href="/spinte/neu">Jetzt den ersten anlegen.</a><% } %>
+  </p>
+<% } else { %>
+  <%
+    // Kachel-Ausgabe als Funktion, damit sie mit und ohne Bereichs-Gruppen passt.
+    function kachel(l) { %>
+      <a class="kachel <%= l.member_id ? '' : 'kachel-frei' %>" href="/spint/<%= l.id %>">
+        <div class="kachel-kopf">
+          <span class="kachel-nr"><%= l.code %></span>
+          <span class="kachel-anzahl"><%= l.item_count %> Teile</span>
+        </div>
+        <div class="kachel-name"><%= l.member_name || 'frei' %></div>
+        <div class="kachel-teile">
+          <% l.items.slice(0, 6).forEach(function (it) { %>
+            <span class="mini"><%= it.type_name %><% if (it.size) { %>&nbsp;<%= it.size %><% } %></span>
+          <% }); %>
+          <% if (l.items.length > 6) { %><span class="mini">+<%= l.items.length - 6 %></span><% } %>
+        </div>
+        <% if (l.location) { %><div class="kachel-ort"><%= l.location %></div><% } %>
+      </a>
+  <% }
+
+    if (showAreas) {
+      // Nach Bereich gruppieren (lockers sind bereits nach Bereich sortiert).
+      const gruppen = [];
+      let aktuell = null;
+      lockers.forEach(function (l) {
+        if (!aktuell || aktuell.id !== l.area_id) {
+          aktuell = { id: l.area_id, name: l.area_name || 'Ohne Bereich', lockers: [] };
+          gruppen.push(aktuell);
+        }
+        aktuell.lockers.push(l);
+      });
+  %>
+    <% gruppen.forEach(function (gruppe) { %>
+      <section class="bereichsgruppe">
+        <h2 class="bereichstitel"><%= gruppe.name %> <span class="klein"><%= gruppe.lockers.length %></span></h2>
+        <div class="kacheln">
+          <% gruppe.lockers.forEach(function (l) { kachel(l); }); %>
+        </div>
+      </section>
+    <% }); %>
+  <% } else { %>
+    <div class="kacheln">
+      <% lockers.forEach(function (l) { kachel(l); }); %>
+    </div>
+  <% } %>
+<% } %>
+
+<%- include('partials/fuss') %>

@@ -1,0 +1,83 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Umkleidebereiche</h1>
+</div>
+
+<p class="klein">
+  Bereiche bündeln die Spinte eines oder mehrerer Geschlechter. Solange nur ein Bereich in Benutzung ist,
+  wird in der Übersicht nicht nach Bereich unterschieden.
+</p>
+
+<div class="tabellenrahmen">
+  <table class="tabelle">
+    <thead>
+      <tr><th>Name</th><th>Nummerierung</th><th>Reihenfolge</th><th>Geschlechter</th><th>Spinte</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% areas.forEach(function (a) { %>
+        <tr>
+          <td colspan="3" data-label="Bereich">
+            <form method="post" action="/bereiche/<%= a.id %>/bearbeiten" class="teilform">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input name="name" value="<%= a.name %>" required aria-label="Name" class="wachsend">
+              <select name="numbering" aria-label="Nummerierung">
+                <option value="eigen" <%= a.numbering === 'eigen' ? 'selected' : '' %>>Nummern eigen</option>
+                <option value="fortlaufend" <%= a.numbering === 'fortlaufend' ? 'selected' : '' %>>fortlaufend</option>
+              </select>
+              <input type="number" name="sort_order" value="<%= a.sort_order %>" aria-label="Reihenfolge" style="width:5rem">
+              <button class="btn btn-klein" type="submit">Speichern</button>
+            </form>
+          </td>
+          <td data-label="Geschlechter"><%= a.genders || '—' %></td>
+          <td data-label="Spinte"><%= a.locker_count %></td>
+          <td data-label="Aktion">
+            <% if (areas.length > 1 && a.locker_count === 0) { %>
+              <form method="post" action="/bereiche/<%= a.id %>/loeschen" class="inline"
+                    onsubmit="return confirm('Bereich „<%= a.name %>“ löschen?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<section class="block">
+  <h2>Geschlecht einem Bereich zuordnen</h2>
+  <p class="klein">Legt fest, in welchem Bereich Mitglieder dieses Geschlechts einen Spint bekommen.</p>
+  <% genders.forEach(function (g) { %>
+    <form method="post" action="/bereiche/zuordnung" class="teilform">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="gender" value="<%= g %>">
+      <span class="zuordnung-label">
+        <%= GENDER_GROUP[g] %>
+        <% if (gendersWithMembers.includes(g)) { %><span class="chip">in Benutzung</span><% } %>
+      </span>
+      <select name="area_id" aria-label="Bereich">
+        <% areas.forEach(function (a) { %>
+          <option value="<%= a.id %>" <%= gmap[g] === a.id ? 'selected' : '' %>><%= a.name %></option>
+        <% }); %>
+      </select>
+      <button class="btn btn-klein" type="submit">Zuordnen</button>
+    </form>
+  <% }); %>
+</section>
+
+<section class="block">
+  <h2>Neuen Bereich anlegen</h2>
+  <form method="post" action="/bereiche/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="z. B. Umkleide Divers" required aria-label="Name" class="wachsend">
+    <select name="numbering" aria-label="Nummerierung">
+      <option value="eigen">Nummern beginnen neu</option>
+      <option value="fortlaufend">Nummern laufen fort</option>
+    </select>
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>

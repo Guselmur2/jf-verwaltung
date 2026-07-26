@@ -1,0 +1,62 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Ausrüstungsarten</h1>
+</div>
+
+<p class="klein">
+  Legt fest, was beim Eintragen abgefragt wird. Eine stillgelegte Art verschwindet aus den Auswahllisten,
+  vorhandene Teile bleiben unangetastet.
+</p>
+
+<div class="tabellenrahmen">
+  <table class="tabelle">
+    <thead>
+      <tr><th>Name</th><th>Größe</th><th>Inv.-Nr.</th><th>Reihenfolge</th><th>Teile</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% types.forEach(function (t) { %>
+        <tr class="<%= t.active ? '' : 'zeile-inaktiv' %>">
+          <td colspan="4" data-label="Art">
+            <form method="post" action="/ausruestungsarten/<%= t.id %>/bearbeiten" class="teilform">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input name="name" value="<%= t.name %>" required aria-label="Name" class="wachsend">
+              <label class="kasten"><input type="checkbox" name="has_size" value="1" <%= t.has_size ? 'checked' : '' %>> Größe</label>
+              <label class="kasten"><input type="checkbox" name="has_inventory" value="1" <%= t.has_inventory ? 'checked' : '' %>> Inv.-Nr.</label>
+              <input type="number" name="sort_order" value="<%= t.sort_order %>" aria-label="Reihenfolge" size="4" style="width:5rem">
+              <button class="btn btn-klein" type="submit">Speichern</button>
+            </form>
+          </td>
+          <td data-label="Teile"><%= t.count %></td>
+          <td data-label="Aktion" class="zeilenaktionen">
+            <form method="post" action="/ausruestungsarten/<%= t.id %>/status" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-klein btn-still" type="submit"><%= t.active ? 'Stilllegen' : 'Aktivieren' %></button>
+            </form>
+            <% if (isJugendwart && t.count === 0) { %>
+              <form method="post" action="/ausruestungsarten/<%= t.id %>/loeschen" class="inline"
+                    onsubmit="return confirm('Art &quot;<%= t.name %>&quot; löschen?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<section class="block">
+  <h2>Neue Art</h2>
+  <form method="post" action="/ausruestungsarten/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="z. B. Nomex-Haube" required aria-label="Name" class="wachsend">
+    <label class="kasten"><input type="checkbox" name="has_size" value="1" checked> Größe</label>
+    <label class="kasten"><input type="checkbox" name="has_inventory" value="1" checked> Inv.-Nr.</label>
+    <input type="number" name="sort_order" value="100" aria-label="Reihenfolge" style="width:5rem">
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>

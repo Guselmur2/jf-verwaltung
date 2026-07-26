@@ -1,0 +1,53 @@
+<%- include('partials/kopf') %>
+<%
+  const namen = { spint: 'Spinte', ausruestung: 'Ausrüstung', mitglied: 'Mitglieder', art: 'Arten', user: 'Zugänge' };
+%>
+
+<div class="seitenkopf">
+  <h1>Verlauf</h1>
+  <span class="klein"><%= total %> Einträge</span>
+</div>
+
+<nav class="filterleiste">
+  <a class="tag <%= entity ? '' : 'tag-aktiv' %>" href="/verlauf">alle</a>
+  <% Object.keys(namen).forEach(function (key) { %>
+    <a class="tag <%= entity === key ? 'tag-aktiv' : '' %>" href="/verlauf?was=<%= key %>"><%= namen[key] %></a>
+  <% }); %>
+</nav>
+
+<% if (entries.length === 0) { %>
+  <p class="leer">Noch nichts protokolliert.</p>
+<% } else { %>
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead><tr><th>Wann</th><th>Wer</th><th>Was</th><th>Aktion</th><th>Details</th></tr></thead>
+      <tbody>
+        <% entries.forEach(function (e) { %>
+          <tr>
+            <td data-label="Wann" class="nowrap"><%= e.ts.replace('T', ' ') %></td>
+            <td data-label="Wer"><%= e.username %></td>
+            <td data-label="Was"><%= namen[e.entity] || e.entity %></td>
+            <td data-label="Aktion"><%= e.action %></td>
+            <td data-label="Details"><%= e.detail || '' %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (pages > 1) { %>
+    <nav class="blaettern">
+      <% if (page > 1) { %>
+        <a class="btn btn-klein btn-still" href="/verlauf?seite=<%= page - 1 %><%= entity ? '&was=' + entity : '' %>">zurück</a>
+      <% } %>
+      <span class="klein">Seite <%= page %> von <%= pages %></span>
+      <% if (page < pages) { %>
+        <a class="btn btn-klein btn-still" href="/verlauf?seite=<%= page + 1 %><%= entity ? '&was=' + entity : '' %>">weiter</a>
+      <% } %>
+    </nav>
+  <% } %>
+<% } %>
+
+<p class="klein">Zeiten in UTC, so wie die Datenbank sie speichert.</p>
+
+<%- include('partials/fuss') %>
