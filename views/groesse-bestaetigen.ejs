@@ -1,0 +1,51 @@
+<%- include('partials/kopf') %>
+
+<div class="schmal">
+  <h1>Größe prüfen</h1>
+
+  <p class="hinweis hinweis-warn">
+    Die Größe <strong><%= eingabe %></strong> gibt es bei <strong><%= typName %></strong> nicht.
+  </p>
+
+  <% if (vorschlag) { %>
+    <p>Meintest du <strong><%= vorschlag.wert %></strong><%= vorschlag.gruppe ? ' (' + vorschlag.gruppe + ')' : '' %>?</p>
+
+    <form method="post" action="<%= action %>" class="formstapel">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% Object.entries(felder).forEach(function (e) { %>
+        <input type="hidden" name="<%= e[0] %>" value="<%= e[1] %>">
+      <% }); %>
+      <input type="hidden" name="size" value="<%= vorschlag.wert %>">
+      <button class="btn btn-gross" type="submit"><%= vorschlag.wert %> verwenden</button>
+    </form>
+  <% } else { %>
+    <p>Für diese Art ist keine passende Größe hinterlegt.</p>
+  <% } %>
+
+  <form method="post" action="<%= action %>" class="formstapel" style="margin-top:1rem">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% Object.entries(felder).forEach(function (e) { %>
+      <input type="hidden" name="<%= e[0] %>" value="<%= e[1] %>">
+    <% }); %>
+    <input type="hidden" name="size" value="<%= eingabe %>">
+    <input type="hidden" name="groesse_ok" value="1">
+    <button class="btn btn-still" type="submit"><%= eingabe %> trotzdem übernehmen</button>
+  </form>
+
+  <p style="margin-top:1rem"><a class="btn btn-still" href="<%= zurueck %>">Abbrechen</a></p>
+
+  <% if (alle.length) { %>
+    <h2>Bekannte Größen für <%= typName %></h2>
+    <div class="groessenzeile">
+      <% alle.forEach(function (s) { %>
+        <span class="mini" title="<%= s.gruppe || '' %>"><%= s.wert %></span>
+      <% }); %>
+    </div>
+    <p class="klein">
+      Fehlt hier eine Größe, lässt sie sich unter
+      <a href="/ausruestungsarten">Ausrüstungsarten</a> ergänzen.
+    </p>
+  <% } %>
+</div>
+
+<%- include('partials/fuss') %>

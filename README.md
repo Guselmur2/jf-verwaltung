@@ -381,6 +381,54 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
 
+## Größen
+
+Jede Ausrüstungsart hat ihr eigenes Größenschema — Handschuhe zählen anders als Hosen.
+Vorbelegt sind drei Reihen, änderbar unter **Ausrüstungsarten**:
+
+| Schema | Größen |
+|---|---|
+| Kleidung (Jacke, Hose) | Körpergröße `116 … 176`, danach Konfektion `44 … 70` |
+| Handschuhe | `6 … 12` |
+| Schuhe | `30 … 50` |
+
+Arten ohne Schema (z. B. Helm, der keine Größe führt) nehmen jede Eingabe an.
+
+### Der Übergang 176 → 44
+
+Kinder- und Jugendgrößen sind die **Körpergröße in Zentimetern** und laufen in
+Sechserschritten. Erwachsenen-Konfektionsgrößen entsprechen etwa dem **halben Brustumfang**
+und laufen in Zweierschritten. Zwei verschiedene Systeme also — Jugendfeuerwehr-Bekleidung
+wird bis 170/176 als Körpergröße geführt, danach beginnen die Konfektionsgrößen.
+
+In der Größenreihe steht deshalb die **44 direkt hinter der 176**. „Eine Nummer größer" als
+176 ergibt 44, nicht 182. Für einen schlanken Jugendlichen von 176 cm passt Konfektion 44–48
+(Brustumfang 86–97 cm).
+
+Führt eure Wehr auch die Jugendgrößen 182 und 188, lassen sie sich unter
+*Ausrüstungsarten → Größen* einfach vor der 44 ergänzen. **Die Reihenfolge in der Liste
+bestimmt, was „eine Nummer größer" bedeutet.**
+
+Quellen: [Kindergrößen](https://www.blitzrechner.de/kindergroessen/),
+[Konfektionsgrößen](https://www.blitzrechner.de/konfektionsgroessen/),
+[Größentabellen Kinder-/Jugendfeuerwehr](https://shop.murer-feuerschutz.de/gr%C3%B6%C3%9Fentabellen-feuerwehrdienstbekleidung-kinder-und-jugendfeuerwehr),
+[Jugendfeuerwehr-Bundhose](https://www.feuerwehrversand.de/9/pid/7140/apg/176/Jugendfeuerwehr-Bundhose.htm),
+[Handschuhgrößen](https://www.keiler.net/service/groesse-finden/)
+
+### Wenn eine Größe nicht existiert
+
+Wird eine Größe eingetippt, die es für diese Art nicht gibt, fragt die Software nach:
+
+> Die Größe **162** gibt es bei **Jacke** nicht. Meintest du **164** (Körpergröße)?
+> [164 verwenden] [162 trotzdem übernehmen] [Abbrechen]
+
+Der Vorschlag ist die nächstliegende gültige Größe. Wer die Eingabe für richtig hält, kann
+sie behalten — geblockt wird nichts, es wird nur nachgefragt. Dieselbe Rückfrage greift beim
+Bearbeiten und bei der Wunschgröße im Tausch-Ablauf.
+
+Damit es gar nicht erst dazu kommt, hängt an jedem Größenfeld eine Auswahlliste mit den
+gültigen Größen der gewählten Art.
+
 ### Suche über mehrere Wörter
 
 Die Suche zerlegt die Eingabe in Wörter; **jedes** Wort muss irgendwo passen, aber nicht
@@ -442,7 +490,8 @@ src/db.js              SQLite öffnen, Schema anwenden, migrieren, Standardarten
 src/schema.sql         Tabellen
 src/auth.js            Anmeldung, Rollen, CSRF
 src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
-src/sizes.js           Größenschritte (164 -> 170, Schuh 32 -> 34)
+src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
+src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
 src/tokens.js          Geheimnisse für die QR-Links
 scripts/               Testdaten anlegen, HTTPS-Testinstanz starten
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik

@@ -371,12 +371,12 @@ console.log('\n14) Tauschen: nichts im Lager → Aufgabe');
 token = await csrf(`/ausruestung/${ersatzId}/tauschen`);
 r = await req(`/ausruestung/${ersatzId}/tauschen`, {
   method: 'POST',
-  form: { _csrf: token, to_size: '188', reason: 'zu klein', note: 'wächst schnell' },
+  form: { _csrf: token, to_size: '52', reason: 'zu klein', note: 'wächst schnell' },
 });
 check('ohne Lagertreffer wird Aufgabe angelegt', r.status === 302 && r.location === '/aufgaben', r.location);
 
 r = await req('/aufgaben');
-check('Aufgabe erscheint im Tab', r.text.includes('188') && r.text.includes('wächst schnell'));
+check('Aufgabe erscheint im Tab', r.text.includes('52') && r.text.includes('wächst schnell'));
 check('Aufgabe nennt das Mitglied', r.text.includes('Max Muster'));
 check('Zähler in der Navigation', r.text.includes('zaehler'));
 
@@ -390,23 +390,23 @@ r = await req('/aufgaben?status=erledigt');
 check('erledigte Aufgabe im Archiv', r.text.includes('wächst schnell'));
 
 console.log('\n16) Kontrolle: Skip bei Verlust');
-// Zweite Jacke Gr. 182 ins Lager, damit es etwas zu tauschen gibt.
+// Zweite Jacke Gr. 170 ins Lager, damit es etwas zu tauschen gibt.
 token = await csrf('/lager');
 await req('/ausruestung/neu', {
   method: 'POST',
-  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '182', anzahl: '2' },
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '170', anzahl: '2' },
 });
 
-const fund182 = { _csrf: token, size: '182', storage_id: String(schrank), condition: 'gut' };
+const fund170 = { _csrf: token, size: '170', storage_id: String(schrank), condition: 'gut' };
 r = await req(`/ausruestung/${ersatzId}/tauschen/ausfuehren`, {
   method: 'POST',
-  form: { ...fund182, alt_pruefung: '', neu_pruefung: 'NEU-182-A', verbleib: 'lager' },
+  form: { ...fund170, alt_pruefung: '', neu_pruefung: 'NEU-170-A', verbleib: 'lager' },
 });
 check('ohne Eingabe am alten Teil wird abgelehnt', r.status === 400 && r.text.includes('Inventarnummer des alten Teils'));
 
 r = await req(`/ausruestung/${ersatzId}/tauschen/ausfuehren`, {
   method: 'POST',
-  form: { ...fund182, alt_fehlt: '1', skip_grund: 'verloren', neu_pruefung: 'NEU-182-A', verbleib: 'lager' },
+  form: { ...fund170, alt_fehlt: '1', skip_grund: 'verloren', neu_pruefung: 'NEU-170-A', verbleib: 'lager' },
 });
 check('Skip-Knopf tauscht ohne Kontrolle des alten Teils', r.status === 302, String(r.status));
 r = await req('/ausgemustert');
@@ -452,28 +452,28 @@ r = await req(`/spint/${boys01.id}`);
 check('Handschuhe Gr. 8 liegen jetzt im Spint', /Handschuhe[\s\S]{0,200}>8</.test(r.text));
 
 console.log('\n18) Kontrolle: fremde Nummer am neuen Teil');
-// Genau ein Lagerteil in Gr. 194, und das hat eine Inventarnummer. Damit gibt es
+// Genau ein Lagerteil in Gr. 158, und das hat eine Inventarnummer. Damit gibt es
 // kein nummernloses Teil mehr, dem eine falsche Nummer zugewiesen werden könnte.
 token = await csrf('/lager');
 await req('/ausruestung/neu', {
   method: 'POST',
-  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '194', inventory_no: 'LAGER-194' },
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '158', inventory_no: 'LAGER-158' },
 });
 
 r = await req(`/spint/${boys01.id}/bearbeiten`);
-const jacke182 = idAusZeile(r.text, 'NEU-182-A');
-const fund194 = { _csrf: token, size: '194', storage_id: String(schrank), condition: 'gut' };
+const jacke170 = idAusZeile(r.text, 'NEU-170-A');
+const fund158 = { _csrf: token, size: '158', storage_id: String(schrank), condition: 'gut' };
 
-r = await req(`/ausruestung/${jacke182}/tauschen/ausfuehren`, {
+r = await req(`/ausruestung/${jacke170}/tauschen/ausfuehren`, {
   method: 'POST',
-  form: { ...fund194, alt_pruefung: 'NEU-182-A', neu_pruefung: 'FALSCHE-NUMMER', verbleib: 'lager' },
+  form: { ...fund158, alt_pruefung: 'NEU-170-A', neu_pruefung: 'FALSCHE-NUMMER', verbleib: 'lager' },
 });
 check('fremde Nummer am neuen Teil wird abgelehnt',
   r.status === 400 && r.text.includes('gehört zu keinem Teil an dieser Fundstelle'), String(r.status));
 
-r = await req(`/ausruestung/${jacke182}/tauschen/ausfuehren`, {
+r = await req(`/ausruestung/${jacke170}/tauschen/ausfuehren`, {
   method: 'POST',
-  form: { ...fund194, alt_pruefung: 'NEU-182-A', neu_pruefung: 'lager-194', verbleib: 'lager' },
+  form: { ...fund158, alt_pruefung: 'NEU-170-A', neu_pruefung: 'lager-158', verbleib: 'lager' },
 });
 check('richtige Nummer wird akzeptiert (Groß-/Kleinschreibung egal)', r.status === 302, String(r.status));
 
@@ -559,13 +559,12 @@ check('Mitglied auch bei umgedrehtem Namen', r.text.includes('Max Muster'));
 r = await req('/suche?q=%20%20');
 check('nur Leerzeichen ergibt keinen Treffer', r.text.includes('Sucht gleichzeitig') || r.text.includes('Nichts gefunden'));
 
-console.log('\n15) Größenschritte im Formular');
+console.log('\n15) Größenschritte aus dem Katalog');
 r = await req(`/ausruestung/${ersatzId}/tauschen`);
-check('Vorschlag aus 176: eine Nummer größer = 182', r.text.includes('182'));
-check('Vorschlag aus 176: eine Nummer kleiner = 170', r.text.includes('170'));
+check('Vorschlag aus 176: eine Nummer größer = 44 (Übergang)', r.text.includes('>44 '));
+check('Vorschlag aus 176: eine Nummer kleiner = 170', r.text.includes('>170 '));
 
-// Schuhe: 38 + 2 Nummern = 40
-r = await req(`/spint/${boys01.id}/bearbeiten`);
+// Schuhe haben eine eigene Reihe: 38 + 2 = 40
 token = await csrf('/lager');
 r = await req('/ausruestung/neu', {
   method: 'POST',
@@ -574,7 +573,62 @@ r = await req('/ausruestung/neu', {
 r = await req('/lager?q=38');
 const schuhId = Number(r.text.match(/\/ausruestung\/(\d+)\/verschieben/)?.[1]);
 r = await req(`/ausruestung/${schuhId}/tauschen`);
-check('Schuh 38: zwei Nummern größer = 40', r.text.includes('40'));
+check('Schuh 38: zwei Nummern größer = 40', r.text.includes('>40 '));
+
+console.log('\n21) Unbekannte Größe wird hinterfragt');
+token = await csrf('/lager');
+const anlegen = (form) =>
+  req('/ausruestung/neu', { method: 'POST', form: { _csrf: token, zurueck: '/lager', ziel: 'lager', ...form } });
+
+// Genau der gemeldete Fall: 162 gibt es nicht.
+r = await anlegen({ type_id: '1', size: '162' });
+check('162 führt zur Rückfrage', r.status === 200 && r.text.includes('Größe prüfen'));
+check('Rückfrage schlägt 164 vor', r.text.includes('164 verwenden'));
+check('Rückfrage bietet Beibehalten an', r.text.includes('162 trotzdem übernehmen'));
+r = await req('/lager?q=162');
+check('162 wurde noch nicht gespeichert', r.text.includes('Keine passenden Teile'));
+
+// Vorschlag annehmen
+r = await anlegen({ type_id: '1', size: '164' });
+check('gültige Größe geht ohne Rückfrage durch', r.status === 302, String(r.status));
+
+// Auf eigenen Wunsch trotzdem behalten
+r = await anlegen({ type_id: '1', size: '162', groesse_ok: '1' });
+check('mit Bestätigung wird 162 gespeichert', r.status === 302);
+r = await req('/lager?q=162');
+check('162 ist jetzt im Lager', r.text.includes('value="162"'));
+
+// Handschuhe haben eine andere Reihe — 164 ist dort falsch.
+r = await anlegen({ type_id: '4', size: '164' });
+check('164 ist bei Handschuhen unbekannt', r.status === 200 && r.text.includes('Größe prüfen'));
+check('Vorschlag für Handschuhe ist 12', r.text.includes('12 verwenden'));
+r = await anlegen({ type_id: '4', size: '8' });
+check('Handschuhgröße 8 geht durch', r.status === 302);
+
+// Helm führt keine Größe -> keine Rückfrage
+r = await anlegen({ type_id: '3', size: 'irgendwas', inventory_no: 'HELM-X' });
+check('Art ohne Größenschema fragt nicht nach', r.status === 302, String(r.status));
+
+// Auswahlliste im Formular
+r = await req('/lager');
+check('Auswahlliste für Kleidung vorhanden', r.text.includes('id="groessen-bekleidung"'));
+check('Auswahlliste für Handschuhe vorhanden', r.text.includes('id="groessen-handschuh"'));
+check('Arten tragen ihr Schema am Auswahlfeld', r.text.includes('data-schema="bekleidung"'));
+
+console.log('\n22) Größen verwalten');
+r = await req('/ausruestungsarten');
+check('Schema je Art einstellbar', r.text.includes('name="size_scheme"'));
+check('Größenlisten bearbeitbar', r.text.includes('werte_Körpergröße') && r.text.includes('116, 122'));
+check('Übergang steht in der Reihe', /176,\s*$|176<\/|176"/.test(r.text) && r.text.includes('44, 46'));
+
+token = await csrf('/ausruestungsarten');
+r = await req('/groessen/handschuh/speichern', {
+  method: 'POST',
+  form: { _csrf: token, 'werte_Handschuhgröße': '7, 8, 9' },
+});
+check('Größenliste speicherbar', r.status === 302);
+r = await anlegen({ type_id: '4', size: '6' });
+check('entfernte Größe wird jetzt hinterfragt', r.status === 200 && r.text.includes('Größe prüfen'));
 
 console.log(fails === 0 ? '\nAlles grün.\n' : `\n${fails} Fehler.\n`);
 process.exit(fails ? 1 : 0);

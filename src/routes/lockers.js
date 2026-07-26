@@ -6,6 +6,7 @@ const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
 const { neuerToken } = require('../tokens');
+const sizes = require('../sizes');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -37,6 +38,7 @@ function formData(locker, extra = {}) {
     types: m.activeTypes(),
     storage: locker ? m.storageEquipment() : [],
     storagePlaces: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
     error: null,
     ...extra,
   };

@@ -65,12 +65,13 @@ router.get('/ausruestung/:id/tauschen', login, (req, res) => {
   res.render('tauschen', {
     title: `${item.type_name} tauschen`,
     item,
-    vorschlaege: sizes.suggestions(item.size),
+    vorschlaege: sizes.suggestions(item.type_id, item.size),
     reasons: REASONS,
     treffer: null,
     wunsch: null,
     reason: null,
     storages: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
   });
 });
 
@@ -86,12 +87,13 @@ router.post('/ausruestung/:id/tauschen', login, (req, res) => {
     res.render('tauschen', {
       title: `${item.type_name} tauschen`,
       item,
-      vorschlaege: sizes.suggestions(item.size),
+      vorschlaege: sizes.suggestions(item.type_id, item.size),
       reasons: REASONS,
       wunsch,
       reason,
       note,
       storages: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
       treffer: null,
       ...extra,
     });
@@ -101,6 +103,17 @@ router.post('/ausruestung/:id/tauschen', login, (req, res) => {
   const zielGroesse = wunsch || item.size || '';
   if (!zielGroesse && item.has_size) {
     return seite({ error: 'Bitte eine Wunschgröße angeben.' });
+  }
+
+  // Eine Groesse, die es fuer diese Art nicht gibt, wuerde als Aufgabe im
+  // System landen und nie zu finden sein — deshalb einmal nachfragen.
+  if (req.body.groesse_ok !== '1' && !sizes.isKnown(item.type_id, zielGroesse)) {
+    const vorschlag = sizes.nearest(item.type_id, zielGroesse);
+    return seite({
+      unbekannteGroesse: zielGroesse,
+      groessenVorschlag: vorschlag ? vorschlag.wert : null,
+      bekannteGroessen: sizes.sizesOfType(item.type_id),
+    });
   }
 
   const treffer = m.findReplacement(item.type_id, zielGroesse);
@@ -235,6 +248,7 @@ router.post('/ausruestung/:id/tauschen/pruefen', login, (req, res) => {
     item,
     fund,
     storages: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
     skipGruende: SKIP_GRUENDE,
     verbleib: req.body.verbleib || (item.condition === 'defekt' ? 'ausmustern' : 'lager'),
     fehler: null,
@@ -258,6 +272,7 @@ router.post('/ausruestung/:id/tauschen/ausfuehren', login, (req, res) => {
       item,
       fund,
       storages: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
       skipGruende: SKIP_GRUENDE,
       verbleib,
       fehler,

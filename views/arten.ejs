@@ -23,6 +23,12 @@
               <input name="name" value="<%= t.name %>" required aria-label="Name" class="wachsend">
               <label class="kasten"><input type="checkbox" name="has_size" value="1" <%= t.has_size ? 'checked' : '' %>> Größe</label>
               <label class="kasten"><input type="checkbox" name="has_inventory" value="1" <%= t.has_inventory ? 'checked' : '' %>> Inv.-Nr.</label>
+              <select name="size_scheme" aria-label="Größenschema">
+                <option value="">— freie Größen —</option>
+                <% schemes.forEach(function (s) { %>
+                  <option value="<%= s.name %>" <%= t.size_scheme === s.name ? 'selected' : '' %>><%= s.label %></option>
+                <% }); %>
+              </select>
               <input type="number" name="sort_order" value="<%= t.sort_order %>" aria-label="Reihenfolge" size="4" style="width:5rem">
               <button class="btn btn-klein" type="submit">Speichern</button>
             </form>
@@ -48,12 +54,55 @@
 </div>
 
 <section class="block">
+  <h2>Größen</h2>
+  <p class="klein">
+    Legt fest, welche Größen es je Ausrüstungsart gibt. Wird beim Erfassen eine Größe eingetippt,
+    die hier nicht steht, fragt die Software nach und schlägt die nächstliegende vor.
+    <strong>Die Reihenfolge zählt</strong> — sie bestimmt, was „eine Nummer größer“ ist.
+  </p>
+
+  <% schemes.forEach(function (s) { %>
+    <div class="schemablock">
+      <h3><%= s.label %></h3>
+      <% if (s.note) { %><p class="klein"><%= s.note %></p><% } %>
+      <form method="post" action="/groessen/<%= s.name %>/speichern" class="formstapel">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <%
+          const gruppen = [];
+          s.sizes.forEach(function (g) {
+            let eintrag = gruppen.find(function (x) { return x.gruppe === (g.gruppe || ''); });
+            if (!eintrag) { eintrag = { gruppe: g.gruppe || '', werte: [] }; gruppen.push(eintrag); }
+            eintrag.werte.push(g.wert);
+          });
+          if (!gruppen.length) gruppen.push({ gruppe: 'Größen', werte: [] });
+        %>
+        <% gruppen.forEach(function (g) { %>
+          <label>
+            <span><%= g.gruppe || 'Größen' %></span>
+            <input name="werte_<%= g.gruppe %>" value="<%= g.werte.join(', ') %>" autocomplete="off">
+          </label>
+        <% }); %>
+        <div class="formfuss">
+          <button class="btn btn-klein" type="submit">Größen speichern</button>
+        </div>
+      </form>
+    </div>
+  <% }); %>
+</section>
+
+<section class="block">
   <h2>Neue Art</h2>
   <form method="post" action="/ausruestungsarten/neu" class="teilform">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input name="name" placeholder="z. B. Nomex-Haube" required aria-label="Name" class="wachsend">
     <label class="kasten"><input type="checkbox" name="has_size" value="1" checked> Größe</label>
     <label class="kasten"><input type="checkbox" name="has_inventory" value="1" checked> Inv.-Nr.</label>
+    <select name="size_scheme" aria-label="Größenschema">
+      <option value="">— freie Größen —</option>
+      <% schemes.forEach(function (s) { %>
+        <option value="<%= s.name %>"><%= s.label %></option>
+      <% }); %>
+    </select>
     <input type="number" name="sort_order" value="100" aria-label="Reihenfolge" style="width:5rem">
     <button class="btn btn-klein" type="submit">Anlegen</button>
   </form>

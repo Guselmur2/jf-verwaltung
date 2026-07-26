@@ -300,6 +300,8 @@ button.link { background: none; border: none; padding: 0; color: var(--rot); cur
 details.block summary { cursor: pointer; }
 details.block[open] summary { margin-bottom: .5rem; }
 .druckkopf { margin: 1.25rem 0 .5rem; }
+.schemablock { border: 1px solid var(--linie); border-radius: 8px; padding: .7rem; margin-bottom: .7rem; }
+.schemablock h3 { margin: 0 0 .3rem; color: var(--text); font-size: 1rem; }
 
 /* ---------- Listen und Tabellen ---------- */
 .liste { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }

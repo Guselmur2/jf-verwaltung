@@ -1,0 +1,9 @@
+<%# Auswahllisten je Größenschema. app.js hängt sie an das passende
+    Größenfeld, sobald die Ausrüstungsart gewählt ist. %>
+<% (sizeSchemes || []).forEach(function (schema) { %>
+  <datalist id="groessen-<%= schema.name %>">
+    <% schema.sizes.forEach(function (s) { %>
+      <option value="<%= s.wert %>"<%= s.gruppe ? ' label="' + s.gruppe + '"' : '' %>></option>
+    <% }); %>
+  </datalist>
+<% }); %>

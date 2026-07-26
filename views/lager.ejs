@@ -66,7 +66,7 @@
 
           <select name="type_id" aria-label="Art">
             <% types.forEach(function (t) { %>
-              <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>"
+              <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"
                       <%= t.id === it.type_id ? 'selected' : '' %>><%= t.name %></option>
             <% }); %>
             <% if (!types.some(function (t) { return t.id === it.type_id; })) { %>
@@ -130,7 +130,7 @@
     <select name="type_id" required aria-label="Art">
       <option value="">Art wählen …</option>
       <% types.forEach(function (t) { %>
-        <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>"><%= t.name %></option>
+        <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
       <% }); %>
     </select>
     <input name="size" placeholder="Größe" aria-label="Größe" size="8">
@@ -161,4 +161,5 @@
   </p>
 </section>
 
+<%- include('partials/groessenlisten') %>
 <%- include('partials/fuss') %>

@@ -15,6 +15,18 @@
     var opt = select.options[select.selectedIndex];
     if (!opt) return;
 
+    // Passende Größenliste an das Feld hängen (Handschuhe haben andere Größen
+    // als Hosen). Ohne hinterlegtes Schema bleibt das Feld frei beschreibbar.
+    var groesse = form.querySelector('[name="size"]');
+    if (groesse) {
+      var schema = opt.dataset.schema;
+      if (schema && document.getElementById('groessen-' + schema)) {
+        groesse.setAttribute('list', 'groessen-' + schema);
+      } else {
+        groesse.removeAttribute('list');
+      }
+    }
+
     FELDER.forEach(function (def) {
       var feld = form.querySelector('[name="' + def[0] + '"]');
       if (!feld) return;

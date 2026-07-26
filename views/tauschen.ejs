@@ -8,6 +8,41 @@
 
 <% if (typeof error !== 'undefined' && error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
 
+<% if (typeof unbekannteGroesse !== 'undefined' && unbekannteGroesse) { %>
+  <section class="block block-gefahr">
+    <h2>Größe prüfen</h2>
+    <p>
+      Die Größe <strong><%= unbekannteGroesse %></strong> gibt es bei <strong><%= item.type_name %></strong> nicht.
+      <% if (groessenVorschlag) { %>Meintest du <strong><%= groessenVorschlag %></strong>?<% } %>
+    </p>
+    <div class="teilform">
+      <% if (groessenVorschlag) { %>
+        <form method="post" action="/ausruestung/<%= item.id %>/tauschen" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="to_size" value="<%= groessenVorschlag %>">
+          <input type="hidden" name="reason" value="<%= reason %>">
+          <input type="hidden" name="note" value="<%= typeof note !== 'undefined' && note ? note : '' %>">
+          <button class="btn" type="submit"><%= groessenVorschlag %> verwenden</button>
+        </form>
+      <% } %>
+      <form method="post" action="/ausruestung/<%= item.id %>/tauschen" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="to_size" value="<%= unbekannteGroesse %>">
+        <input type="hidden" name="reason" value="<%= reason %>">
+        <input type="hidden" name="note" value="<%= typeof note !== 'undefined' && note ? note : '' %>">
+        <input type="hidden" name="groesse_ok" value="1">
+        <button class="btn btn-still" type="submit"><%= unbekannteGroesse %> trotzdem verwenden</button>
+      </form>
+    </div>
+    <% if (bekannteGroessen && bekannteGroessen.length) { %>
+      <p class="klein" style="margin-top:.6rem">Bekannte Größen:</p>
+      <div class="groessenzeile">
+        <% bekannteGroessen.forEach(function (s) { %><span class="mini"><%= s.wert %></span><% }); %>
+      </div>
+    <% } %>
+  </section>
+<% } %>
+
 <section class="block">
   <h2>Aktuelles Teil</h2>
   <p class="teil-werte">
@@ -113,4 +148,5 @@
   });
 </script>
 
+<%- include('partials/groessenlisten') %>
 <%- include('partials/fuss') %>

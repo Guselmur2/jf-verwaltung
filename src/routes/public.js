@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const auth = require('../auth');
 const m = require('../model');
 const { istToken } = require('../tokens');
+const sizes = require('../sizes');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -91,6 +92,7 @@ router.get('/lager', login, (req, res) => {
     types: m.activeTypes(),
     lockers: m.allLockers(),
     storages: m.storagesAll(),
+    sizeSchemes: sizes.schemes(),
     typeId,
     ort,
     search,

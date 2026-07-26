@@ -5,9 +5,33 @@ const { db } = require('../db');
 const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
+const sizes = require('../sizes');
 
 const router = express.Router();
 const login = auth.requireLogin;
+
+/**
+ * Zeigt die Rueckfrage, wenn eine Groesse eingegeben wurde, die es fuer diese
+ * Ausruestungsart nicht gibt (z.B. 162 statt 164). Liefert true, wenn die
+ * Rueckfrage gerendert wurde und der Aufrufer abbrechen soll.
+ */
+function groesseUnklar(req, res, { action, data, felder, zurueck }) {
+  if (req.body.groesse_ok === '1') return false;
+  if (!data.size || !data.type_id) return false;
+  if (sizes.isKnown(data.type_id, data.size)) return false;
+
+  res.render('groesse-bestaetigen', {
+    title: 'Größe prüfen',
+    action,
+    typName: m.q.typeById.get(data.type_id)?.name || 'diese Art',
+    eingabe: data.size,
+    vorschlag: sizes.nearest(data.type_id, data.size),
+    alle: sizes.sizesOfType(data.type_id),
+    felder,
+    zurueck,
+  });
+  return true;
+}
 
 const FIELDS = { size: 'Größe', inventory_no: 'Inv.-Nr.', condition: 'Zustand', note: 'Notiz' };
 const CONDITIONS = ['gut', 'gebraucht', 'defekt'];
@@ -88,6 +112,28 @@ router.post('/ausruestung/neu', login, (req, res) => {
     return res.redirect(backTo(req));
   }
 
+  const hin = (v) => (v == null ? '' : String(v));
+  if (
+    groesseUnklar(req, res, {
+      action: '/ausruestung/neu',
+      data,
+      zurueck: backTo(req),
+      felder: {
+        type_id: hin(data.type_id),
+        inventory_no: hin(data.inventory_no),
+        condition: data.condition,
+        note: hin(data.note),
+        anzahl: String(anzahl),
+        ziel: hin(req.body.ziel),
+        locker_id: hin(req.body.locker_id),
+        storage_id: hin(req.body.storage_id),
+        zurueck: backTo(req),
+      },
+    })
+  ) {
+    return;
+  }
+
   const insert = db.prepare(
     'INSERT INTO equipment (type_id, size, inventory_no, condition, note, locker_id, storage_id) ' +
       'VALUES (@type_id, @size, @inventory_no, @condition, @note, @locker_id, @storage_id)'
@@ -129,6 +175,24 @@ router.post('/ausruestung/:id/bearbeiten', login, (req, res) => {
   if (belegt) {
     req.session.flash = { type: 'warn', text: m.konfliktText(data.inventory_no, belegt) };
     return res.redirect(backTo(req));
+  }
+
+  const hin = (v) => (v == null ? '' : String(v));
+  if (
+    groesseUnklar(req, res, {
+      action: `/ausruestung/${item.id}/bearbeiten`,
+      data,
+      zurueck: backTo(req),
+      felder: {
+        type_id: hin(data.type_id),
+        inventory_no: hin(data.inventory_no),
+        condition: data.condition,
+        note: hin(data.note),
+        zurueck: backTo(req),
+      },
+    })
+  ) {
+    return;
   }
 
   try {

@@ -5,6 +5,7 @@ const { db } = require('../db');
 const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
+const sizes = require('../sizes');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -14,6 +15,7 @@ function clean(body) {
     name: (body.name || '').trim(),
     has_size: body.has_size ? 1 : 0,
     has_inventory: body.has_inventory ? 1 : 0,
+    size_scheme: (body.size_scheme || '').trim() || null,
     sort_order: Number(body.sort_order) || 100,
   };
 }
@@ -23,7 +25,7 @@ router.get('/ausruestungsarten', login, (req, res) => {
     ...t,
     count: db.prepare('SELECT COUNT(*) AS n FROM equipment WHERE type_id = ?').get(t.id).n,
   }));
-  res.render('arten', { title: 'Ausrüstungsarten', types, error: null });
+  res.render('arten', { title: 'Ausrüstungsarten', types, schemes: sizes.schemes(), error: null });
 });
 
 router.post('/ausruestungsarten/neu', login, (req, res) => {
@@ -36,7 +38,8 @@ router.post('/ausruestungsarten/neu', login, (req, res) => {
   try {
     const info = db
       .prepare(
-        'INSERT INTO equipment_types (name, has_size, has_inventory, sort_order) VALUES (@name, @has_size, @has_inventory, @sort_order)'
+        'INSERT INTO equipment_types (name, has_size, has_inventory, size_scheme, sort_order) ' +
+          'VALUES (@name, @has_size, @has_inventory, @size_scheme, @sort_order)'
       )
       .run(data);
     audit.log(req, 'art', info.lastInsertRowid, 'angelegt', data.name);
@@ -57,7 +60,8 @@ router.post('/ausruestungsarten/:id/bearbeiten', login, (req, res) => {
 
   try {
     db.prepare(
-      'UPDATE equipment_types SET name = @name, has_size = @has_size, has_inventory = @has_inventory, sort_order = @sort_order WHERE id = @id'
+      'UPDATE equipment_types SET name = @name, has_size = @has_size, has_inventory = @has_inventory, ' +
+        'size_scheme = @size_scheme, sort_order = @sort_order WHERE id = @id'
     ).run({ ...data, id: type.id });
   } catch (err) {
     if (!/UNIQUE/i.test(err.message)) throw err;
@@ -66,7 +70,8 @@ router.post('/ausruestungsarten/:id/bearbeiten', login, (req, res) => {
   }
 
   const detail = audit.diff(
-    { name: 'Name', has_size: 'Größe führen', has_inventory: 'Inv.-Nr. führen', sort_order: 'Reihenfolge' },
+    { name: 'Name', has_size: 'Größe führen', has_inventory: 'Inv.-Nr. führen',
+      size_scheme: 'Größenschema', sort_order: 'Reihenfolge' },
     type,
     data
   );
@@ -108,6 +113,61 @@ router.post('/ausruestungsarten/:id/loeschen', auth.requireJugendwart, (req, res
   db.prepare('DELETE FROM equipment_types WHERE id = ?').run(type.id);
   audit.log(req, 'art', type.id, 'gelöscht', type.name);
   req.session.flash = { type: 'ok', text: `"${type.name}" gelöscht.` };
+  res.redirect('/ausruestungsarten');
+});
+
+/**
+ * Die Größen eines Schemas als Liste bearbeiten. Eingabe ist eine durch Komma
+ * getrennte Reihe — die Reihenfolge zählt, denn danach richtet sich, welche
+ * Größe "eine Nummer größer" ist (nach 176 kommt 44).
+ */
+router.post('/groessen/:scheme/speichern', login, (req, res) => {
+  const scheme = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.scheme);
+  if (!scheme) return res.redirect('/ausruestungsarten');
+
+  // Eingaben je Gruppe: Feldname "werte_<Gruppe>".
+  const gruppen = [];
+  for (const [feld, wert] of Object.entries(req.body)) {
+    if (!feld.startsWith('werte_')) continue;
+    gruppen.push({
+      gruppe: feld.slice('werte_'.length),
+      werte: String(wert)
+        .split(/[,;\s]+/)
+        .map((w) => w.trim())
+        .filter(Boolean),
+    });
+  }
+  if (!gruppen.length) return res.redirect('/ausruestungsarten');
+
+  const gesamt = gruppen.reduce((n, g) => n + g.werte.length, 0);
+  if (gesamt === 0) {
+    req.session.flash = { type: 'warn', text: 'Mindestens eine Größe muss übrig bleiben.' };
+    return res.redirect('/ausruestungsarten');
+  }
+  // Doppelte würden den eindeutigen Index sprengen.
+  const gesehen = new Set();
+  for (const g of gruppen) {
+    for (const w of g.werte) {
+      const k = w.toLowerCase();
+      if (gesehen.has(k)) {
+        req.session.flash = { type: 'warn', text: `Die Größe „${w}“ steht mehrfach in der Liste.` };
+        return res.redirect('/ausruestungsarten');
+      }
+      gesehen.add(k);
+    }
+  }
+
+  const einfuegen = db.prepare('INSERT INTO sizes (scheme, gruppe, wert, sort_order) VALUES (?, ?, ?, ?)');
+  db.transaction(() => {
+    db.prepare('DELETE FROM sizes WHERE scheme = ?').run(scheme.name);
+    let sort = 10;
+    for (const g of gruppen) {
+      for (const w of g.werte) einfuegen.run(scheme.name, g.gruppe, w, (sort += 10));
+    }
+  })();
+
+  audit.log(req, 'groessen', null, 'geändert', `${scheme.label}: ${gesamt} Größen`);
+  req.session.flash = { type: 'ok', text: `Größen für „${scheme.label}“ gespeichert.` };
   res.redirect('/ausruestungsarten');
 });
 

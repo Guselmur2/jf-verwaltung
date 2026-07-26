@@ -64,12 +64,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS lockers_member_unique
 CREATE UNIQUE INDEX IF NOT EXISTS lockers_area_code
   ON lockers(area_id, code);
 
+-- Groessenschemata. Kleidung wird nach Koerpergroesse gefuehrt, Handschuhe und
+-- Schuhe nach eigenen Reihen — darum je Ausruestungsart ein eigenes Schema.
+CREATE TABLE IF NOT EXISTS size_schemes (
+  name  TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  note  TEXT
+);
+
+-- Die gueltigen Groessen eines Schemas, aufsteigend sortiert. "gruppe" ist nur
+-- eine Beschriftung (z.B. "Körpergröße" / "Konfektion"), die Reihenfolge steckt
+-- in sort_order: nach 176 folgt 44, weil dort die Erwachsenengroessen anfangen.
+CREATE TABLE IF NOT EXISTS sizes (
+  id         INTEGER PRIMARY KEY,
+  scheme     TEXT NOT NULL REFERENCES size_schemes(name) ON DELETE CASCADE,
+  gruppe     TEXT,
+  wert       TEXT NOT NULL,
+  sort_order INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS sizes_unique ON sizes(scheme, wert COLLATE NOCASE);
+CREATE INDEX IF NOT EXISTS sizes_scheme_idx ON sizes(scheme, sort_order);
+
 -- Ausruestungsarten (Jacke, Hose, Helm, ...)
 CREATE TABLE IF NOT EXISTS equipment_types (
   id              INTEGER PRIMARY KEY,
   name            TEXT NOT NULL UNIQUE COLLATE NOCASE,
   has_size        INTEGER NOT NULL DEFAULT 1,
   has_inventory   INTEGER NOT NULL DEFAULT 1,
+  size_scheme     TEXT REFERENCES size_schemes(name) ON DELETE SET NULL,
   sort_order      INTEGER NOT NULL DEFAULT 100,
   active          INTEGER NOT NULL DEFAULT 1
 );

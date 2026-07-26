@@ -16,7 +16,36 @@ function init() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
   migrate();
+  // Erst die Arten, dann die Schemata — die Zuordnung braucht die Arten.
   seedEquipmentTypes();
+  seedSizeSchemes();
+}
+
+// Groessenschemata einmalig anlegen. Spaeter geaenderte oder geloeschte Groessen
+// kommen dadurch nicht zurueck.
+function seedSizeSchemes() {
+  const { SCHEMES, TYP_SCHEMA } = require('./size-catalog');
+  const vorhanden = db.prepare('SELECT COUNT(*) AS n FROM size_schemes').get().n;
+
+  if (vorhanden === 0) {
+    const schema = db.prepare('INSERT INTO size_schemes (name, label, note) VALUES (?, ?, ?)');
+    const groesse = db.prepare('INSERT INTO sizes (scheme, gruppe, wert, sort_order) VALUES (?, ?, ?, ?)');
+    db.transaction(() => {
+      for (const s of SCHEMES) {
+        schema.run(s.name, s.label, s.note);
+        let sort = 10;
+        for (const g of s.gruppen) {
+          for (const wert of g.werte) groesse.run(s.name, g.gruppe, wert, (sort += 10));
+        }
+      }
+    })();
+  }
+
+  // Bestehende Standardarten bekommen ihr Schema, sofern noch keines gesetzt ist.
+  const setzen = db.prepare('UPDATE equipment_types SET size_scheme = ? WHERE name = ? AND size_scheme IS NULL');
+  db.transaction(() => {
+    for (const [typ, schemaName] of Object.entries(TYP_SCHEMA)) setzen.run(schemaName, typ);
+  })();
 }
 
 function hasColumn(table, column) {
@@ -40,6 +69,9 @@ function migrate() {
   dropGlobalCodeUniqueIfPresent();
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS lockers_area_code ON lockers(area_id, code)');
 
+  if (!hasColumn('equipment_types', 'size_scheme')) {
+    db.exec('ALTER TABLE equipment_types ADD COLUMN size_scheme TEXT');
+  }
   addTokenColumn('lockers', 'lockers_token');
   addTokenColumn('storages', 'storages_token');
   addInventoryUniqueIndex();
