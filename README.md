@@ -116,6 +116,49 @@ Erkannt wird zuerst über die im Browser eingebaute `BarcodeDetector`-Schnittste
 (Chrome/Android, ohne Download). Fehlt sie, lädt die Seite `html5-qrcode` nach — **lokal vom
 Pi aus `/vendor`**, nicht von einem CDN. Der Scan funktioniert damit auch ohne Internet.
 
+### Testinstanz mit HTTPS (zum Ausprobieren am Handy)
+
+```bash
+npm run testdaten
+npm run https
+```
+
+`npm run testdaten` legt einen kleinen Bestand in `data-test/` an (3 Mitglieder, 3 Spinte,
+2 Lagerorte, 48 Teile, eine offene Aufgabe) — getrennt von der echten Datenbank in `data/`.
+Anmeldung: **test / test1234**. Erneut mit `--force` setzt den Bestand zurück.
+
+`npm run https` erzeugt beim ersten Start ein selbstsigniertes Zertifikat für die eigene
+LAN-Adresse, ermittelt diese Adresse selbst und startet den Server darauf. Die Adresse für
+das Handy steht in der Ausgabe. Ändert sich die IP später (DHCP), warnt das Skript.
+
+Am Handy warnt der Browser vor dem unbekannten Zertifikat — das ist bei selbstsignierten
+Zertifikaten normal:
+
+- **Chrome/Android:** „Erweitert" → „Weiter zu … (unsicher)"
+- **Safari/iOS:** „Details einblenden" → „Diese Website besuchen"
+
+Danach ist die Seite ein sicherer Kontext und die Kamera funktioniert. Sollte iOS die Kamera
+trotzdem verweigern, hilft es, `tls/test.crt` per AirDrop oder Mail aufs Gerät zu laden, als
+Profil zu installieren und unter *Einstellungen → Allgemein → Info → Zertifikats­vertrauens­einstellungen*
+vollständig zu vertrauen.
+
+**Windows-Firewall:** Eingehende Verbindungen sind standardmäßig blockiert. Kommt das Handy
+nicht durch, diesen Befehl **als Administrator** in PowerShell ausführen:
+
+```powershell
+New-NetFirewallRule -DisplayName "JF Spintverwaltung Test 8443" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Private
+```
+
+Nach dem Testen wieder entfernen:
+
+```powershell
+Remove-NetFirewallRule -DisplayName "JF Spintverwaltung Test 8443"
+```
+
+Zum Ausprobieren liegt in den Testdaten die Inventarnummer **112000172** (Hose Gr. 170 in
+Spint 01) — dieselbe wie auf dem Etikett einer echten Hose, sodass sich der Scan am
+tatsächlichen Kleidungsstück prüfen lässt.
+
 ### Wichtig: die Kamera braucht HTTPS
 
 Browser geben `getUserMedia` nur in einem **sicheren Kontext** frei — also über HTTPS oder
