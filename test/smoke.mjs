@@ -462,6 +462,55 @@ r = await req(`/ausruestung/${jacke182}/tauschen/ausfuehren`, {
 });
 check('richtige Nummer wird akzeptiert (Groß-/Kleinschreibung egal)', r.status === 302, String(r.status));
 
+console.log('\n19) Inventarnummern sind eindeutig');
+token = await csrf('/lager');
+const neu = (form) => req('/ausruestung/neu', { method: 'POST', form: { _csrf: token, zurueck: '/lager', ziel: 'lager', ...form } });
+
+await neu({ type_id: '1', size: '164', inventory_no: 'EINDEUTIG-1' });
+r = await req('/lager?q=EINDEUTIG-1');
+check('erste Jacke mit Nummer angelegt', r.text.includes('EINDEUTIG-1'));
+
+// Genau der gemeldete Fall: zweite Jacke, gleiche Nummer.
+await neu({ type_id: '1', size: '176', inventory_no: 'EINDEUTIG-1' });
+r = await req('/lager?q=EINDEUTIG-1');
+check('zweite Jacke mit gleicher Nummer wird abgelehnt', r.text.includes('schon vergeben'));
+// Der Scan springt nur bei genau einem Treffer direkt zum Fundort — gäbe es die
+// Nummer doppelt, landete er auf der Suche.
+r = await req('/scannen?nr=EINDEUTIG-1');
+check('die Nummer existiert weiterhin nur einmal', r.status === 302 && !r.location.startsWith('/suche'), r.location);
+
+await neu({ type_id: '2', size: '164', inventory_no: 'eindeutig-1' });
+r = await req('/lager?q=EINDEUTIG-1');
+check('auch in anderer Schreibweise abgelehnt', r.text.includes('schon vergeben'));
+
+// Die Meldung muss sagen, wo die Nummer schon steckt.
+await neu({ type_id: '1', size: '170', inventory_no: 'JA-0815' });
+r = await req('/lager');
+check('Meldung nennt Art und Fundort', /schon vergeben[\s\S]{0,120}(Jacke|Spint)/.test(r.text));
+
+// Mehrere Teile ohne Nummer bleiben erlaubt — sonst wäre der Sammelposten kaputt.
+await neu({ type_id: '5', size: '41', anzahl: '5' });
+r = await req('/lager?q=41');
+check('Sammelposten ohne Nummer weiterhin möglich', r.status === 200 && !r.text.includes('schon vergeben'));
+
+// Beim Bearbeiten darf man die eigene Nummer behalten, aber keine fremde nehmen.
+r = await req('/lager?q=EINDEUTIG-1');
+const eindeutigId = Number(r.text.match(/\/ausruestung\/(\d+)\/verschieben/)?.[1]);
+token = await csrf('/lager');
+r = await req(`/ausruestung/${eindeutigId}/bearbeiten`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', type_id: '1', size: '164', inventory_no: 'EINDEUTIG-1', condition: 'gut' },
+});
+r = await req('/lager?q=EINDEUTIG-1');
+check('eigene Nummer beim Speichern behalten', !r.text.includes('schon vergeben') && r.text.includes('EINDEUTIG-1'));
+
+r = await req(`/ausruestung/${eindeutigId}/bearbeiten`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', type_id: '1', size: '164', inventory_no: 'JA-0815', condition: 'gut' },
+});
+r = await req('/lager');
+check('fremde Nummer beim Bearbeiten abgelehnt', r.text.includes('schon vergeben'));
+
 console.log('\n15) Größenschritte im Formular');
 r = await req(`/ausruestung/${ersatzId}/tauschen`);
 check('Vorschlag aus 176: eine Nummer größer = 182', r.text.includes('182'));

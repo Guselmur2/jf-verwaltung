@@ -206,9 +206,15 @@ function waehleNeuesTeil(item, kandidaten, eingabe) {
   const treffer = kandidaten.find((k) => norm(k.inventory_no) === wert);
   if (treffer) return { gewaehlt: treffer };
 
-  // Sammelposten ohne Nummern: die gescannte Nummer wandert ins Teil.
+  // Sammelposten ohne Nummern: die gescannte Nummer wandert ins Teil — aber nur,
+  // wenn sie nicht schon woanders hinterlegt ist. Sonst hat man das falsche Teil
+  // in der Hand (oder es liegt am falschen Ort).
   const ohneNummer = kandidaten.find((k) => !k.inventory_no);
-  if (ohneNummer) return { gewaehlt: ohneNummer, nummerUebernehmen: String(eingabe).trim() };
+  if (ohneNummer) {
+    const belegt = m.inventarNummerVergeben(eingabe);
+    if (belegt) return { fehler: m.konfliktText(String(eingabe).trim(), belegt) };
+    return { gewaehlt: ohneNummer, nummerUebernehmen: String(eingabe).trim() };
+  }
 
   return { fehler: 'Diese Inventarnummer gehört zu keinem Teil an dieser Fundstelle.' };
 }
@@ -282,18 +288,23 @@ router.post('/ausruestung/:id/tauschen/ausfuehren', login, (req, res) => {
   const altVorher = m.placementLabel(item);
   const neuVorher = m.placementLabel(ersatz);
 
-  db.transaction(() => {
-    if (wahl.nummerUebernehmen) {
-      db.prepare('UPDATE equipment SET inventory_no = ? WHERE id = ?').run(wahl.nummerUebernehmen, ersatz.id);
-    }
-    m.setPlacement(ersatz.id, { lockerId: item.locker_id });
-    if (verbleib === 'ausmustern') {
-      db.prepare('UPDATE equipment SET retired = 1, locker_id = NULL, storage_id = NULL WHERE id = ?').run(item.id);
-    } else {
-      const ort = /^\d+$/.test(verbleib) && m.q.storageById.get(Number(verbleib)) ? Number(verbleib) : null;
-      m.setPlacement(item.id, { storageId: ort });
-    }
-  })();
+  try {
+    db.transaction(() => {
+      if (wahl.nummerUebernehmen) {
+        db.prepare('UPDATE equipment SET inventory_no = ? WHERE id = ?').run(wahl.nummerUebernehmen, ersatz.id);
+      }
+      m.setPlacement(ersatz.id, { lockerId: item.locker_id });
+      if (verbleib === 'ausmustern') {
+        db.prepare('UPDATE equipment SET retired = 1, locker_id = NULL, storage_id = NULL WHERE id = ?').run(item.id);
+      } else {
+        const ort = /^\d+$/.test(verbleib) && m.q.storageById.get(Number(verbleib)) ? Number(verbleib) : null;
+        m.setPlacement(item.id, { storageId: ort });
+      }
+    })();
+  } catch (err) {
+    if (!/UNIQUE/i.test(err.message)) throw err;
+    return seite(`Die Inventarnummer „${wahl.nummerUebernehmen}“ ist schon vergeben.`);
+  }
 
   const altNachher = verbleib === 'ausmustern' ? 'ausgemustert' : m.placementLabel(m.q.equipmentById.get(item.id));
   const kontrolle = altFehlt ? `ohne Kontrolle des alten Teils (${skipGrund})` : 'altes Teil kontrolliert';

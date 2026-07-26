@@ -42,6 +42,43 @@ function migrate() {
 
   addTokenColumn('lockers', 'lockers_token');
   addTokenColumn('storages', 'storages_token');
+  addInventoryUniqueIndex();
+}
+
+/**
+ * Eine Inventarnummer gehoert zu genau einem Teil. Teile ohne Nummer
+ * (Sammelposten) bleiben ausgenommen, davon gibt es beliebig viele.
+ *
+ * Steht in einer aelteren Datenbank dieselbe Nummer mehrfach, laesst sich der
+ * Index nicht anlegen. Dann startet die Software trotzdem, meldet die Faelle
+ * und verlaesst sich auf die Pruefung im Programm — sonst kaeme man an die
+ * Daten gar nicht mehr heran, um sie zu berichtigen.
+ */
+function addInventoryUniqueIndex() {
+  const doppelte = db
+    .prepare(
+      `SELECT TRIM(inventory_no) AS nr, COUNT(*) AS anzahl
+         FROM equipment
+        WHERE inventory_no IS NOT NULL AND TRIM(inventory_no) <> ''
+        GROUP BY LOWER(TRIM(inventory_no))
+       HAVING COUNT(*) > 1
+        ORDER BY anzahl DESC, nr`
+    )
+    .all();
+
+  if (doppelte.length) {
+    console.warn('WARNUNG: Diese Inventarnummern sind mehrfach vergeben:');
+    for (const d of doppelte) console.warn(`  ${d.nr} — ${d.anzahl} Teile`);
+    console.warn('Bitte über die Suche berichtigen. Nach einem Neustart wird die');
+    console.warn('Eindeutigkeit dann auch von der Datenbank erzwungen.');
+    return;
+  }
+
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS equipment_inv_unique
+       ON equipment(inventory_no COLLATE NOCASE)
+     WHERE inventory_no IS NOT NULL AND inventory_no <> ''`
+  );
 }
 
 // Geheimnis fuer die QR-Links. Bestehende Zeilen bekommen eines nachgetragen,

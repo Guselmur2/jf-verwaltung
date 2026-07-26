@@ -81,6 +81,12 @@ router.post('/ausruestung/neu', login, (req, res) => {
     };
     return res.redirect(backTo(req));
   }
+  // Eine Inventarnummer gehoert zu genau einem Teil.
+  const belegt = m.inventarNummerVergeben(data.inventory_no);
+  if (belegt) {
+    req.session.flash = { type: 'warn', text: m.konfliktText(data.inventory_no, belegt) };
+    return res.redirect(backTo(req));
+  }
 
   const insert = db.prepare(
     'INSERT INTO equipment (type_id, size, inventory_no, condition, note, locker_id, storage_id) ' +
@@ -89,12 +95,20 @@ router.post('/ausruestung/neu', login, (req, res) => {
   const zeile = { ...data, locker_id: ziel.lockerId, storage_id: ziel.lockerId ? null : ziel.storageId };
 
   let ersteId = null;
-  db.transaction(() => {
-    for (let i = 0; i < anzahl; i++) {
-      const info = insert.run(zeile);
-      if (ersteId === null) ersteId = info.lastInsertRowid;
-    }
-  })();
+  try {
+    db.transaction(() => {
+      for (let i = 0; i < anzahl; i++) {
+        const info = insert.run(zeile);
+        if (ersteId === null) ersteId = info.lastInsertRowid;
+      }
+    })();
+  } catch (err) {
+    // Faengt den seltenen Fall ab, dass zwei Betreuer gleichzeitig dieselbe
+    // Nummer eintragen — der Datenbank-Riegel schlaegt dann zu.
+    if (!/UNIQUE/i.test(err.message)) throw err;
+    req.session.flash = { type: 'warn', text: `Die Inventarnummer „${data.inventory_no}“ ist schon vergeben.` };
+    return res.redirect(backTo(req));
+  }
 
   const ort = m.placementLabel(zeile);
   const label = m.describe(withType(data));
@@ -111,10 +125,22 @@ router.post('/ausruestung/:id/bearbeiten', login, (req, res) => {
   const data = clean(req.body);
   if (!data.type_id) data.type_id = item.type_id;
 
-  db.prepare(
-    'UPDATE equipment SET type_id = @type_id, size = @size, inventory_no = @inventory_no, ' +
-      'condition = @condition, note = @note WHERE id = @id'
-  ).run({ ...data, id: item.id });
+  const belegt = m.inventarNummerVergeben(data.inventory_no, item.id);
+  if (belegt) {
+    req.session.flash = { type: 'warn', text: m.konfliktText(data.inventory_no, belegt) };
+    return res.redirect(backTo(req));
+  }
+
+  try {
+    db.prepare(
+      'UPDATE equipment SET type_id = @type_id, size = @size, inventory_no = @inventory_no, ' +
+        'condition = @condition, note = @note WHERE id = @id'
+    ).run({ ...data, id: item.id });
+  } catch (err) {
+    if (!/UNIQUE/i.test(err.message)) throw err;
+    req.session.flash = { type: 'warn', text: `Die Inventarnummer „${data.inventory_no}“ ist schon vergeben.` };
+    return res.redirect(backTo(req));
+  }
 
   const detail = audit.diff({ ...FIELDS, type_name: 'Art' }, withType(item), withType(data));
   if (detail) audit.log(req, 'ausruestung', item.id, 'geändert', `${m.describe(withType(data))} — ${detail}`);

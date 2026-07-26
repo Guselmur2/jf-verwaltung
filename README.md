@@ -380,6 +380,33 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
   Listen, bleiben aber unter `/ausgemustert` auffindbar und lassen sich zurückholen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
+
+### Inventarnummern sind eindeutig
+
+Eine Inventarnummer gehört zu genau einem Teil — sonst führt jeder Scan ins Ungewisse.
+Der Versuch, eine schon vergebene Nummer einzutragen, wird abgewiesen; die Meldung nennt,
+wo die Nummer bereits steckt („… ist schon vergeben: Jacke Gr. 164 in Spint 01 (Max Meier)").
+Groß- und Kleinschreibung zählen dabei nicht: `JA-1` und `ja-1` sind dieselbe Nummer.
+
+Ausgenommen sind Teile **ohne** Nummer — davon darf es beliebig viele geben, sonst wären
+Sammelposten (20 Paar Schuhe auf einmal) unmöglich.
+
+Abgesichert ist das doppelt: im Programm für eine verständliche Meldung und zusätzlich als
+Regel in der Datenbank, damit die Eindeutigkeit auch dann hält, wenn später eine Codestelle
+übersehen wird.
+
+Enthält eine ältere Datenbank bereits doppelte Nummern, lässt sich die Datenbank-Regel nicht
+anlegen. Die Software startet dann trotzdem — man käme sonst an die Daten nicht mehr heran,
+um sie zu berichtigen — und meldet die Fälle beim Start:
+
+```
+WARNUNG: Diese Inventarnummern sind mehrfach vergeben:
+  0001 — 2 Teile
+```
+
+Betroffene Teile über die Suche aufrufen und die Nummer korrigieren oder leeren. Neue
+Duplikate verhindert das Programm auch in diesem Zustand. Nach dem Berichtigen greift beim
+nächsten Start zusätzlich die Datenbank-Regel.
 - **Aufgabe** — Tausch- oder Bestellwunsch. Art, Mitglied und Spint stehen zusätzlich als
   eigene Felder darin, damit die Aufgabe lesbar bleibt, wenn das Teil später wegfällt.
 

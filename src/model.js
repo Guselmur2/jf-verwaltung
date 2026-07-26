@@ -484,6 +484,54 @@ function stats() {
   };
 }
 
+/**
+ * Traegt schon ein anderes Teil diese Inventarnummer? Liefert das Teil zurueck
+ * oder null. Gross-/Kleinschreibung spielt keine Rolle, damit "ja-1" und "JA-1"
+ * nicht als zwei verschiedene Nummern durchgehen.
+ */
+function inventarNummerVergeben(nr, ausserId = null) {
+  const s = String(nr ?? '').trim();
+  if (!s) return null;
+  return (
+    db
+      .prepare(
+        `SELECT e.*, t.name AS type_name, l.id AS locker_id, l.code AS locker_code,
+                st.name AS storage_name, m.name AS member_name
+           FROM equipment e
+           JOIN equipment_types t ON t.id = e.type_id
+           LEFT JOIN lockers l ON l.id = e.locker_id
+           LEFT JOIN storages st ON st.id = e.storage_id
+           LEFT JOIN members m ON m.id = l.member_id
+          WHERE TRIM(e.inventory_no) = @s COLLATE NOCASE AND e.id <> @ausser
+          LIMIT 1`
+      )
+      .get({ s, ausser: ausserId ?? -1 }) || null
+  );
+}
+
+/** Satz fuer die Fehlermeldung: wo das Teil mit dieser Nummer liegt. */
+function konfliktText(nr, treffer) {
+  const wo = treffer.locker_code
+    ? `Spint ${treffer.locker_code}${treffer.member_name ? ` (${treffer.member_name})` : ''}`
+    : placementLabel(treffer);
+  const groesse = treffer.size ? ` Gr. ${treffer.size}` : '';
+  return `Die Inventarnummer „${nr}“ ist schon vergeben: ${treffer.type_name}${groesse} in ${wo}.`;
+}
+
+/** Alle mehrfach vergebenen Inventarnummern — fuer Migration und Pruefung. */
+function doppelteInventarNummern() {
+  return db
+    .prepare(
+      `SELECT TRIM(inventory_no) AS nr, COUNT(*) AS anzahl
+         FROM equipment
+        WHERE inventory_no IS NOT NULL AND TRIM(inventory_no) <> ''
+        GROUP BY LOWER(TRIM(inventory_no))
+       HAVING COUNT(*) > 1
+        ORDER BY anzahl DESC, nr`
+    )
+    .all();
+}
+
 /** Kurzbeschreibung eines Ausruestungsstuecks fuers Protokoll. */
 function describe(item) {
   const bits = [item.type_name || q.typeById.get(item.type_id)?.name || 'Teil'];
@@ -513,6 +561,9 @@ module.exports = {
   tasksList,
   openTaskCount,
   findByInventoryNo,
+  inventarNummerVergeben,
+  konfliktText,
+  doppelteInventarNummern,
   lockerOverview,
   allLockers,
   lockersInArea,
