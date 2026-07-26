@@ -526,6 +526,39 @@ r = await req(`/ausruestung/${eindeutigId}/bearbeiten`, {
 r = await req('/lager');
 check('fremde Nummer beim Bearbeiten abgelehnt', r.text.includes('schon vergeben'));
 
+console.log('\n20) Suche über mehrere Wörter');
+// Ausgangslage: Jacke Gr. 176 mit Nummer NEU-176-A liegt in Max Musters Spint.
+r = await req('/suche?q=Jacke');
+check('ein Wort findet die Jacken', r.text.includes('Jacke'));
+
+r = await req('/suche?q=Jacke%20176');
+check('„Jacke 176“ findet die Jacke', r.text.includes('NEU-176-A') && !r.text.includes('Nichts gefunden'));
+
+r = await req('/suche?q=176%20Jacke');
+check('Reihenfolge der Wörter egal', r.text.includes('NEU-176-A'));
+
+r = await req('/suche?q=JACKE%20176');
+check('Groß-/Kleinschreibung egal', r.text.includes('NEU-176-A'));
+
+r = await req('/suche?q=Jacke%20999');
+check('unpassende Kombination findet nichts', r.text.includes('Nichts gefunden'));
+
+r = await req('/suche?q=Hose%20176');
+check('andere Art mit derselben Größe trennt sauber', !r.text.includes('NEU-176-A'));
+
+// Teil über seinen Besitzer finden — der Helm liegt unverändert in Max' Spint.
+r = await req('/suche?q=Helm%20Max');
+check('Ausrüstung über den Besitzer findbar', r.text.includes('HE-0042'));
+r = await req('/suche?q=Helm%20Lena');
+check('fremder Besitzer findet den Helm nicht', !r.text.includes('HE-0042'));
+
+// Mitglied mit umgedrehter Namensreihenfolge
+r = await req('/suche?q=Muster%20Max');
+check('Mitglied auch bei umgedrehtem Namen', r.text.includes('Max Muster'));
+
+r = await req('/suche?q=%20%20');
+check('nur Leerzeichen ergibt keinen Treffer', r.text.includes('Sucht gleichzeitig') || r.text.includes('Nichts gefunden'));
+
 console.log('\n15) Größenschritte im Formular');
 r = await req(`/ausruestung/${ersatzId}/tauschen`);
 check('Vorschlag aus 176: eine Nummer größer = 182', r.text.includes('182'));

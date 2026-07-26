@@ -381,6 +381,24 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
 
+### Suche über mehrere Wörter
+
+Die Suche zerlegt die Eingabe in Wörter; **jedes** Wort muss irgendwo passen, aber nicht
+alle in derselben Spalte. Damit findet `Jacke 162` genau die Jacken in Größe 162, obwohl
+nirgends „Jacke 162“ am Stück steht. Weitere Beispiele:
+
+| Eingabe | findet |
+|---|---|
+| `Jacke 162` | Jacken in Größe 162 |
+| `Helm Ben` | den Helm in Bens Spint |
+| `Jacke Schrank1` | Jacken, die in Schrank1 liegen |
+| `Muster Max` | das Mitglied, auch bei umgedrehtem Namen |
+| `112000172` | das Teil mit dieser Inventarnummer |
+
+Groß- und Kleinschreibung sowie die Reihenfolge der Wörter spielen keine Rolle. Bei
+Ausrüstung wird in Art, Größe, Inventarnummer, Zustand, Notiz, Lagerort, Spintnummer und
+Besitzer gesucht.
+
 ### Inventarnummern sind eindeutig
 
 Eine Inventarnummer gehört zu genau einem Teil — sonst führt jeder Scan ins Ungewisse.

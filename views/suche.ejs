@@ -5,13 +5,17 @@
 </div>
 
 <form method="get" action="/suche" class="filterleiste">
-  <input name="q" value="<%= term %>" placeholder="Name, Spintnummer oder Inventarnummer" autofocus aria-label="Suchbegriff" class="wachsend">
+  <input name="q" value="<%= term %>" placeholder="z. B. Jacke 162, Ben, 112000172" autofocus aria-label="Suchbegriff" class="wachsend">
   <button class="btn btn-still" type="button" data-scan="feld" data-ziel="input[name='q']" data-absenden>📷 Scannen</button>
   <button class="btn" type="submit">Suchen</button>
 </form>
 
 <% if (!results) { %>
-  <p class="klein">Sucht gleichzeitig in Spinten, Mitgliedern und Ausrüstung. Zum Beispiel „Helm“, „164“ oder eine Inventarnummer.</p>
+  <p class="klein">
+    Sucht gleichzeitig in Spinten, Mitgliedern, Lagerorten und Ausrüstung.
+    Mehrere Wörter lassen sich kombinieren — jedes muss passen:
+    <code>Jacke 162</code> findet nur Jacken in Größe 162, <code>Helm Ben</code> nur Bens Helm.
+  </p>
 <% } else { %>
   <% const leer = !results.lockers.length && !results.members.length && !results.equipment.length && !results.storages.length; %>
   <% if (leer) { %>

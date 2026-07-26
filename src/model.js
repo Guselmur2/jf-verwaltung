@@ -380,8 +380,39 @@ function assignableMembers(currentMemberId = null, areaId = null) {
 
 // ---------------------------------------------------------------------- Suche
 
+const SUCHE_MAX_WOERTER = 8;
+
+/**
+ * Sucht ueber mehrere Woerter: jedes Wort muss in irgendeiner der Spalten
+ * vorkommen, und zwar alle. "Jacke 162" findet damit die Jacke in Groesse 162,
+ * obwohl in keiner einzelnen Spalte "Jacke 162" steht.
+ *
+ * Die Spaltennamen stehen fest im Code, die Suchwoerter gehen als Parameter in
+ * die Abfrage — so bleibt sie gegen eingeschleustes SQL sicher.
+ */
+function wortBedingung(spalten, woerter) {
+  return woerter
+    .map((_, i) => '(' + spalten.map((c) => `${c} LIKE @w${i}`).join(' OR ') + ')')
+    .join(' AND ');
+}
+
 function search(term) {
-  const s = `%${term}%`;
+  const woerter = String(term ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, SUCHE_MAX_WOERTER);
+
+  const leer = { lockers: [], members: [], equipment: [], storages: [] };
+  if (!woerter.length) return leer;
+
+  const params = {};
+  woerter.forEach((w, i) => {
+    params[`w${i}`] = `%${w}%`;
+  });
+
+  const wo = (spalten) => wortBedingung(spalten, woerter);
+
   return {
     lockers: db
       .prepare(
@@ -389,18 +420,18 @@ function search(term) {
            FROM lockers l
            LEFT JOIN areas a ON a.id = l.area_id
            LEFT JOIN members m ON m.id = l.member_id
-          WHERE l.code LIKE @s OR l.label LIKE @s OR l.location LIKE @s OR m.name LIKE @s OR a.name LIKE @s
+          WHERE ${wo(['l.code', 'l.label', 'l.location', 'm.name', 'a.name'])}
           ${LOCKER_ORDER}`
       )
-      .all({ s }),
+      .all(params),
     members: db
       .prepare(
         `SELECT m.*, l.id AS locker_id, l.code AS locker_code FROM members m
            LEFT JOIN lockers l ON l.member_id = m.id
-          WHERE m.name LIKE @s
+          WHERE ${wo(['m.name', 'm.note', 'l.code'])}
           ORDER BY m.name COLLATE NOCASE`
       )
-      .all({ s }),
+      .all(params),
     equipment: db
       .prepare(
         `SELECT e.*, t.name AS type_name, l.id AS locker_id, l.code AS locker_code,
@@ -410,21 +441,29 @@ function search(term) {
            LEFT JOIN lockers l ON l.id = e.locker_id
            LEFT JOIN storages st ON st.id = e.storage_id
            LEFT JOIN members m ON m.id = l.member_id
-          WHERE e.inventory_no LIKE @s OR e.size LIKE @s OR t.name LIKE @s OR e.note LIKE @s
-                OR st.name LIKE @s
-          ORDER BY e.retired, t.sort_order, e.inventory_no`
+          WHERE ${wo([
+            'e.inventory_no',
+            'e.size',
+            't.name',
+            'e.note',
+            'e.condition',
+            'st.name',
+            'l.code',
+            'm.name',
+          ])}
+          ORDER BY e.retired, t.sort_order, e.size, e.inventory_no`
       )
-      .all({ s }),
+      .all(params),
     storages: db
       .prepare(
         `SELECT s.*,
                 (SELECT COUNT(*) FROM equipment e
                   WHERE e.storage_id = s.id AND e.locker_id IS NULL AND e.retired = 0) AS item_count
            FROM storages s
-          WHERE s.name LIKE @s OR s.location LIKE @s OR s.note LIKE @s
+          WHERE ${wo(['s.name', 's.location', 's.note'])}
           ORDER BY s.sort_order, s.name COLLATE NOCASE`
       )
-      .all({ s }),
+      .all(params),
   };
 }
 
