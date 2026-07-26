@@ -75,6 +75,15 @@ async function createLocker(fields) {
   return { id: m ? Number(m[1]) : null, res: r };
 }
 
+// Sucht auf der Spint-Bearbeiten-Seite die Ausrüstungs-id in der Zeile, die
+// <text> enthält (z. B. eine Inventarnummer).
+function idAusZeile(html, text) {
+  for (const block of html.split('class="teilzeile"')) {
+    if (block.includes(text)) return Number(block.match(/\/ausruestung\/(\d+)\//)?.[1]) || null;
+  }
+  return null;
+}
+
 // Liest die Bereichs-Auswahl aus dem Neuer-Spint-Formular als {name: id}.
 async function areaMap() {
   const r = await req('/spinte/neu');
@@ -271,15 +280,35 @@ r = await req(`/ausruestung/${jackenId}/tauschen`, {
 check('Lagertreffer wird gemeldet statt Aufgabe angelegt', r.status === 200 && r.text.includes('Passendes Stück ist im Lager'));
 check('Fundort wird genannt', r.text.includes('Schrank 1'));
 
-const ersatzId = Number(r.text.match(/name="ersatz_id" value="(\d+)"/)?.[1]);
+// Schritt zur Sicherheitsabfrage
 token = await csrf(`/ausruestung/${jackenId}/tauschen`);
+const fundFeld = { _csrf: token, size: '176', storage_id: String(schrank), condition: 'gut' };
+r = await req(`/ausruestung/${jackenId}/tauschen/pruefen`, { method: 'POST', form: fundFeld });
+check('Kontrollseite erscheint vor dem Tausch', r.status === 200 && r.text.includes('Kontrolle vor dem Tausch'));
+check('Kontrolle fragt beide Teile ab', r.text.includes('alt_pruefung') && r.text.includes('neu_pruefung'));
+
+// Falsche Nummer am alten Teil muss abgelehnt werden.
 r = await req(`/ausruestung/${jackenId}/tauschen/ausfuehren`, {
   method: 'POST',
-  form: { _csrf: token, ersatz_id: String(ersatzId), verbleib: 'lager' },
+  form: { ...fundFeld, alt_pruefung: '999999', neu_pruefung: 'NEU-1', verbleib: 'lager' },
 });
-check('Direkttausch führt zurück zum Spint', r.status === 302 && r.location === `/spint/${boys01.id}/bearbeiten`, r.location);
+check('falsche Nummer am alten Teil wird abgelehnt', r.status === 400 && r.text.includes('gehört nicht zum Teil aus dem Spint'));
+
+// Richtige Nummer am alten Teil, Sammelposten ohne Nummer beim neuen Teil.
+r = await req(`/ausruestung/${jackenId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fundFeld, alt_pruefung: 'JA-0815', neu_pruefung: 'NEU-176-A', verbleib: 'lager' },
+});
+check('Tausch nach Kontrolle führt zurück zum Spint', r.status === 302 && r.location === `/spint/${boys01.id}/bearbeiten`, r.location);
+
 r = await req(`/spint/${boys01.id}`);
 check('neue Jacke Gr. 176 liegt im Spint', r.text.includes('176'));
+check('gescannte Nummer wurde dem Sammelposten zugewiesen', r.text.includes('NEU-176-A'));
+
+// Die id des jetzt im Spint liegenden Teils fuer die naechsten Abschnitte.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+const ersatzId = idAusZeile(r.text, 'NEU-176-A');
+check('getauschtes Teil im Spint auffindbar', !!ersatzId);
 
 console.log('\n14) Tauschen: nichts im Lager → Aufgabe');
 // Ab hier zählt die getauschte Jacke (Gr. 176), die jetzt in Max' Spint liegt —
@@ -304,6 +333,94 @@ r = await req('/aufgaben');
 check('erledigte Aufgabe nicht mehr offen', !r.text.includes('wächst schnell'));
 r = await req('/aufgaben?status=erledigt');
 check('erledigte Aufgabe im Archiv', r.text.includes('wächst schnell'));
+
+console.log('\n16) Kontrolle: Skip bei Verlust');
+// Zweite Jacke Gr. 182 ins Lager, damit es etwas zu tauschen gibt.
+token = await csrf('/lager');
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '182', anzahl: '2' },
+});
+
+const fund182 = { _csrf: token, size: '182', storage_id: String(schrank), condition: 'gut' };
+r = await req(`/ausruestung/${ersatzId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fund182, alt_pruefung: '', neu_pruefung: 'NEU-182-A', verbleib: 'lager' },
+});
+check('ohne Eingabe am alten Teil wird abgelehnt', r.status === 400 && r.text.includes('Inventarnummer des alten Teils'));
+
+r = await req(`/ausruestung/${ersatzId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fund182, alt_fehlt: '1', skip_grund: 'verloren', neu_pruefung: 'NEU-182-A', verbleib: 'lager' },
+});
+check('Skip-Knopf tauscht ohne Kontrolle des alten Teils', r.status === 302, String(r.status));
+r = await req('/ausgemustert');
+check('verlorenes Teil wurde ausgemustert', r.text.includes('NEU-176-A'));
+r = await req('/verlauf');
+check('Verlauf hält den übersprungenen Check fest', r.text.includes('ohne Kontrolle des alten Teils (verloren)'));
+
+console.log('\n17) Kontrolle: Handschuhe über die Größe');
+// Handschuhe (Art 4) führen keine Inventarnummer.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+token = await csrf(`/spint/${boys01.id}/bearbeiten`);
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: `/spint/${boys01.id}/bearbeiten`, locker_id: String(boys01.id), type_id: '4', size: '7' },
+});
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '4', size: '8', anzahl: '3' },
+});
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+const handschuhId = idAusZeile(r.text, 'value="7"');
+check('Handschuhe im Spint gefunden', !!handschuhId);
+
+const fundH = { _csrf: token, size: '8', storage_id: String(schrank), condition: 'gut' };
+r = await req(`/ausruestung/${handschuhId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fundH, alt_pruefung: '9', neu_pruefung: '8', verbleib: 'lager' },
+});
+check('falsche Größe am alten Teil wird abgelehnt', r.status === 400 && r.text.includes('passt nicht zum Teil aus dem Spint'));
+
+r = await req(`/ausruestung/${handschuhId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fundH, alt_pruefung: '7', neu_pruefung: '9', verbleib: 'lager' },
+});
+check('falsche Größe am neuen Teil wird abgelehnt', r.status === 400 && r.text.includes('Größe des neuen Teils bestätigen'));
+
+r = await req(`/ausruestung/${handschuhId}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fundH, alt_pruefung: '7', neu_pruefung: '8', verbleib: 'lager' },
+});
+check('Handschuhtausch über Größe funktioniert', r.status === 302, String(r.status));
+r = await req(`/spint/${boys01.id}`);
+check('Handschuhe Gr. 8 liegen jetzt im Spint', /Handschuhe[\s\S]{0,200}>8</.test(r.text));
+
+console.log('\n18) Kontrolle: fremde Nummer am neuen Teil');
+// Genau ein Lagerteil in Gr. 194, und das hat eine Inventarnummer. Damit gibt es
+// kein nummernloses Teil mehr, dem eine falsche Nummer zugewiesen werden könnte.
+token = await csrf('/lager');
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '1', size: '194', inventory_no: 'LAGER-194' },
+});
+
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+const jacke182 = idAusZeile(r.text, 'NEU-182-A');
+const fund194 = { _csrf: token, size: '194', storage_id: String(schrank), condition: 'gut' };
+
+r = await req(`/ausruestung/${jacke182}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fund194, alt_pruefung: 'NEU-182-A', neu_pruefung: 'FALSCHE-NUMMER', verbleib: 'lager' },
+});
+check('fremde Nummer am neuen Teil wird abgelehnt',
+  r.status === 400 && r.text.includes('gehört zu keinem Teil an dieser Fundstelle'), String(r.status));
+
+r = await req(`/ausruestung/${jacke182}/tauschen/ausfuehren`, {
+  method: 'POST',
+  form: { ...fund194, alt_pruefung: 'NEU-182-A', neu_pruefung: 'lager-194', verbleib: 'lager' },
+});
+check('richtige Nummer wird akzeptiert (Groß-/Kleinschreibung egal)', r.status === 302, String(r.status));
 
 console.log('\n15) Größenschritte im Formular');
 r = await req(`/ausruestung/${ersatzId}/tauschen`);

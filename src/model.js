@@ -161,6 +161,17 @@ function findReplacement(typeId, size) {
     .all({ typeId: Number(typeId), size: wanted });
 }
 
+/**
+ * Die Teile einer konkreten Fundstelle: gleiche Art, Groesse, Lagerort und
+ * Zustand. Wird beim Bestaetigen erneut geladen, statt der Formularseite eine
+ * Liste von IDs zu glauben.
+ */
+function replacementCandidates(typeId, size, storageId, condition) {
+  return findReplacement(typeId, size).filter(
+    (t) => (storageId ? t.storage_id === storageId : !t.storage_id) && (!condition || t.condition === condition)
+  );
+}
+
 /** Wo liegt ein Teil? Fuer Protokoll und Anzeige. */
 function placementLabel(item) {
   if (!item) return '—';
@@ -487,6 +498,7 @@ module.exports = {
   storagesAll,
   storageContents,
   findReplacement,
+  replacementCandidates,
   placementLabel,
   setPlacement,
   tasksList,

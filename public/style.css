@@ -287,6 +287,13 @@ button.link { background: none; border: none; padding: 0; color: var(--rot); cur
 .fundort { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
 .funddetails { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 .tag-mini { padding: .15rem .5rem; font-size: .8rem; }
+.block-schritt h2 { display: flex; align-items: center; gap: .5rem; }
+.schrittnr { background: var(--rot); color: #fff; border-radius: 999px; width: 1.6rem; height: 1.6rem;
+  display: inline-flex; align-items: center; justify-content: center; font-size: .9rem; flex: none; }
+.eingabe-mit-scan { display: flex; gap: .4rem; align-items: center; }
+.eingabe-mit-scan input { flex: 1 1 10rem; font-size: 1.1rem; }
+details.block summary { cursor: pointer; }
+details.block[open] summary { margin-bottom: .5rem; }
 .druckkopf { margin: 1.25rem 0 .5rem; }
 
 /* ---------- Listen und Tabellen ---------- */

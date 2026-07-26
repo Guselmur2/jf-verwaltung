@@ -43,39 +43,14 @@
         </div>
 
         <% if (item.locker_id) { %>
-          <form method="post" action="/ausruestung/<%= item.id %>/tauschen/ausfuehren" class="teilform">
+          <form method="post" action="/ausruestung/<%= item.id %>/tauschen/pruefen" class="teilform">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-            <% if (g.mitNummer.length > 1) { %>
-              <label class="kasten">Welches
-                <select name="ersatz_id" aria-label="Ersatzteil">
-                  <% g.mitNummer.forEach(function (t) { %>
-                    <option value="<%= t.id %>">Inv. <%= t.inventory_no %></option>
-                  <% }); %>
-                </select>
-              </label>
-            <% } else { %>
-              <input type="hidden" name="ersatz_id" value="<%= g.items[0].id %>">
-              <% if (g.mitNummer.length === 1) { %>
-                <span class="mini">Inv. <%= g.mitNummer[0].inventory_no %></span>
-              <% } %>
-            <% } %>
-
-            <label class="kasten">Altes Teil
-              <select name="verbleib" aria-label="Verbleib des alten Teils">
-                <% if (reason === 'defekt' || item.condition === 'defekt') { %>
-                  <option value="ausmustern" selected>ausmustern</option>
-                <% } %>
-                <option value="lager">zurück ins Lager (ohne Ort)</option>
-                <% storages.forEach(function (s) { %>
-                  <option value="<%= s.id %>">zurück in <%= s.name %></option>
-                <% }); %>
-                <% if (reason !== 'defekt' && item.condition !== 'defekt') { %>
-                  <option value="ausmustern">ausmustern</option>
-                <% } %>
-              </select>
-            </label>
-            <button class="btn" type="submit">Jetzt tauschen</button>
+            <input type="hidden" name="size" value="<%= g.size || zielGroesse %>">
+            <input type="hidden" name="storage_id" value="<%= g.storage_id || '' %>">
+            <input type="hidden" name="condition" value="<%= g.condition %>">
+            <input type="hidden" name="verbleib" value="<%= reason === 'defekt' || item.condition === 'defekt' ? 'ausmustern' : 'lager' %>">
+            <button class="btn" type="submit">Tauschen …</button>
+            <span class="klein">im nächsten Schritt beide Teile kontrollieren</span>
           </form>
         <% } else { %>
           <p class="klein">Zum direkten Tauschen muss das alte Teil in einem Spint liegen.</p>

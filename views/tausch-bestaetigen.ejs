@@ -1,0 +1,120 @@
+<%- include('partials/kopf') %>
+<%
+  // Womit wird kontrolliert? Inventarnummer, wenn die Art eine führt, sonst Größe.
+  const altPerNummer = !!item.inventory_no;
+  const altPerGroesse = !item.inventory_no && !!item.size;
+  const altPruefbar = altPerNummer || altPerGroesse;
+  const neuPerNummer = !!item.has_inventory;
+%>
+
+<div class="seitenkopf">
+  <h1>Kontrolle vor dem Tausch</h1>
+  <a class="btn btn-still" href="/ausruestung/<%= item.id %>/tauschen">Zurück</a>
+</div>
+
+<% if (fehler) { %><p class="hinweis hinweis-warn"><%= fehler %></p><% } %>
+
+<p class="klein">
+  Beide Teile bitte in die Hand nehmen und kontrollieren — so landet nicht versehentlich
+  die Jacke des Nachbarn im Spint.
+</p>
+
+<form method="post" action="/ausruestung/<%= item.id %>/tauschen/ausfuehren">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="size" value="<%= fund.size %>">
+  <input type="hidden" name="storage_id" value="<%= fund.storageId || '' %>">
+  <input type="hidden" name="condition" value="<%= fund.condition || '' %>">
+
+  <section class="block block-schritt">
+    <h2><span class="schrittnr">1</span> Altes Teil aus dem Spint</h2>
+    <p class="klein">
+      <%= item.type_name %><% if (item.member_name) { %> von <strong><%= item.member_name %></strong><% } %><% if (item.locker_code) { %>,
+      Spint <%= item.locker_code %><% } %>
+    </p>
+
+    <% if (altPruefbar) { %>
+      <label>
+        <span><%= altPerNummer ? 'Inventarnummer am alten Teil' : 'Größe am alten Teil' %></span>
+        <span class="eingabe-mit-scan">
+          <input name="alt_pruefung" id="altPruefung" value="<%= werte.alt || '' %>" autocomplete="off"
+                 inputmode="<%= altPerNummer ? 'numeric' : 'text' %>"
+                 placeholder="<%= altPerNummer ? 'scannen oder eintippen' : 'z. B. 8' %>" autofocus>
+          <% if (altPerNummer) { %>
+            <button class="btn btn-still" type="button" data-scan="feld" data-ziel="#altPruefung">📷 Scannen</button>
+          <% } %>
+        </span>
+        <small>
+          <%= altPerNummer
+            ? 'Der Strichcode am Etikett des Teils, das gerade im Spint liegt.'
+            : 'Diese Art führt keine Inventarnummer — zur Kontrolle die Größe eintragen.' %>
+        </small>
+      </label>
+    <% } else { %>
+      <p class="klein">Für dieses Teil ist weder Inventarnummer noch Größe erfasst — es lässt sich nicht kontrollieren.</p>
+    <% } %>
+  </section>
+
+  <section class="block block-schritt">
+    <h2><span class="schrittnr">2</span> Neues Teil aus dem Lager</h2>
+    <p class="klein">
+      <%= item.type_name %><% if (fund.size) { %> Größe <strong><%= fund.size %></strong><% } %>
+      aus <strong><%= fund.storageName || 'Lager ohne festen Ort' %></strong>
+      — dort liegen <%= fund.kandidaten.length %> Stück, jedes davon passt.
+    </p>
+
+    <label>
+      <span><%= neuPerNummer ? 'Inventarnummer am neuen Teil' : 'Größe am neuen Teil' %></span>
+      <span class="eingabe-mit-scan">
+        <input name="neu_pruefung" id="neuPruefung" value="<%= werte.neu || '' %>" autocomplete="off"
+               inputmode="<%= neuPerNummer ? 'numeric' : 'text' %>"
+               placeholder="<%= neuPerNummer ? 'scannen oder eintippen' : 'z. B. ' + (fund.size || '8') %>"
+               <%= altPruefbar ? '' : 'autofocus' %>>
+        <% if (neuPerNummer) { %>
+          <button class="btn btn-still" type="button" data-scan="feld" data-ziel="#neuPruefung">📷 Scannen</button>
+        <% } %>
+      </span>
+      <small>
+        <%= neuPerNummer
+          ? 'Wurde das Teil als Sammelposten ohne Nummer erfasst, wird die gescannte Nummer jetzt eingetragen.'
+          : 'Diese Art führt keine Inventarnummer — zur Kontrolle die Größe bestätigen.' %>
+      </small>
+    </label>
+  </section>
+
+  <section class="block">
+    <h2>Was passiert mit dem alten Teil?</h2>
+    <select name="verbleib" aria-label="Verbleib des alten Teils">
+      <option value="lager" <%= verbleib === 'lager' ? 'selected' : '' %>>zurück ins Lager (ohne Ort)</option>
+      <% storages.forEach(function (s) { %>
+        <option value="<%= s.id %>" <%= String(verbleib) === String(s.id) ? 'selected' : '' %>>zurück in <%= s.name %></option>
+      <% }); %>
+      <option value="ausmustern" <%= verbleib === 'ausmustern' ? 'selected' : '' %>>ausmustern</option>
+    </select>
+
+    <div class="formfuss" style="margin-top:1rem">
+      <button class="btn btn-gross" type="submit">Tausch bestätigen</button>
+      <a class="btn btn-still" href="/ausruestung/<%= item.id %>/tauschen">Abbrechen</a>
+    </div>
+  </section>
+
+  <details class="block block-gefahr">
+    <summary><strong>Altes Teil nicht auffindbar?</strong></summary>
+    <p class="klein">
+      Ist das alte Teil verloren oder das Etikett unlesbar, kann die Kontrolle übersprungen werden.
+      Der Grund landet im Verlauf. Das neue Teil wird trotzdem geprüft.
+    </p>
+    <div class="teilform">
+      <select name="skip_grund" aria-label="Grund">
+        <% skipGruende.forEach(function (g) { %>
+          <option value="<%= g %>"><%= g %></option>
+        <% }); %>
+      </select>
+      <button class="btn btn-gefahr" type="submit" name="alt_fehlt" value="1">
+        Ohne Kontrolle des alten Teils tauschen
+      </button>
+    </div>
+    <p class="klein">Bei „verloren“ wird das alte Teil automatisch ausgemustert.</p>
+  </details>
+</form>
+
+<%- include('partials/fuss') %>

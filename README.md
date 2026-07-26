@@ -158,11 +158,41 @@ Spint beim betreffenden Teil auf **Tauschen / Bestellen**.
    Handschuhgrößen in Einerschritten (32 → 34 bei zwei Nummern größer). Freitext-Größen wie
    „S/M/L" bekommen keinen Vorschlag, dort tippt man selbst.
 2. **Lager wird geprüft.** Liegt ein passendes Stück da, sagt die Software, **wo** es ist
-   („Schrank 1, 6 Stück, Gr. 176") — mit Knopf zum direkten Tauschen. Das Ersatzteil wandert
-   in den Spint, das alte wahlweise zurück ins Lager, in einen bestimmten Schrank oder in die
-   Ausmusterung. Defekte Teile stehen dabei auf „ausmustern" vorbelegt.
-3. **Nichts da? Dann wird es eine Aufgabe.** Sie landet im Tab **Aufgaben** und bleibt dort
+   („Schrank 1, 6 Stück, Gr. 176").
+3. **Kontrolle vor dem Tausch** (siehe unten) — beide Teile werden geprüft.
+4. **Getauscht.** Das Ersatzteil wandert in den Spint, das alte wahlweise zurück ins Lager,
+   in einen bestimmten Schrank oder in die Ausmusterung. Defekte Teile stehen dabei auf
+   „ausmustern" vorbelegt.
+5. **Nichts da? Dann wird es eine Aufgabe.** Sie landet im Tab **Aufgaben** und bleibt dort
    offen, bis jemand sie abhakt.
+
+### Kontrolle vor dem Tausch
+
+In der Umkleide vergreift man sich schnell — deshalb kommt vor dem Tausch ein Zwischenschritt,
+der **beide** Teile abfragt:
+
+- **Altes Teil aus dem Spint:** muss exakt stimmen. Führt die Art eine Inventarnummer, wird
+  diese gescannt oder eingetippt; sonst (z. B. Handschuhe) die Größe eingetragen. Passt es
+  nicht, bricht die Software ab und sagt, was nicht stimmt.
+- **Neues Teil aus dem Lager:** hier zählt **jedes** Teil der gesuchten Größe an dieser
+  Fundstelle als richtig — es ist ja gleichwertig. Geprüft wird nur, dass die gescannte
+  Nummer wirklich zu dieser Fundstelle gehört.
+
+Praktischer Nebeneffekt: Wurde das neue Teil als Sammelposten ohne Inventarnummer erfasst
+(20 Paar Schuhe auf einmal), **trägt die Software die gescannte Nummer jetzt ein**. So füllen
+sich die Nummern beim Ausgeben von selbst, statt dass jemand sie vorab abtippen muss.
+
+Die erwarteten Werte stehen bewusst **nicht** auf der Kontrollseite — sonst wäre das Scannen
+ein Klick ins Leere. Sie stehen auf dem Etikett am Teil in der Hand.
+
+**Wenn das alte Teil fehlt:** unter „Altes Teil nicht auffindbar?" lässt sich die Kontrolle
+mit Grund überspringen (verloren, Etikett unlesbar, sonstiges). Bei „verloren" wird das alte
+Teil automatisch ausgemustert, denn es kann nicht zurück ins Lager. Der übersprungene Check
+landet mit Grund im Verlauf. Das **neue** Teil wird trotzdem geprüft.
+
+Diese Kontrolle ist ein Schutz gegen Verwechslung, keine Sicherheitsmaßnahme — wer will,
+kann die Nummer abschreiben. Darum geht es nicht; es geht darum, dass niemand versehentlich
+die Jacke des Nachbarn einbucht.
 
 Der Aufgaben-Tab zeigt Art, Mitglied, Spint, Größenwechsel (`164 → 188`), Grund, Notiz und
 wer sie wann angelegt hat. Ein Zähler in der Navigation zeigt die offenen Aufgaben. Aufgaben

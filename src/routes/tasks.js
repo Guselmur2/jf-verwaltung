@@ -144,26 +144,148 @@ router.post('/ausruestung/:id/tauschen', login, (req, res) => {
   res.redirect('/aufgaben');
 });
 
-// Gefundenes Ersatzteil tatsaechlich in den Spint legen.
-router.post('/ausruestung/:id/tauschen/ausfuehren', login, (req, res) => {
-  const item = itemWithType(req.params.id);
-  const ersatz = m.q.equipmentById.get(Number(req.body.ersatz_id));
-  if (!item || !ersatz) return res.redirect('/');
+// ------------------------------------------------- Sicherheitsabfrage + Tausch
 
-  if (ersatz.locker_id || ersatz.retired) {
-    req.session.flash = { type: 'warn', text: 'Das Ersatzteil ist inzwischen nicht mehr im Lager verfügbar.' };
+const SKIP_GRUENDE = ['verloren', 'Etikett unlesbar', 'sonstiges'];
+
+function norm(s) {
+  return String(s ?? '').trim().toLowerCase();
+}
+
+/** Liest die Fundstelle aus dem Formular und laedt ihre Teile frisch aus der DB. */
+function fundstelle(item, body) {
+  const size = (body.size || '').trim();
+  const storageId = body.storage_id ? Number(body.storage_id) : null;
+  const condition = body.condition || null;
+  return {
+    size,
+    storageId,
+    condition,
+    storageName: storageId ? m.q.storageById.get(storageId)?.name : null,
+    kandidaten: m.replacementCandidates(item.type_id, size, storageId, condition),
+  };
+}
+
+/**
+ * Prueft, ob der Betreuer wirklich das alte Teil aus dem Spint in der Hand hat.
+ * Teile mit Inventarnummer muessen exakt stimmen, sonst zaehlt die Groesse
+ * (Handschuhe). Ist beides nicht erfasst, gibt es nichts zu pruefen.
+ */
+function pruefeAltesTeil(item, eingabe) {
+  const wert = norm(eingabe);
+  if (item.inventory_no) {
+    if (!wert) return 'Bitte die Inventarnummer des alten Teils scannen oder eintippen.';
+    return wert === norm(item.inventory_no) ? null : 'Diese Inventarnummer gehört nicht zum Teil aus dem Spint.';
+  }
+  if (item.size) {
+    if (!wert) return 'Bitte die Größe des alten Teils eintragen.';
+    return wert === norm(item.size) ? null : `Diese Größe passt nicht zum Teil aus dem Spint (dort steht ${item.size}).`;
+  }
+  return null;
+}
+
+/**
+ * Waehlt aus der Fundstelle das Teil aus, das der Betreuer in der Hand hat.
+ * Bei mehreren Teilen derselben Groesse ist jedes recht — entscheidend ist,
+ * dass die gescannte Nummer zur Fundstelle gehoert. Teile, die per Mengenangabe
+ * ohne Nummer angelegt wurden, bekommen die gescannte Nummer jetzt zugewiesen.
+ */
+function waehleNeuesTeil(item, kandidaten, eingabe) {
+  const wert = norm(eingabe);
+
+  if (!item.has_inventory) {
+    const erwartet = norm(kandidaten[0].size);
+    if (erwartet && wert !== erwartet) {
+      return { fehler: `Bitte die Größe des neuen Teils bestätigen (an der Fundstelle liegt Größe ${kandidaten[0].size}).` };
+    }
+    return { gewaehlt: kandidaten[0] };
+  }
+
+  if (!wert) return { fehler: 'Bitte die Inventarnummer des neuen Teils scannen oder eintippen.' };
+
+  const treffer = kandidaten.find((k) => norm(k.inventory_no) === wert);
+  if (treffer) return { gewaehlt: treffer };
+
+  // Sammelposten ohne Nummern: die gescannte Nummer wandert ins Teil.
+  const ohneNummer = kandidaten.find((k) => !k.inventory_no);
+  if (ohneNummer) return { gewaehlt: ohneNummer, nummerUebernehmen: String(eingabe).trim() };
+
+  return { fehler: 'Diese Inventarnummer gehört zu keinem Teil an dieser Fundstelle.' };
+}
+
+// Schritt 1: Sicherheitsabfrage anzeigen.
+router.post('/ausruestung/:id/tauschen/pruefen', login, (req, res) => {
+  const item = itemWithType(req.params.id);
+  if (!item) return res.redirect('/');
+
+  const fund = fundstelle(item, req.body);
+  if (!fund.kandidaten.length) {
+    req.session.flash = { type: 'warn', text: 'An dieser Fundstelle liegt nichts Passendes mehr.' };
     return res.redirect(`/ausruestung/${item.id}/tauschen`);
   }
+
+  res.render('tausch-bestaetigen', {
+    title: `${item.type_name} tauschen — Kontrolle`,
+    item,
+    fund,
+    storages: m.storagesAll(),
+    skipGruende: SKIP_GRUENDE,
+    verbleib: req.body.verbleib || (item.condition === 'defekt' ? 'ausmustern' : 'lager'),
+    fehler: null,
+    werte: {},
+  });
+});
+
+// Schritt 2: Eingaben pruefen und erst dann tauschen.
+router.post('/ausruestung/:id/tauschen/ausfuehren', login, (req, res) => {
+  const item = itemWithType(req.params.id);
+  if (!item) return res.redirect('/');
+
+  const fund = fundstelle(item, req.body);
+  const altFehlt = req.body.alt_fehlt === '1';
+  const skipGrund = SKIP_GRUENDE.includes(req.body.skip_grund) ? req.body.skip_grund : 'sonstiges';
+  let verbleib = req.body.verbleib || 'lager';
+
+  const seite = (fehler) =>
+    res.status(400).render('tausch-bestaetigen', {
+      title: `${item.type_name} tauschen — Kontrolle`,
+      item,
+      fund,
+      storages: m.storagesAll(),
+      skipGruende: SKIP_GRUENDE,
+      verbleib,
+      fehler,
+      werte: { alt: req.body.alt_pruefung || '', neu: req.body.neu_pruefung || '' },
+    });
+
   if (!item.locker_id) {
     req.session.flash = { type: 'warn', text: 'Das alte Teil liegt in keinem Spint.' };
     return res.redirect(`/ausruestung/${item.id}/tauschen`);
   }
+  if (!fund.kandidaten.length) {
+    req.session.flash = { type: 'warn', text: 'An dieser Fundstelle liegt nichts Passendes mehr.' };
+    return res.redirect(`/ausruestung/${item.id}/tauschen`);
+  }
 
-  const verbleib = req.body.verbleib || 'lager'; // 'lager' | 'ausmustern' | Lagerort-Id
+  if (!altFehlt) {
+    const fehler = pruefeAltesTeil(item, req.body.alt_pruefung);
+    if (fehler) return seite(fehler);
+  } else if (skipGrund === 'verloren') {
+    // Ein verlorenes Teil kann nicht zurueck ins Lager wandern.
+    verbleib = 'ausmustern';
+  }
+
+  const wahl = waehleNeuesTeil(item, fund.kandidaten, req.body.neu_pruefung);
+  if (wahl.fehler) return seite(wahl.fehler);
+
+  const ersatz = wahl.gewaehlt;
   const altVorher = m.placementLabel(item);
   const neuVorher = m.placementLabel(ersatz);
 
   db.transaction(() => {
+    if (wahl.nummerUebernehmen) {
+      db.prepare('UPDATE equipment SET inventory_no = ? WHERE id = ?').run(wahl.nummerUebernehmen, ersatz.id);
+    }
     m.setPlacement(ersatz.id, { lockerId: item.locker_id });
     if (verbleib === 'ausmustern') {
       db.prepare('UPDATE equipment SET retired = 1, locker_id = NULL, storage_id = NULL WHERE id = ?').run(item.id);
@@ -174,17 +296,20 @@ router.post('/ausruestung/:id/tauschen/ausfuehren', login, (req, res) => {
   })();
 
   const altNachher = verbleib === 'ausmustern' ? 'ausgemustert' : m.placementLabel(m.q.equipmentById.get(item.id));
+  const kontrolle = altFehlt ? `ohne Kontrolle des alten Teils (${skipGrund})` : 'altes Teil kontrolliert';
   audit.log(
     req,
     'ausruestung',
     ersatz.id,
     'getauscht',
-    `${item.type_name} ${ersatz.size || ''} aus ${neuVorher} → ${altVorher}; altes Teil (${item.size || '?'}) → ${altNachher}`
+    `${item.type_name} ${ersatz.size || ''} aus ${neuVorher} → ${altVorher}; altes Teil (${item.size || '?'}) → ${altNachher}; ${kontrolle}` +
+      (wahl.nummerUebernehmen ? `; Inv.-Nr. ${wahl.nummerUebernehmen} zugewiesen` : '')
   );
 
+  const zusatz = wahl.nummerUebernehmen ? ` Inventarnummer ${wahl.nummerUebernehmen} wurde dem Teil zugeordnet.` : '';
   req.session.flash = {
     type: 'ok',
-    text: `Getauscht: ${item.type_name} Größe ${ersatz.size || '?'} liegt jetzt im Spint, das alte Teil ist ${altNachher}.`,
+    text: `Getauscht: ${item.type_name} Größe ${ersatz.size || '?'} liegt jetzt im Spint, das alte Teil ist ${altNachher}.${zusatz}`,
   };
   res.redirect(`/spint/${item.locker_id}/bearbeiten`);
 });
