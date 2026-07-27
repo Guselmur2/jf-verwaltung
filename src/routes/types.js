@@ -177,4 +177,79 @@ router.post('/groessen/:scheme/speichern', login, (req, res) => {
   res.redirect('/ausruestungsarten');
 });
 
+/**
+ * Neues Größenschema anlegen. Die Größen kommen als Zeilen der Form
+ *   Körpergröße: 122/128, 134/140, …
+ * damit sich auch mehrere Gruppen in einem Feld angeben lassen.
+ */
+router.post('/groessen/neu', login, (req, res) => {
+  const name = (req.body.name || '').trim().toLowerCase();
+  const bezeichnung = (req.body.bezeichnung || '').trim();
+
+  const warnen = (text) => {
+    req.session.flash = { type: 'warn', text };
+    res.redirect('/ausruestungsarten');
+  };
+
+  if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(name)) {
+    return warnen('Der Kurzname darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, z. B. „jacke“.');
+  }
+  if (db.prepare('SELECT 1 FROM size_schemes WHERE name = ?').get(name)) {
+    return warnen(`Das Größenschema „${name}“ gibt es schon.`);
+  }
+
+  const gruppen = [];
+  const gesehen = new Set();
+  for (const zeile of String(req.body.groessen || '').split(/\r?\n/)) {
+    if (!zeile.trim()) continue;
+    const teil = zeile.split(':');
+    const gruppe = teil.length > 1 ? teil.shift().trim() : 'Größen';
+    const werte = teil
+      .join(':')
+      .split(/[,;]+/)
+      .map((w) => w.trim())
+      .filter(Boolean);
+    for (const w of werte) {
+      if (gesehen.has(w.toLowerCase())) return warnen(`Die Größe „${w}“ steht mehrfach in der Liste.`);
+      gesehen.add(w.toLowerCase());
+    }
+    if (werte.length) gruppen.push({ gruppe, werte });
+  }
+  if (!gesehen.size) return warnen('Bitte mindestens eine Größe angeben.');
+
+  const einfuegen = db.prepare('INSERT INTO sizes (scheme, gruppe, wert, sort_order) VALUES (?, ?, ?, ?)');
+  db.transaction(() => {
+    db.prepare('INSERT INTO size_schemes (name, label, note) VALUES (?, ?, ?)').run(
+      name,
+      bezeichnung || name,
+      (req.body.hinweis || '').trim() || null
+    );
+    let sort = 10;
+    for (const g of gruppen) for (const w of g.werte) einfuegen.run(name, g.gruppe, w, (sort += 10));
+  })();
+
+  audit.log(req, 'groessen', null, 'angelegt', `${bezeichnung || name}: ${gesehen.size} Größen`);
+  req.session.flash = { type: 'ok', text: `Größenschema „${bezeichnung || name}“ mit ${gesehen.size} Größen angelegt.` };
+  res.redirect('/ausruestungsarten');
+});
+
+router.post('/groessen/:scheme/loeschen', auth.requireJugendwart, (req, res) => {
+  const scheme = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.scheme);
+  if (!scheme) return res.redirect('/ausruestungsarten');
+
+  const nutzer = db.prepare('SELECT name FROM equipment_types WHERE size_scheme = ?').all(scheme.name);
+  if (nutzer.length) {
+    req.session.flash = {
+      type: 'warn',
+      text: `„${scheme.label}“ wird noch verwendet von: ${nutzer.map((t) => t.name).join(', ')}.`,
+    };
+    return res.redirect('/ausruestungsarten');
+  }
+
+  db.prepare('DELETE FROM size_schemes WHERE name = ?').run(scheme.name);
+  audit.log(req, 'groessen', null, 'gelöscht', scheme.label);
+  req.session.flash = { type: 'ok', text: `Größenschema „${scheme.label}“ gelöscht.` };
+  res.redirect('/ausruestungsarten');
+});
+
 module.exports = router;

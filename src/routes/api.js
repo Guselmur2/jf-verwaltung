@@ -118,7 +118,9 @@ router.get('/', lesen, (req, res) => {
         'POST /api/v1/arten',
         'PATCH /api/v1/arten/:id',
         'DELETE /api/v1/arten/:id',
+        'POST /api/v1/groessen',
         'PUT /api/v1/groessen/:schema',
+        'DELETE /api/v1/groessen/:schema',
       ],
     },
   });
@@ -505,19 +507,17 @@ router.get('/groessen', lesen, (req, res) => {
   res.json({ anzahl: daten.length, daten });
 });
 
-router.put('/groessen/:schema', schreiben, (req, res) => {
-  const schema = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.schema);
-  if (!schema) {
-    return res.status(404).json({ fehler: 'Größenschema nicht gefunden.', bekannt: sizes.schemes().map((s) => s.name) });
-  }
-
-  // Erwartet: { "gruppen": [ { "gruppe": "Körpergröße", "groessen": ["116", …] } ] }
-  const gruppen = Array.isArray(req.body?.gruppen) ? req.body.gruppen : null;
+/**
+ * Prueft die Gruppen-Angabe einer Groessenreihe. Liefert entweder {fehler} oder
+ * die bereinigten Gruppen samt Gesamtzahl.
+ */
+function pruefeGruppen(rohe) {
+  const gruppen = Array.isArray(rohe) ? rohe : null;
   if (!gruppen || !gruppen.length) {
-    return res.status(400).json({
+    return {
       fehler: 'Feld "gruppen" fehlt.',
       beispiel: { gruppen: [{ gruppe: 'Körpergröße', groessen: ['116', '122'] }] },
-    });
+    };
   }
 
   const gesehen = new Set();
@@ -525,30 +525,106 @@ router.put('/groessen/:schema', schreiben, (req, res) => {
   for (const g of gruppen) {
     const werte = (Array.isArray(g.groessen) ? g.groessen : []).map((w) => String(w).trim()).filter(Boolean);
     for (const w of werte) {
-      if (gesehen.has(w.toLowerCase())) {
-        return res.status(400).json({ fehler: `Die Größe „${w}“ steht mehrfach in der Liste.` });
-      }
+      if (gesehen.has(w.toLowerCase())) return { fehler: `Die Größe „${w}“ steht mehrfach in der Liste.` };
       gesehen.add(w.toLowerCase());
     }
     sauber.push({ gruppe: String(g.gruppe || 'Größen').trim(), werte });
   }
-  if (!gesehen.size) return res.status(400).json({ fehler: 'Mindestens eine Größe muss übrig bleiben.' });
+  if (!gesehen.size) return { fehler: 'Mindestens eine Größe muss übrig bleiben.' };
+  return { sauber, anzahl: gesehen.size };
+}
 
+/** Schreibt die Groessen eines Schemas neu. Die Reihenfolge bleibt erhalten. */
+function schreibeGroessen(schemaName, gruppen) {
   const einfuegen = db.prepare('INSERT INTO sizes (scheme, gruppe, wert, sort_order) VALUES (?, ?, ?, ?)');
   db.transaction(() => {
-    db.prepare('DELETE FROM sizes WHERE scheme = ?').run(schema.name);
+    db.prepare('DELETE FROM sizes WHERE scheme = ?').run(schemaName);
     let sort = 10;
-    for (const g of sauber) for (const w of g.werte) einfuegen.run(schema.name, g.gruppe, w, (sort += 10));
+    for (const g of gruppen) for (const w of g.werte) einfuegen.run(schemaName, g.gruppe, w, (sort += 10));
   })();
+}
+
+router.post('/groessen', schreiben, (req, res) => {
+  const b = req.body || {};
+  const name = String(b.schema || '').trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(name)) {
+    return res.status(400).json({
+      fehler: 'Feld "schema" fehlt oder ist ungültig.',
+      hinweis: 'Kurzname aus Kleinbuchstaben, Ziffern und Bindestrich, z. B. "jacke".',
+    });
+  }
+  if (db.prepare('SELECT 1 FROM size_schemes WHERE name = ?').get(name)) {
+    return res.status(409).json({ fehler: `Das Größenschema „${name}“ gibt es schon.` });
+  }
+
+  const geprueft = pruefeGruppen(b.gruppen);
+  if (geprueft.fehler) return res.status(400).json(geprueft);
+
+  db.prepare('INSERT INTO size_schemes (name, label, note) VALUES (?, ?, ?)').run(
+    name,
+    String(b.bezeichnung || name).trim(),
+    (b.hinweis || '').trim() || null
+  );
+  schreibeGroessen(name, geprueft.sauber);
+
+  db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'groessen', NULL, 'angelegt', ?)")
+    .run(`API: ${req.apiToken.name}`, `${name}: ${geprueft.anzahl} Größen`);
+
+  res.status(201).json({
+    schema: name,
+    bezeichnung: String(b.bezeichnung || name).trim(),
+    anzahl: geprueft.anzahl,
+    gruppen: geprueft.sauber.map((g) => ({ gruppe: g.gruppe, groessen: g.werte })),
+  });
+});
+
+router.put('/groessen/:schema', schreiben, (req, res) => {
+  const schema = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.schema);
+  if (!schema) {
+    return res.status(404).json({ fehler: 'Größenschema nicht gefunden.', bekannt: sizes.schemes().map((s) => s.name) });
+  }
+
+  // Erwartet: { "gruppen": [ { "gruppe": "Körpergröße", "groessen": ["116", …] } ] }
+  const geprueft = pruefeGruppen(req.body?.gruppen);
+  if (geprueft.fehler) return res.status(400).json(geprueft);
+
+  // Bezeichnung und Hinweis lassen sich hier gleich mitpflegen.
+  if (req.body.bezeichnung !== undefined || req.body.hinweis !== undefined) {
+    db.prepare('UPDATE size_schemes SET label = ?, note = ? WHERE name = ?').run(
+      req.body.bezeichnung !== undefined ? String(req.body.bezeichnung).trim() || schema.label : schema.label,
+      req.body.hinweis !== undefined ? String(req.body.hinweis).trim() || null : schema.note,
+      schema.name
+    );
+  }
+
+  schreibeGroessen(schema.name, geprueft.sauber);
 
   db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'groessen', NULL, 'geändert', ?)")
-    .run(`API: ${req.apiToken.name}`, `${schema.label}: ${gesehen.size} Größen`);
+    .run(`API: ${req.apiToken.name}`, `${schema.label}: ${geprueft.anzahl} Größen`);
 
   res.json({
     schema: schema.name,
-    anzahl: gesehen.size,
-    gruppen: sauber.map((g) => ({ gruppe: g.gruppe, groessen: g.werte })),
+    anzahl: geprueft.anzahl,
+    gruppen: geprueft.sauber.map((g) => ({ gruppe: g.gruppe, groessen: g.werte })),
   });
+});
+
+router.delete('/groessen/:schema', schreiben, (req, res) => {
+  const schema = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.schema);
+  if (!schema) return res.status(404).json({ fehler: 'Größenschema nicht gefunden.' });
+
+  const nutzer = db.prepare('SELECT name FROM equipment_types WHERE size_scheme = ?').all(schema.name);
+  if (nutzer.length) {
+    return res.status(409).json({
+      fehler: `„${schema.label}“ wird noch verwendet.`,
+      von: nutzer.map((t) => t.name),
+    });
+  }
+
+  db.prepare('DELETE FROM size_schemes WHERE name = ?').run(schema.name);
+  db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'groessen', NULL, 'gelöscht', ?)")
+    .run(`API: ${req.apiToken.name}`, schema.label);
+  res.json({ geloescht: schema.name });
 });
 
 router.post('/aufgaben', schreiben, (req, res) => {

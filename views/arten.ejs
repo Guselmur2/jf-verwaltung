@@ -84,7 +84,17 @@
 
   <% schemes.forEach(function (s) { %>
     <div class="schemablock">
-      <h3><%= s.label %></h3>
+      <h3>
+        <%= s.label %>
+        <span class="klein"><code><%= s.name %></code></span>
+        <% if (isJugendwart && !types.some(function (t) { return t.size_scheme === s.name; })) { %>
+          <form method="post" action="/groessen/<%= s.name %>/loeschen" class="inline"
+                onsubmit="return confirm('Größenschema „<%= s.label %>“ löschen?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+          </form>
+        <% } %>
+      </h3>
       <% if (s.note) { %><p class="klein"><%= s.note %></p><% } %>
       <form method="post" action="/groessen/<%= s.name %>/speichern" class="formstapel">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -109,6 +119,38 @@
       </form>
     </div>
   <% }); %>
+
+  <h3>Neues Größenschema</h3>
+  <p class="klein">
+    Nötig, wenn zwei Arten unterschiedliche Reihen haben — Jacken werden oft als
+    <code>146/152</code> geführt, Hosen derselben Wehr als <code>152/158</code>.
+    Eine Zeile je Gruppe, Größen durch Komma getrennt.
+  </p>
+  <form method="post" action="/groessen/neu" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="formraster">
+      <label>
+        <span>Kurzname</span>
+        <input name="name" placeholder="jacke" required pattern="[a-z0-9][a-z0-9-]{1,30}" autocomplete="off">
+        <small>Kleinbuchstaben, Ziffern, Bindestrich</small>
+      </label>
+      <label>
+        <span>Bezeichnung</span>
+        <input name="bezeichnung" placeholder="Jacke (Doppelgrößen / Konfektion)">
+      </label>
+    </div>
+    <label>
+      <span>Größen</span>
+      <textarea name="groessen" rows="3" placeholder="Körpergröße: 122/128, 134/140, 146/152&#10;Konfektion: 44, 46, 48"></textarea>
+    </label>
+    <label>
+      <span>Hinweis (optional)</span>
+      <input name="hinweis" placeholder="wofür dieses Schema gilt">
+    </label>
+    <div class="formfuss">
+      <button class="btn btn-klein" type="submit">Schema anlegen</button>
+    </div>
+  </form>
 </section>
 
 <section class="block">

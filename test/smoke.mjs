@@ -892,6 +892,54 @@ const putGr = await fetch(BASE + '/api/v1/groessen/handschuh', {
 const putJson = await putGr.json();
 check('Größenreihe über die API ersetzen', putGr.status === 200 && putJson.anzahl === 4, JSON.stringify(putJson));
 
+// Neues Schema anlegen — noetig, wenn zwei Arten verschiedene Reihen haben.
+const neuesSchema = await fetch(BASE + '/api/v1/groessen', {
+  method: 'POST',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({
+    schema: 'jacke-test', bezeichnung: 'Jacke (Doppelgrößen)',
+    gruppen: [{ gruppe: 'Körpergröße', groessen: ['122/128', '134/140', '146/152'] },
+              { gruppe: 'Konfektion', groessen: ['44', '46'] }],
+  }),
+});
+const schemaJson = await neuesSchema.json();
+check('Größenschema über die API anlegen', neuesSchema.status === 201 && schemaJson.anzahl === 5, JSON.stringify(schemaJson));
+
+const nochmal = await fetch(BASE + '/api/v1/groessen', {
+  method: 'POST', headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ schema: 'jacke-test', gruppen: [{ groessen: ['1'] }] }),
+});
+check('doppeltes Schema wird abgelehnt', nochmal.status === 409);
+
+const krummerName = await fetch(BASE + '/api/v1/groessen', {
+  method: 'POST', headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ schema: 'Jacke Test!', gruppen: [{ groessen: ['1'] }] }),
+});
+check('ungültiger Kurzname wird abgelehnt', krummerName.status === 400);
+
+// Doppelgrößen müssen als Größe durchgehen und die Schrittfolge bestimmen.
+w = await schreibPost('/api/v1/arten', { name: 'Testjacke', groessenschema: 'jacke-test' }, schreibToken);
+const testJackeId = w.json?.id;
+check('Art mit dem neuen Schema angelegt', w.status === 201 && !!testJackeId);
+
+w = await schreibPost('/api/v1/ausruestung', { art: 'Testjacke', groesse: '146/152' }, schreibToken);
+check('Doppelgröße wird als gültig anerkannt', w.status === 201, JSON.stringify(w.json));
+
+w = await schreibPost('/api/v1/ausruestung', { art: 'Testjacke', groesse: '150' }, schreibToken);
+check('Größe außerhalb der Reihe wird hinterfragt', w.status === 409 && !!w.json.vorschlag, JSON.stringify(w.json));
+
+// Nach 146/152 folgt die 44 — der Übergang bleibt auch bei Doppelgrößen erhalten.
+a = await apiGet('/api/v1/arten');
+const tj = a.json.daten.find((t) => t.name === 'Testjacke');
+check('Reihenfolge im Schema bleibt erhalten',
+  JSON.stringify(tj.groessen) === JSON.stringify(['122/128', '134/140', '146/152', '44', '46']),
+  JSON.stringify(tj.groessen));
+
+const schemaWeg = await fetch(BASE + '/api/v1/groessen/jacke-test', {
+  method: 'DELETE', headers: { 'x-api-key': schreibToken },
+});
+check('benutztes Schema lässt sich nicht löschen', schemaWeg.status === 409, String(schemaWeg.status));
+
 const putDoppelt = await fetch(BASE + '/api/v1/groessen/handschuh', {
   method: 'PUT',
   headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
