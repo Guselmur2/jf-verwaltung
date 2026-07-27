@@ -16,6 +16,8 @@ function clean(body) {
     has_size: body.has_size ? 1 : 0,
     has_inventory: body.has_inventory ? 1 : 0,
     size_scheme: (body.size_scheme || '').trim() || null,
+    barcode_prefix: (body.barcode_prefix || '').trim() || null,
+    barcode_digits: Number(body.barcode_digits) > 0 ? Number(body.barcode_digits) : null,
     sort_order: Number(body.sort_order) || 100,
   };
 }
@@ -38,8 +40,10 @@ router.post('/ausruestungsarten/neu', login, (req, res) => {
   try {
     const info = db
       .prepare(
-        'INSERT INTO equipment_types (name, has_size, has_inventory, size_scheme, sort_order) ' +
-          'VALUES (@name, @has_size, @has_inventory, @size_scheme, @sort_order)'
+        'INSERT INTO equipment_types (name, has_size, has_inventory, size_scheme, ' +
+          'barcode_prefix, barcode_digits, sort_order) ' +
+          'VALUES (@name, @has_size, @has_inventory, @size_scheme, ' +
+          '@barcode_prefix, @barcode_digits, @sort_order)'
       )
       .run(data);
     audit.log(req, 'art', info.lastInsertRowid, 'angelegt', data.name);
@@ -61,7 +65,8 @@ router.post('/ausruestungsarten/:id/bearbeiten', login, (req, res) => {
   try {
     db.prepare(
       'UPDATE equipment_types SET name = @name, has_size = @has_size, has_inventory = @has_inventory, ' +
-        'size_scheme = @size_scheme, sort_order = @sort_order WHERE id = @id'
+        'size_scheme = @size_scheme, barcode_prefix = @barcode_prefix, ' +
+        'barcode_digits = @barcode_digits, sort_order = @sort_order WHERE id = @id'
     ).run({ ...data, id: type.id });
   } catch (err) {
     if (!/UNIQUE/i.test(err.message)) throw err;
@@ -71,7 +76,8 @@ router.post('/ausruestungsarten/:id/bearbeiten', login, (req, res) => {
 
   const detail = audit.diff(
     { name: 'Name', has_size: 'Größe führen', has_inventory: 'Inv.-Nr. führen',
-      size_scheme: 'Größenschema', sort_order: 'Reihenfolge' },
+      size_scheme: 'Größenschema', barcode_prefix: 'Barcode-Präfix',
+      barcode_digits: 'Stellen', sort_order: 'Reihenfolge' },
     type,
     data
   );

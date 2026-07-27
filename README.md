@@ -20,7 +20,7 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Tauschen / Bestellen | `/ausruestung/12/tauschen` | Betreuer |
 | Aufgaben | `/aufgaben` | Betreuer, zuständig ist der Jugendwart |
 | Lagerorte verwalten | `/lagerorte` | Betreuer |
-| Ausrüstungsarten | `/ausruestungsarten` | Betreuer |
+| Arten & Größen (inkl. Barcode-Präfix) | `/ausruestungsarten` | Betreuer |
 | Ausgemusterte Teile | `/ausgemustert` | Betreuer |
 | QR-Etiketten drucken | `/qr` | Betreuer |
 | Änderungsverlauf | `/verlauf` | Betreuer |
@@ -381,6 +381,28 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
 
+## Barcode-Präfix
+
+Auf den Etiketten einer Ausrüstungsart steht meist derselbe Anfang — im Gerätehaus etwa
+`KKJF.1202.` bei den Helmen und `112000` bei Jacken und Hosen. Trägt man diesen Anfang unter
+**Arten & Größen** je Art ein, genügt beim Eintippen der hintere Teil:
+
+| Art | Präfix | Stellen | Eingabe | wird zu |
+|---|---|---|---|---|
+| Jacke | `112000` | 3 | `172` | `112000172` |
+| Jacke | `112000` | 3 | `12` | `112000012` |
+| Helm | `KKJF.1202.` | — | `77` | `KKJF.1202.77` |
+
+**Stellen** füllt den eingetippten Rest mit Nullen auf. Bleibt das Feld leer, wird nicht
+aufgefüllt und die Ergänzung greift bis drei Stellen.
+
+Unverändert bleibt alles, was schon den Präfix trägt, länger als die eingestellte Stellenzahl
+ist oder Buchstaben enthält — **eine gescannte Nummer geht also immer unberührt durch**.
+Ergänzt wird beim Anlegen, beim Bearbeiten, bei der Kontrolle vor dem Tausch und beim Scannen
+über die Tastatur (`/scannen` findet auch die Kurznummer).
+
+Arten ohne Präfix bleiben, wie sie sind.
+
 ## Größen
 
 Jede Ausrüstungsart hat ihr eigenes Größenschema — Handschuhe zählen anders als Hosen.
@@ -492,6 +514,7 @@ src/auth.js            Anmeldung, Rollen, CSRF
 src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
 src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
 src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
+src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
 src/tokens.js          Geheimnisse für die QR-Links
 scripts/               Testdaten anlegen, HTTPS-Testinstanz starten
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik

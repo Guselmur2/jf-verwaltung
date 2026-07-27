@@ -6,6 +6,7 @@ const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
 const sizes = require('../sizes');
+const barcode = require('../barcode');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -185,12 +186,15 @@ function fundstelle(item, body) {
  * (Handschuhe). Ist beides nicht erfasst, gibt es nichts zu pruefen.
  */
 function pruefeAltesTeil(item, eingabe) {
-  const wert = norm(eingabe);
   if (item.inventory_no) {
+    // Die kurze Nummer vom Etikett genuegt, der Praefix kommt automatisch davor.
+    const wert = norm(barcode.expand(item.type_id, eingabe));
     if (!wert) return 'Bitte die Inventarnummer des alten Teils scannen oder eintippen.';
     return wert === norm(item.inventory_no) ? null : 'Diese Inventarnummer gehört nicht zum Teil aus dem Spint.';
   }
   if (item.size) {
+    // Groessen bleiben unangetastet — hier waere ein Barcode-Praefix falsch.
+    const wert = norm(eingabe);
     if (!wert) return 'Bitte die Größe des alten Teils eintragen.';
     return wert === norm(item.size) ? null : `Diese Größe passt nicht zum Teil aus dem Spint (dort steht ${item.size}).`;
   }
@@ -204,16 +208,17 @@ function pruefeAltesTeil(item, eingabe) {
  * ohne Nummer angelegt wurden, bekommen die gescannte Nummer jetzt zugewiesen.
  */
 function waehleNeuesTeil(item, kandidaten, eingabe) {
-  const wert = norm(eingabe);
-
   if (!item.has_inventory) {
+    // Arten ohne Inventarnummer werden ueber die Groesse bestaetigt — ohne Praefix.
     const erwartet = norm(kandidaten[0].size);
-    if (erwartet && wert !== erwartet) {
+    if (erwartet && norm(eingabe) !== erwartet) {
       return { fehler: `Bitte die Größe des neuen Teils bestätigen (an der Fundstelle liegt Größe ${kandidaten[0].size}).` };
     }
     return { gewaehlt: kandidaten[0] };
   }
 
+  const voll = barcode.expand(item.type_id, eingabe);
+  const wert = norm(voll);
   if (!wert) return { fehler: 'Bitte die Inventarnummer des neuen Teils scannen oder eintippen.' };
 
   const treffer = kandidaten.find((k) => norm(k.inventory_no) === wert);
@@ -224,9 +229,9 @@ function waehleNeuesTeil(item, kandidaten, eingabe) {
   // in der Hand (oder es liegt am falschen Ort).
   const ohneNummer = kandidaten.find((k) => !k.inventory_no);
   if (ohneNummer) {
-    const belegt = m.inventarNummerVergeben(eingabe);
-    if (belegt) return { fehler: m.konfliktText(String(eingabe).trim(), belegt) };
-    return { gewaehlt: ohneNummer, nummerUebernehmen: String(eingabe).trim() };
+    const belegt = m.inventarNummerVergeben(voll);
+    if (belegt) return { fehler: m.konfliktText(voll, belegt) };
+    return { gewaehlt: ohneNummer, nummerUebernehmen: voll };
   }
 
   return { fehler: 'Diese Inventarnummer gehört zu keinem Teil an dieser Fundstelle.' };

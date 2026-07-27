@@ -72,6 +72,10 @@ function migrate() {
   if (!hasColumn('equipment_types', 'size_scheme')) {
     db.exec('ALTER TABLE equipment_types ADD COLUMN size_scheme TEXT');
   }
+  if (!hasColumn('equipment_types', 'barcode_prefix')) {
+    db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_prefix TEXT');
+    db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_digits INTEGER');
+  }
   addTokenColumn('lockers', 'lockers_token');
   addTokenColumn('storages', 'storages_token');
   addInventoryUniqueIndex();

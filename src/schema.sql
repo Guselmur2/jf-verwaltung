@@ -87,12 +87,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS sizes_unique ON sizes(scheme, wert COLLATE NOC
 CREATE INDEX IF NOT EXISTS sizes_scheme_idx ON sizes(scheme, sort_order);
 
 -- Ausruestungsarten (Jacke, Hose, Helm, ...)
+-- barcode_prefix: fester Anfang aller Inventarnummern dieser Art, z.B.
+-- "KKJF.1202." bei Helmen oder "112000" bei Jacken. Wird eine kurze Nummer
+-- eingetippt, ergaenzt die Software den Anfang selbst.
+-- barcode_digits: auf wie viele Stellen der eingetippte Rest aufgefuellt wird
+-- (leer = gar nicht).
 CREATE TABLE IF NOT EXISTS equipment_types (
   id              INTEGER PRIMARY KEY,
   name            TEXT NOT NULL UNIQUE COLLATE NOCASE,
   has_size        INTEGER NOT NULL DEFAULT 1,
   has_inventory   INTEGER NOT NULL DEFAULT 1,
   size_scheme     TEXT REFERENCES size_schemes(name) ON DELETE SET NULL,
+  barcode_prefix  TEXT,
+  barcode_digits  INTEGER,
   sort_order      INTEGER NOT NULL DEFAULT 100,
   active          INTEGER NOT NULL DEFAULT 1
 );

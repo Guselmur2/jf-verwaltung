@@ -6,6 +6,7 @@ const auth = require('../auth');
 const m = require('../model');
 const { istToken } = require('../tokens');
 const sizes = require('../sizes');
+const barcode = require('../barcode');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -35,7 +36,12 @@ router.get('/scannen', login, (req, res) => {
   const nr = (req.query.nr || '').trim();
   if (!nr) return res.render('scannen', { title: 'Barcode scannen' });
 
-  const treffer = m.findByInventoryNo(nr);
+  // Wurde nur der hintere Teil eingetippt, auch die Varianten mit Präfix suchen.
+  let treffer = [];
+  for (const kandidat of barcode.candidates(nr)) {
+    treffer = m.findByInventoryNo(kandidat);
+    if (treffer.length) break;
+  }
   if (treffer.length === 1) {
     const t = treffer[0];
     if (t.locker_id) return res.redirect(`/spint/${t.locker_id}`);

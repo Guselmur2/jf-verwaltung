@@ -6,6 +6,7 @@ const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
 const sizes = require('../sizes');
+const barcode = require('../barcode');
 
 const router = express.Router();
 const login = auth.requireLogin;
@@ -45,10 +46,12 @@ function backTo(req, fallback = '/') {
 
 function clean(body) {
   const condition = CONDITIONS.includes(body.condition) ? body.condition : 'gut';
+  const typeId = Number(body.type_id) || null;
   return {
-    type_id: Number(body.type_id) || null,
+    type_id: typeId,
     size: (body.size || '').trim() || null,
-    inventory_no: (body.inventory_no || '').trim() || null,
+    // Kurz eingetippte Nummern bekommen den Barcode-Anfang der Art davor.
+    inventory_no: barcode.expand(typeId, body.inventory_no) || null,
     condition,
     note: (body.note || '').trim() || null,
   };

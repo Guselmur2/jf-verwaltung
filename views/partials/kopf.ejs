@@ -28,6 +28,7 @@
       <a href="/" class="<%= path === '/' ? 'aktiv' : '' %>">Spinte</a>
       <a href="/lager" class="<%= path.startsWith('/lager') ? 'aktiv' : '' %>">Lager</a>
       <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
+      <a href="/ausruestungsarten" class="<%= path.startsWith('/ausruestungsarten') || path.startsWith('/groessen') ? 'aktiv' : '' %>">Arten &amp; Größen</a>
       <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
       <a href="/aufgaben" class="<%= path.startsWith('/aufgaben') ? 'aktiv' : '' %>">
         Aufgaben<% if (offeneAufgaben) { %> <span class="zaehler"><%= offeneAufgaben %></span><% } %>

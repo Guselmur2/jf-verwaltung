@@ -1,12 +1,13 @@
 <%- include('partials/kopf') %>
 
 <div class="seitenkopf">
-  <h1>Ausrüstungsarten</h1>
+  <h1>Arten &amp; Größen</h1>
 </div>
 
 <p class="klein">
-  Legt fest, was beim Eintragen abgefragt wird. Eine stillgelegte Art verschwindet aus den Auswahllisten,
-  vorhandene Teile bleiben unangetastet.
+  Legt fest, was beim Eintragen abgefragt wird: welche Ausrüstungsarten es gibt, welche Größen dazu
+  gehören und mit welchem Anfang ihre Barcodes beginnen. Eine stillgelegte Art verschwindet aus den
+  Auswahllisten, vorhandene Teile bleiben unangetastet.
 </p>
 
 <div class="tabellenrahmen">
@@ -29,6 +30,10 @@
                   <option value="<%= s.name %>" <%= t.size_scheme === s.name ? 'selected' : '' %>><%= s.label %></option>
                 <% }); %>
               </select>
+              <input name="barcode_prefix" value="<%= t.barcode_prefix || '' %>" placeholder="Barcode-Präfix"
+                     aria-label="Barcode-Präfix" size="12" autocomplete="off">
+              <input type="number" name="barcode_digits" value="<%= t.barcode_digits || '' %>" min="1" max="12"
+                     placeholder="Stellen" aria-label="Stellen" style="width:5.5rem">
               <input type="number" name="sort_order" value="<%= t.sort_order %>" aria-label="Reihenfolge" size="4" style="width:5rem">
               <button class="btn btn-klein" type="submit">Speichern</button>
             </form>
@@ -52,6 +57,22 @@
     </tbody>
   </table>
 </div>
+
+<section class="block">
+  <h2>Barcode-Präfix</h2>
+  <p class="klein">
+    Steht auf allen Etiketten einer Art derselbe Anfang — im Gerätehaus etwa
+    <code>KKJF.1202.</code> bei den Helmen und <code>112000</code> bei Jacken und Hosen —, trägt man
+    ihn oben je Art ein. Wird dann nur der hintere Teil eingetippt, ergänzt die Software den Anfang:
+    <code>172</code> wird zu <code>112000172</code>.
+  </p>
+  <p class="klein">
+    <strong>Stellen</strong> füllt den eingetippten Rest mit Nullen auf. Bei Präfix <code>112000</code>
+    und 3 Stellen wird aus <code>12</code> die Nummer <code>112000012</code>. Bleibt das Feld leer,
+    wird nichts aufgefüllt und die Ergänzung greift bis drei Stellen.
+    Gescannte Nummern bleiben immer unverändert.
+  </p>
+</section>
 
 <section class="block">
   <h2>Größen</h2>
@@ -103,6 +124,8 @@
         <option value="<%= s.name %>"><%= s.label %></option>
       <% }); %>
     </select>
+    <input name="barcode_prefix" placeholder="Barcode-Präfix" aria-label="Barcode-Präfix" size="12" autocomplete="off">
+    <input type="number" name="barcode_digits" min="1" max="12" placeholder="Stellen" aria-label="Stellen" style="width:5.5rem">
     <input type="number" name="sort_order" value="100" aria-label="Reihenfolge" style="width:5rem">
     <button class="btn btn-klein" type="submit">Anlegen</button>
   </form>

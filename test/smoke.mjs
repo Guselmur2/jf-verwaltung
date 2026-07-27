@@ -630,5 +630,58 @@ check('Größenliste speicherbar', r.status === 302);
 r = await anlegen({ type_id: '4', size: '6' });
 check('entfernte Größe wird jetzt hinterfragt', r.status === 200 && r.text.includes('Größe prüfen'));
 
+console.log('\n23) Barcode-Präfix je Art');
+r = await req('/ausruestungsarten');
+check('Verwaltung im Hauptmenü verlinkt', r.text.includes('href="/ausruestungsarten"') && r.text.includes('Arten &amp; Größen'));
+check('Präfix-Feld vorhanden', r.text.includes('name="barcode_prefix"') && r.text.includes('name="barcode_digits"'));
+
+// Wie im Gerätehaus: Jacken 112000 (3 Stellen), Helme KKJF.1202.
+token = await csrf('/ausruestungsarten');
+r = await req('/ausruestungsarten/1/bearbeiten', {
+  method: 'POST',
+  form: { _csrf: token, name: 'Jacke', has_size: '1', has_inventory: '1', size_scheme: 'bekleidung',
+          barcode_prefix: '112000', barcode_digits: '3', sort_order: '10' },
+});
+check('Präfix für Jacke gespeichert', r.status === 302);
+r = await req('/ausruestungsarten/3/bearbeiten', {
+  method: 'POST',
+  form: { _csrf: token, name: 'Helm', has_inventory: '1', barcode_prefix: 'KKJF.1202.', sort_order: '30' },
+});
+check('Präfix für Helm gespeichert', r.status === 302);
+r = await req('/ausruestungsarten');
+check('Präfixe erscheinen in der Verwaltung', r.text.includes('112000') && r.text.includes('KKJF.1202.'));
+
+// Kurze Eingabe wird ergänzt
+token = await csrf('/lager');
+const mitNr = (form) =>
+  req('/ausruestung/neu', { method: 'POST', form: { _csrf: token, zurueck: '/lager', ziel: 'lager', groesse_ok: '1', ...form } });
+
+await mitNr({ type_id: '1', size: '164', inventory_no: '801' });
+r = await req('/lager?q=112000801');
+check('„801“ wird zu 112000801', r.text.includes('112000801'));
+
+await mitNr({ type_id: '1', size: '164', inventory_no: '9' });
+r = await req('/lager?q=112000009');
+check('„9“ wird mit Nullen zu 112000009 aufgefüllt', r.text.includes('112000009'));
+
+await mitNr({ type_id: '3', inventory_no: '77' });
+r = await req('/lager?q=KKJF');
+check('Helm „77“ wird zu KKJF.1202.77', r.text.includes('KKJF.1202.77'));
+
+// Volle Nummern bleiben unverändert — so kommen sie vom Scanner
+await mitNr({ type_id: '1', size: '164', inventory_no: '112000654' });
+r = await req('/lager?q=112000654');
+check('gescannte volle Nummer bleibt unverändert', r.text.includes('112000654'));
+check('kein doppelter Präfix', !r.text.includes('112000112000654'));
+
+// Art ohne Präfix bleibt unberührt
+await mitNr({ type_id: '5', size: '38', inventory_no: '55' });
+r = await req('/lager?q=55');
+check('Art ohne Präfix lässt die Nummer stehen', r.text.includes('value="55"'));
+
+// Kurze Nummer beim Scannen findet das Teil
+r = await req('/scannen?nr=801');
+check('Suche mit Kurznummer findet das Teil', r.status === 302 && !r.location.startsWith('/suche'), r.location);
+
 console.log(fails === 0 ? '\nAlles grün.\n' : `\n${fails} Fehler.\n`);
 process.exit(fails ? 1 : 0);
