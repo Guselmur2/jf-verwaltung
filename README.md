@@ -422,14 +422,62 @@ Praxisbetrieb ist HTTPS deshalb doppelt sinnvoll: für die Kamera und für die T
 
 ## Datensicherung
 
-Alles steckt in `data/spinte.db`. Sicherungskopie im laufenden Betrieb:
+Alles steckt in einer einzigen SQLite-Datei. Der Jugendwart findet die Sicherung im Menü
+hinter dem eigenen Namen unter **Datensicherung**. Dort ein Passwort vergeben — heraus kommt
+`spinte-2026-07-27-2241.db.enc`.
+
+Erzeugt wird der Abzug über die **Sicherungsfunktion von SQLite**, nicht durch Kopieren der
+Datei. Das ist wichtig: die Datenbank läuft im WAL-Modus, ein Teil der Änderungen steht in
+`spinte.db-wal` und noch nicht in `spinte.db`. Ein einfaches `cp` liefert deshalb einen
+unvollständigen Stand. Die Software darf während der Sicherung weiterlaufen.
+
+### Immer verschlüsselt
+
+In der Sicherung stehen Namen und Geburtsdaten von Kindern, deshalb wird sie **ausnahmslos
+verschlüsselt** (AES-256-CBC, Schlüssel über PBKDF2 mit 10 000 Runden). Das Passwort wird
+**nirgends gespeichert** — ohne es ist die Datei wertlos. Also aufschreiben und getrennt von
+der Sicherung aufbewahren.
+
+Bewusst gewählt ist das Format von `openssl enc`. Damit lässt sich die Sicherung mit einem
+Standardbefehl öffnen, auch wenn diese Software einmal nicht mehr läuft:
 
 ```bash
-sqlite3 /opt/jf-spinte/data/spinte.db ".backup '/pfad/zum/backup/spinte-$(date +%F).db'"
+openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-07-27-2241.db.enc -out spinte.db
 ```
 
-Einfaches Kopieren der Datei reicht **nicht** zuverlässig, weil die Datenbank im
-WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
+Eine Sicherung, die nur das eigene Programm lesen kann, ist im Ernstfall keine.
+
+### Zurückspielen
+
+**Der einfache Weg:** eine leere Installation aufsetzen — auf der Ersteinrichtungsseite steht
+neben „Neu anfangen" der Punkt **„Mit Sicherung fortsetzen"**. Datei hochladen, Passwort
+eingeben, fertig. Danach meldet man sich mit den *bisherigen* Zugangsdaten an, denn die
+Benutzer stecken mit in der Sicherung.
+
+Eingespielt wird der Inhalt in die laufende Datenbank, statt die Datei auszutauschen. Das
+spart den Neustart und hat einen nützlichen Nebeneffekt: übernommen werden nur Spalten, die es
+hier auch gibt — eine **ältere Sicherung wächst dadurch automatisch mit** und bekommt
+anschließend fehlende Dinge wie die QR-Token nachgetragen.
+
+Der Punkt ist nur sichtbar, solange **kein Zugang existiert**. Eine laufende Installation
+lässt sich damit also nicht überschreiben.
+
+**Von Hand** geht es auch — erst entschlüsseln, dann die Datei an ihren Platz legen:
+
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-07-27-2241.db.enc -out spinte.db
+
+sudo systemctl stop jf-spinte
+cp spinte.db /opt/jf-spinte/data/spinte.db
+rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
+sudo systemctl start jf-spinte
+```
+
+Die beiden Dateien `-wal` und `-shm` müssen weg, sonst mischt SQLite alte Änderungen in den
+zurückgespielten Stand.
+
+**Automatisch sichern** geht über die API (siehe unten). Die Datei gehört auf ein anderes
+Gerät — bei einem Defekt der SD-Karte wäre sie sonst mit weg.
 
 ## Wie die Daten zusammenhängen
 
@@ -501,8 +549,9 @@ curl -k -H "Authorization: Bearer jfw_…" https://jfwpi.fritz.box/api/v1/
 | `GET /lagerorte`, `/lagerorte/:id` | Lagerorte, Detail mit Zusammenfassung |
 | `GET /aufgaben?status=offen\|erledigt\|abgebrochen\|alle` | Aufgaben |
 | `GET /arten` | Ausrüstungsarten mit Größen und Barcode-Präfix |
+| `GET /groessen` | Größenschemata mit ihren Reihen |
 | `GET /suche?q=Jacke+164` | Suche über alles |
-| `GET /sicherung` | Datensicherung als `.db` |
+| `GET /sicherung` | Datensicherung als `.db.enc` (Passwort in `X-Sicherung-Passwort`) |
 | `GET /sicherung/info` | Größe und Umfang des Bestands |
 
 Bei `nummer=` greift der Barcode-Präfix: `?nummer=172` findet auch `112000172`.
@@ -515,6 +564,19 @@ Bei `nummer=` greift der Barcode-Präfix: `?nummer=172` findet auch `112000172`.
 | `PATCH /ausruestung/:id` | Größe, Nummer, Zustand, Notiz oder Ablageort ändern |
 | `POST /aufgaben` | Bestellung oder Tauschwunsch anlegen |
 | `PATCH /aufgaben/:id` | Status auf `offen`, `erledigt` oder `abgebrochen` setzen |
+| `POST /arten` | Ausrüstungsart anlegen |
+| `PATCH /arten/:id` | Art ändern (Name, Größenschema, Barcode-Präfix, stilllegen) |
+| `DELETE /arten/:id` | Art löschen (nur ohne zugehörige Teile) |
+| `PUT /groessen/:schema` | Größenreihe eines Schemas ersetzen |
+
+Größen ersetzen — die Reihenfolge in der Liste bestimmt, was „eine Nummer größer" ist:
+
+```bash
+curl -k -X PUT -H "X-API-Key: jfw_…" -H "content-type: application/json" \
+  -d '{"gruppen":[{"gruppe":"Körpergröße","groessen":["116","122","128"]},
+                  {"gruppe":"Konfektion","groessen":["44","46"]}]}' \
+  https://jfwpi.fritz.box/api/v1/groessen/bekleidung
+```
 
 Die Prüfungen der Oberfläche gelten auch hier: doppelte Inventarnummern werden mit `409`
 abgelehnt, und eine unbekannte Größe liefert `409` samt Vorschlag:
@@ -531,11 +593,14 @@ abgelehnt, und eine unbekannte Größe liefert `409` samt Vorschlag:
 
 ```bash
 curl -k -H "X-API-Key: jfw_…" \
-  -o "spinte-$(date +%F).db" \
+  -H "X-Sicherung-Passwort: DeinSicherungsPasswort" \
+  -o "spinte-$(date +%F).db.enc" \
   https://jfwpi.fritz.box/api/v1/sicherung
 ```
 
-Dafür genügt ein Zugang mit `nur lesen`. Das `-k` ist nötig, weil das Zertifikat
+Dafür genügt ein Zugang mit `nur lesen`. Das Passwort steht bewusst in einer Kopfzeile und
+nicht im Adressteil — sonst landete es in jedem Protokoll. **Ohne Passwort gibt es die
+Sicherung nicht**, auch nicht über die API. Das `-k` ist nötig, weil das Zertifikat
 selbstsigniert ist.
 
 ## Barcode-Präfix
@@ -674,6 +739,8 @@ src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
 src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
 src/backup.js          Datensicherung über die SQLite-Sicherungsfunktion
 src/api-auth.js        Token für die API prüfen und verwalten
+src/backup.js          Sicherung erzeugen und verschlüsseln
+src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
 scripts/               Testdaten, HTTPS-Testinstanz, Deployment auf den Pi
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
