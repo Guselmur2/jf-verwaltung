@@ -284,7 +284,68 @@ alle Betreuer, weil in der Praxis oft der die Lieferung annimmt, der gerade da i
 | `BASE_URL` | Adresse der Anfrage | Adresse, die in den QR-Codes steht |
 | `TLS_KEY` / `TLS_CERT` | leer | Pfade zu Schlüssel und Zertifikat. Nur gesetzt läuft die Seite über HTTPS — nötig für den Barcode-Scan per Kamera |
 
-## Installation auf dem Raspberry Pi
+## Der eingerichtete Pi
+
+| | |
+|---|---|
+| Adresse | **https://jfwpi.fritz.box** |
+| Gerät | Raspberry Pi, Debian 13 (arm64), Node 20 |
+| Verzeichnis | `/opt/jf-spinte` |
+| Datenbank | `/opt/jf-spinte/data/spinte.db` |
+| Zertifikat | `/opt/jf-spinte/tls/pi.crt`, gültig bis Juli 2036 |
+| Dienst | `jf-spinte.service`, Autostart aktiv, `Restart=always` |
+| Benutzer | `sam` |
+
+### Warum der Hostname statt der IP
+
+Das Zertifikat ist auf **`jfwpi.fritz.box`** ausgestellt, nicht auf eine IP-Adresse. Es bleibt
+damit gültig, wenn der Pi eine neue IP bekommt — auch beim Umzug in ein anderes Netz, solange
+dort ebenfalls eine FRITZ!Box steht und der Pi seinen Hostnamen `JfwPi` behält. Die
+Einträge im Zertifikat:
+
+```
+DNS:jfwpi.fritz.box, DNS:JfwPi.fritz.box, DNS:jfwpi, DNS:JfwPi,
+DNS:localhost, IP:192.168.188.120, IP:127.0.0.1
+```
+
+Die IP steht zusätzlich drin, damit der Zugriff auch dann klappt, wenn der Name gerade nicht
+auflöst. Ändert sich die IP, verliert nur dieser eine Eintrag seine Bedeutung — über den
+Namen läuft weiterhin alles.
+
+**Wann der Name doch nicht auflöst:** Wenn ein Handy „Privates DNS" (DNS-über-HTTPS/TLS)
+aktiviert hat, fragt es nicht mehr die FRITZ!Box und findet `jfwpi.fritz.box` nicht. Dann
+hilft, privates DNS im WLAN abzuschalten — oder die IP zu verwenden.
+
+### Dienst bedienen
+
+```bash
+ssh -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box
+sudo systemctl status jf-spinte
+sudo systemctl restart jf-spinte
+journalctl -u jf-spinte -n 50 --no-pager
+```
+
+### Neue Version aufspielen
+
+```bash
+sh scripts/deploy-pi.sh
+```
+
+Überträgt den **letzten Commit**, installiert fehlende Abhängigkeiten, startet den Dienst neu
+und prüft, ob er antwortet. Datenbank, Zertifikat und Einstellungen bleiben unberührt.
+
+### Datensicherung
+
+```bash
+ssh -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box \
+  "sqlite3 /opt/jf-spinte/data/spinte.db \".backup '/tmp/spinte-\$(date +%F).db'\"" \
+  && scp -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box:/tmp/spinte-*.db .
+```
+
+`sqlite3` muss dafür auf dem Pi installiert sein (`sudo apt install sqlite3`). Alternativ den
+Dienst kurz stoppen und die Datei mit `scp` kopieren.
+
+## Installation auf einem anderen Raspberry Pi
 
 Getestet mit Raspberry Pi OS (64 Bit) und Node.js 18+.
 
@@ -309,8 +370,10 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/opt/jf-spinte
-Environment=PORT=3000
+Environment=PORT=443
 Environment=SESSION_SECRET=hier-eine-lange-zufallszeichenkette-eintragen
+# Port 443 ohne Root binden duerfen:
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
@@ -516,7 +579,7 @@ src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer
 src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
 src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
 src/tokens.js          Geheimnisse für die QR-Links
-scripts/               Testdaten anlegen, HTTPS-Testinstanz starten
+scripts/               Testdaten, HTTPS-Testinstanz, Deployment auf den Pi
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
