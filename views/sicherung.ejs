@@ -22,12 +22,29 @@
     Software darf dabei weiterlaufen.
   </p>
 
-  <p class="aktionen">
-    <a class="btn btn-gross" href="/sicherung/herunterladen">Sicherung herunterladen</a>
+  <p class="klein">
+    Weil darin Namen und Geburtsdaten von Kindern stehen, wird die Datei <strong>immer
+    verschlüsselt</strong>. Das Passwort wird nirgends gespeichert —
+    <strong>ohne es ist die Sicherung wertlos.</strong> Also aufschreiben und getrennt von der
+    Datei aufbewahren.
   </p>
 
+  <form method="post" action="/sicherung/herunterladen" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Passwort für die Sicherung (mindestens 8 Zeichen)</span>
+      <input type="password" name="passwort" required minlength="8" autocomplete="new-password">
+    </label>
+    <label>
+      <span>Passwort wiederholen</span>
+      <input type="password" name="passwort2" required minlength="8" autocomplete="new-password">
+    </label>
+    <button class="btn btn-gross" type="submit">Sicherung herunterladen</button>
+  </form>
+
   <p class="klein">
-    Datei: <code><%= info.datei %></code>
+    Datei: <code><%= info.datei %></code><br>
+    Verschlüsselung: <%= info.verschluesselung %>
   </p>
 </section>
 
@@ -47,16 +64,24 @@
 <section class="block">
   <h2>Wiederherstellen</h2>
   <p class="klein">
-    Zum Zurückspielen die Software anhalten, die Datei an die Stelle der bestehenden Datenbank
-    legen und wieder starten. Auf dem Raspberry Pi:
+    Der einfachste Weg: die Software neu aufsetzen (leere Datenbank) und auf der
+    Ersteinrichtungsseite <strong>„Mit Sicherung fortsetzen“</strong> wählen. Dort die Datei
+    hochladen und das Passwort eingeben — mehr ist nicht nötig.
   </p>
-  <pre class="befehl">sudo systemctl stop jf-spinte
-cp spinte-JJJJ-MM-TT-hhmm.db /opt/jf-spinte/data/spinte.db
+  <p class="klein">
+    Von Hand geht es auch. Erst entschlüsseln, dann die Datei an die Stelle der bestehenden
+    Datenbank legen:
+  </p>
+  <pre class="befehl">openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-JJJJ-MM-TT-hhmm.db.enc -out spinte.db
+
+sudo systemctl stop jf-spinte
+cp spinte.db /opt/jf-spinte/data/spinte.db
 rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
 sudo systemctl start jf-spinte</pre>
   <p class="klein">
     Die beiden Dateien <code>-wal</code> und <code>-shm</code> müssen weg, sonst mischt SQLite
-    alte Änderungen in den zurückgespielten Stand.
+    alte Änderungen in den zurückgespielten Stand. Der <code>openssl</code>-Befehl ist Standard —
+    die Sicherung lässt sich also auch dann öffnen, wenn diese Software einmal nicht mehr läuft.
   </p>
 </section>
 
@@ -67,8 +92,10 @@ sudo systemctl start jf-spinte</pre>
     Rechner abholen — etwa täglich per Aufgabenplanung:
   </p>
   <pre class="befehl">curl -k -H "X-API-Key: jfw_…" \
-  -o spinte-$(date +%F).db \
+  -H "X-Sicherung-Passwort: DeinPasswort" \
+  -o spinte-$(date +%F).db.enc \
   <%= (typeof basis !== 'undefined' && basis) || 'https://jfwpi.fritz.box' %>/api/v1/sicherung</pre>
+  <p class="klein">Auch hier ist das Passwort Pflicht — unverschlüsselt gibt es die Datei nicht.</p>
 </section>
 
 <%- include('partials/fuss') %>

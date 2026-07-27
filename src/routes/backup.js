@@ -19,10 +19,20 @@ router.get('/sicherung', jw, (req, res) => {
   });
 });
 
-router.get('/sicherung/herunterladen', jw, async (req, res, next) => {
+router.post('/sicherung/herunterladen', jw, async (req, res, next) => {
+  const passwort = req.body.passwort || '';
+  const fehler = backup.passwortPruefen(passwort);
+  if (fehler || passwort !== req.body.passwort2) {
+    req.session.flash = {
+      type: 'warn',
+      text: fehler || 'Die beiden Passwörter stimmen nicht überein.',
+    };
+    return res.redirect('/sicherung');
+  }
+
   try {
-    const s = await backup.erstellen();
-    audit.log(req, 'sicherung', null, 'heruntergeladen', `${s.name}, ${Math.round(s.groesse / 1024)} kB`);
+    const s = await backup.erstellen(passwort);
+    audit.log(req, 'sicherung', null, 'heruntergeladen', `${s.name}, ${Math.round(s.groesse / 1024)} kB, verschlüsselt`);
     res.download(s.pfad, s.name, (err) => {
       backup.aufraeumen(s.ordner);
       if (err && !res.headersSent) next(err);

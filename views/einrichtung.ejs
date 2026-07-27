@@ -3,8 +3,14 @@
 <div class="schmal">
   <h1>Ersteinrichtung</h1>
   <p>
-    Die Datenbank ist noch leer. Lege hier den ersten Zugang an — den bekommt automatisch die Rolle
-    <strong>Jugendwart</strong> und darf später weitere Betreuer hinzufügen.
+    Die Datenbank ist noch leer. Entweder du legst einen neuen Zugang an — oder du spielst
+    eine vorhandene Sicherung ein und machst dort weiter, wo ihr aufgehört habt.
+  </p>
+
+  <h2>Neu anfangen</h2>
+  <p class="klein">
+    Der hier angelegte Zugang bekommt die Rolle <strong>Jugendwart</strong> und darf später
+    weitere Betreuer hinzufügen.
   </p>
 
   <% if (error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
@@ -29,6 +35,35 @@
     </label>
     <button class="btn" type="submit">Einrichten</button>
   </form>
+</div>
+
+<div class="schmal">
+  <h2>Mit Sicherung fortsetzen</h2>
+  <p class="klein">
+    Spielt einen früheren Stand vollständig zurück: Mitglieder, Spinte, Ausrüstung, Lagerorte,
+    Aufgaben und alle Zugänge. Anschließend meldest du dich mit den <strong>bisherigen</strong>
+    Zugangsdaten an.
+  </p>
+
+  <% if (sicherungsFehler) { %><p class="hinweis hinweis-warn"><%= sicherungsFehler %></p><% } %>
+
+  <form method="post" action="/einrichtung/sicherung" enctype="multipart/form-data" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Sicherungsdatei (<code>.db.enc</code>)</span>
+      <input type="file" name="sicherung" accept=".enc,.db" required>
+    </label>
+    <label>
+      <span>Passwort der Sicherung</span>
+      <input type="password" name="passwort" required autocomplete="off">
+    </label>
+    <button class="btn btn-still" type="submit">Sicherung einspielen</button>
+  </form>
+
+  <p class="klein">
+    Ohne das damals vergebene Passwort lässt sich die Datei nicht öffnen — das ist Absicht,
+    denn darin stehen Namen und Geburtsdaten der Jugendlichen.
+  </p>
 </div>
 
 <%- include('partials/fuss') %>

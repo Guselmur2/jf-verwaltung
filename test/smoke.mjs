@@ -689,12 +689,31 @@ check('Sicherungsseite für den Jugendwart', r.status === 200 && r.text.includes
 check('zeigt den Bestand', r.text.includes('Mitglieder') && r.text.includes('Datenbank'));
 check('erklärt das Zurückspielen', r.text.includes('systemctl stop jf-spinte'));
 
-const dl = await fetch(BASE + '/sicherung/herunterladen', { headers: { cookie }, redirect: 'manual' });
-const kopf = dl.headers.get('content-disposition') || '';
-const rumpf = Buffer.from(await dl.arrayBuffer());
+const SICHERUNGSPASSWORT = 'SicherungsPasswort123';
+token = await csrf('/sicherung');
+const holen = async (pw, pw2 = pw) => {
+  const res3 = await fetch(BASE + '/sicherung/herunterladen', {
+    method: 'POST',
+    headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ _csrf: token, passwort: pw, passwort2: pw2 }).toString(),
+    redirect: 'manual',
+  });
+  return { status: res3.status, kopf: res3.headers.get('content-disposition') || '',
+           rumpf: Buffer.from(await res3.arrayBuffer()) };
+};
+
+let dl = await holen('kurz');
+check('zu kurzes Passwort wird abgelehnt', dl.status === 302, String(dl.status));
+dl = await holen(SICHERUNGSPASSWORT, 'anderes123');
+check('abweichende Wiederholung wird abgelehnt', dl.status === 302, String(dl.status));
+
+dl = await holen(SICHERUNGSPASSWORT);
+const kopf = dl.kopf;
+const rumpf = dl.rumpf;
 check('Sicherung wird geliefert', dl.status === 200 && rumpf.length > 1000, `${dl.status}, ${rumpf.length} Bytes`);
-check('als Datei mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}\.db/.test(kopf), kopf);
-check('ist eine echte SQLite-Datei', rumpf.subarray(0, 15).toString() === 'SQLite format 3');
+check('als .db.enc mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}\.db\.enc/.test(kopf), kopf);
+check('ist verschlüsselt, nicht im Klartext', rumpf.subarray(0, 8).toString() === 'Salted__');
+check('enthält keine lesbaren Namen', !rumpf.includes(Buffer.from('Max Muster')));
 
 console.log('\n25) API');
 r = await req('/api-zugaenge');
@@ -790,16 +809,27 @@ const patchJson = await patch.json();
 check('Aufgabe über die API abhaken', patch.status === 200 && patchJson.status === 'erledigt');
 
 console.log('\n27) Sicherung über die API');
-const sic = await fetch(BASE + '/api/v1/sicherung', { headers: { 'x-api-key': apiToken } });
+const ohnePw = await fetch(BASE + '/api/v1/sicherung', { headers: { 'x-api-key': apiToken } });
+check('API-Sicherung ohne Passwort abgelehnt', ohnePw.status === 400, String(ohnePw.status));
+
+const sic = await fetch(BASE + '/api/v1/sicherung', {
+  headers: { 'x-api-key': apiToken, 'x-sicherung-passwort': SICHERUNGSPASSWORT },
+});
 const sicRumpf = Buffer.from(await sic.arrayBuffer());
-check('Sicherung über die API', sic.status === 200 && sicRumpf.subarray(0, 15).toString() === 'SQLite format 3');
+check('Sicherung über die API', sic.status === 200 && sicRumpf.subarray(0, 8).toString() === 'Salted__');
 check('Sicherung ist vollständig', sicRumpf.length > 20000, `${sicRumpf.length} Bytes`);
 
 // Der Abzug muss lesbar und inhaltlich vollstaendig sein.
 const { writeFileSync, mkdtempSync: mkT } = await import('node:fs');
 const pruefOrdner = mkT(path.join(tmpdir(), 'jf-sicherung-pruef-'));
 const pruefDatei = path.join(pruefOrdner, 'kopie.db');
-writeFileSync(pruefDatei, sicRumpf);
+const cryptoMod = await import('node:crypto');
+const salz = sicRumpf.subarray(8, 16);
+const abgeleitet = cryptoMod.pbkdf2Sync(SICHERUNGSPASSWORT, salz, 10000, 48, 'sha256');
+const decipher = cryptoMod.createDecipheriv('aes-256-cbc', abgeleitet.subarray(0, 32), abgeleitet.subarray(32, 48));
+const klar = Buffer.concat([decipher.update(sicRumpf.subarray(16)), decipher.final()]);
+check('entschlüsselt ergibt eine SQLite-Datei', klar.subarray(0, 15).toString() === 'SQLite format 3');
+writeFileSync(pruefDatei, klar);
 const { createRequire } = await import('node:module');
 const req2 = createRequire(path.join(WURZEL, 'package.json'));
 const DB = req2('better-sqlite3');
@@ -817,6 +847,145 @@ const tokenId = (await req('/api-zugaenge')).text.match(/\/api-zugaenge\/(\d+)\/
 await req(`/api-zugaenge/${tokenId}/status`, { method: 'POST', form: { _csrf: token } });
 a = await apiGet('/api/v1/status', schreibToken);
 check('gesperrter Zugang wird abgewiesen', a.status === 401, String(a.status));
+
+console.log('\n28) API: Arten und Größen pflegen');
+// Der vorige Abschnitt hat den Schreib-Zugang gesperrt — hier wieder freigeben.
+token = await csrf('/api-zugaenge');
+await req(`/api-zugaenge/${tokenId}/status`, { method: 'POST', form: { _csrf: token } });
+a = await apiGet('/api/v1/status', schreibToken);
+check('entsperrter Zugang funktioniert wieder', a.status === 200, String(a.status));
+
+a = await apiGet('/api/v1/groessen');
+check('Größenschemata über die API lesbar', a.status === 200 && a.json.daten.some((s) => s.schema === 'bekleidung'));
+
+w = await schreibPost('/api/v1/arten', { name: 'Nomex-Haube', fuehrt_groesse: false, barcode_praefix: 'NH-' }, schreibToken);
+check('Art über die API anlegen', w.status === 201 && !!w.json.id, JSON.stringify(w.json));
+const artApiId = w.json?.id;
+
+w = await schreibPost('/api/v1/arten', { name: 'Nomex-Haube' }, schreibToken);
+check('doppelte Art wird abgelehnt', w.status === 409);
+
+w = await schreibPost('/api/v1/arten', { name: 'Kaputt', groessenschema: 'gibtsnicht' }, schreibToken);
+check('unbekanntes Größenschema wird abgelehnt', w.status === 400 && Array.isArray(w.json.bekannt));
+
+const artPatch = await fetch(BASE + `/api/v1/arten/${artApiId}`, {
+  method: 'PATCH',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ groessenschema: 'handschuh', barcode_stellen: 2 }),
+});
+const artJson = await artPatch.json();
+check('Art über die API ändern', artPatch.status === 200 && artJson.size_scheme === 'handschuh', JSON.stringify(artJson));
+check('Größen folgen dem neuen Schema', Array.isArray(artJson.groessen) && artJson.groessen.includes('8'));
+
+// Der Präfix wirkt sofort beim Anlegen über die API.
+w = await schreibPost('/api/v1/ausruestung', { art: 'Nomex-Haube', inventarnummer: '7' }, schreibToken);
+check('neue Art übernimmt den Präfix', w.status === 201);
+a = await apiGet('/api/v1/ausruestung?nummer=NH-07');
+check('„7“ wurde zu NH-07 ergänzt', a.json.anzahl === 1, JSON.stringify(a.json.anzahl));
+
+// Größenreihe ersetzen
+const putGr = await fetch(BASE + '/api/v1/groessen/handschuh', {
+  method: 'PUT',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ gruppen: [{ gruppe: 'Handschuhgröße', groessen: ['7', '8', '9', '10'] }] }),
+});
+const putJson = await putGr.json();
+check('Größenreihe über die API ersetzen', putGr.status === 200 && putJson.anzahl === 4, JSON.stringify(putJson));
+
+const putDoppelt = await fetch(BASE + '/api/v1/groessen/handschuh', {
+  method: 'PUT',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ gruppen: [{ gruppe: 'Handschuhgröße', groessen: ['7', '7'] }] }),
+});
+check('doppelte Größe wird abgelehnt', putDoppelt.status === 400);
+
+a = await apiGet('/api/v1/arten');
+check('Änderung wirkt sich aus', a.json.daten.find((t) => t.name === 'Nomex-Haube')?.groessen.length === 4);
+
+const artWeg = await fetch(BASE + `/api/v1/arten/${artApiId}`, {
+  method: 'DELETE',
+  headers: { 'x-api-key': schreibToken },
+});
+check('benutzte Art lässt sich nicht löschen', artWeg.status === 409, String(artWeg.status));
+
+console.log('\n29) Wiederherstellung bei der Ersteinrichtung');
+// Zweiter Server mit leerer Datenbank — dort wird die Sicherung eingespielt.
+const zweiterOrdner = mkdtempSync(path.join(tmpdir(), 'jf-restore-test-'));
+const PORT2 = 3988;
+const BASE2 = `http://127.0.0.1:${PORT2}`;
+const server2 = spawn(process.execPath, ['server.js'], {
+  cwd: WURZEL,
+  env: { ...process.env, PORT: String(PORT2), DATA_DIR: zweiterOrdner, SESSION_SECRET: 'test2' },
+  stdio: ['ignore', 'ignore', 'inherit'],
+});
+process.on('exit', () => {
+  server2.kill();
+  try { rmSync(zweiterOrdner, { recursive: true, force: true }); } catch { /* Windows */ }
+});
+for (let v = 0; ; v++) {
+  try { await fetch(BASE2 + '/einrichtung'); break; }
+  catch (e) { if (v > 100) throw new Error('zweiter Server startet nicht'); await new Promise((x) => setTimeout(x, 100)); }
+}
+
+let cookie2 = '';
+const req2Neu = async (pfad, opts = {}) => {
+  const h = cookie2 ? { cookie: cookie2 } : {};
+  const res4 = await fetch(BASE2 + pfad, { redirect: 'manual', ...opts, headers: { ...h, ...(opts.headers || {}) } });
+  for (const c of res4.headers.getSetCookie?.() || []) cookie2 = c.split(';')[0];
+  return { status: res4.status, location: res4.headers.get('location'), text: await res4.text() };
+};
+
+let r2 = await req2Neu('/einrichtung');
+check('zweite Instanz zeigt die Ersteinrichtung', r2.status === 200 && r2.text.includes('Ersteinrichtung'));
+check('bietet „Mit Sicherung fortsetzen“ an', r2.text.includes('Mit Sicherung fortsetzen'));
+const token2 = r2.text.match(/name="_csrf" value="([^"]+)"/)[1];
+
+const hochladen = async (datei, passwort, tok = token2) => {
+  const fd = new FormData();
+  fd.append('_csrf', tok);
+  fd.append('passwort', passwort);
+  fd.append('sicherung', new Blob([datei]), 'sicherung.db.enc');
+  const res4 = await fetch(BASE2 + '/einrichtung/sicherung', {
+    method: 'POST', body: fd, headers: cookie2 ? { cookie: cookie2 } : {}, redirect: 'manual',
+  });
+  for (const c of res4.headers.getSetCookie?.() || []) cookie2 = c.split(';')[0];
+  return { status: res4.status, location: res4.headers.get('location'), text: await res4.text() };
+};
+
+r2 = await hochladen(sicRumpf, 'falschesPasswort');
+check('falsches Passwort wird abgelehnt', r2.status === 400 && r2.text.includes('Passwort passt nicht'));
+
+r2 = await hochladen(Buffer.from('kein gueltiges Format'), SICHERUNGSPASSWORT);
+check('fremde Datei wird abgelehnt', r2.status === 400 && r2.text.includes('keine verschlüsselte Sicherung'));
+
+r2 = await hochladen(sicRumpf, SICHERUNGSPASSWORT);
+check('Sicherung wird eingespielt', r2.status === 302 && r2.location === '/anmelden', `${r2.status} ${r2.location}`);
+
+r2 = await req2Neu('/einrichtung');
+check('Ersteinrichtung danach gesperrt', r2.status === 302 && r2.location === '/', r2.location);
+
+// Mit den Zugangsdaten aus der Sicherung anmelden
+r2 = await req2Neu('/anmelden');
+const token2b = r2.text.match(/name="_csrf" value="([^"]+)"/)[1];
+r2 = await req2Neu('/anmelden', {
+  method: 'POST',
+  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({ _csrf: token2b, username: 'jugendwart', password: 'geheim1234' }).toString(),
+});
+check('Anmeldung mit den alten Zugangsdaten', r2.status === 302 && r2.location === '/', `${r2.status} ${r2.location}`);
+
+r2 = await req2Neu('/mitglieder');
+check('Mitglieder sind zurück', r2.text.includes('Max Muster') && r2.text.includes('Lena Muster'));
+r2 = await req2Neu('/');
+check('Spinte sind zurück', r2.text.includes('Umkleide Jungs'));
+r2 = await req2Neu('/lager');
+check('Ausrüstung ist zurück', r2.text.includes('112000801') || r2.text.includes('IM-LAGER-1'));
+r2 = await req2Neu('/ausruestungsarten');
+check('Arten und Größen sind zurück', r2.text.includes('112000') && r2.text.includes('116, 122'));
+r2 = await req2Neu('/verlauf');
+check('Verlauf ist zurück', r2.status === 200 && r2.text.includes('angelegt'));
+
+server2.kill();
 
 console.log(fails === 0 ? '\nAlles grün.\n' : `\n${fails} Fehler.\n`);
 process.exit(fails ? 1 : 0);

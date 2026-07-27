@@ -106,14 +106,19 @@ router.get('/', lesen, (req, res) => {
         'GET /api/v1/lagerorte/:id',
         'GET /api/v1/aufgaben?status=offen|erledigt|abgebrochen|alle',
         'GET /api/v1/arten',
+        'GET /api/v1/groessen',
         'GET /api/v1/suche?q=',
-        'GET /api/v1/sicherung',
+        'GET /api/v1/sicherung  (Kopfzeile X-Sicherung-Passwort nötig)',
       ],
       schreiben: [
         'POST /api/v1/ausruestung',
         'PATCH /api/v1/ausruestung/:id',
         'POST /api/v1/aufgaben',
         'PATCH /api/v1/aufgaben/:id',
+        'POST /api/v1/arten',
+        'PATCH /api/v1/arten/:id',
+        'DELETE /api/v1/arten/:id',
+        'PUT /api/v1/groessen/:schema',
       ],
     },
   });
@@ -267,8 +272,19 @@ router.get('/suche', lesen, (req, res) => {
 // ------------------------------------------------------------- Sicherung
 
 router.get('/sicherung', lesen, async (req, res, next) => {
+  // Das Passwort kommt in einer Kopfzeile, nicht im Adressteil — sonst stuende
+  // es in jedem Protokoll und in der Verlaufsliste.
+  const passwort = req.get('x-sicherung-passwort') || '';
+  const fehler = backup.passwortPruefen(passwort);
+  if (fehler) {
+    return res.status(400).json({
+      fehler,
+      hinweis: 'Passwort in der Kopfzeile "X-Sicherung-Passwort" senden. Unverschlüsselt gibt es die Sicherung nicht.',
+    });
+  }
+
   try {
-    const s = await backup.erstellen();
+    const s = await backup.erstellen(passwort);
     res.download(s.pfad, s.name, (err) => {
       backup.aufraeumen(s.ordner);
       if (err && !res.headersSent) next(err);
@@ -387,6 +403,152 @@ router.patch('/ausruestung/:id(\\d+)', schreiben, (req, res) => {
 
   const neu = db.prepare(`${TEIL_SQL} WHERE e.id = ?`).get(item.id);
   res.json(alsTeil(neu));
+});
+
+// ------------------------------------------------- Arten und Größen pflegen
+
+function artFelder(b, alt = {}) {
+  const zahl = (v) => (Number(v) > 0 ? Number(v) : null);
+  return {
+    name: (b.name ?? alt.name ?? '').trim(),
+    has_size: b.fuehrt_groesse === undefined ? (alt.has_size ?? 1) : b.fuehrt_groesse ? 1 : 0,
+    has_inventory:
+      b.fuehrt_inventarnummer === undefined ? (alt.has_inventory ?? 1) : b.fuehrt_inventarnummer ? 1 : 0,
+    size_scheme: b.groessenschema === undefined ? (alt.size_scheme ?? null) : (b.groessenschema || null),
+    barcode_prefix: b.barcode_praefix === undefined ? (alt.barcode_prefix ?? null) : (String(b.barcode_praefix).trim() || null),
+    barcode_digits: b.barcode_stellen === undefined ? (alt.barcode_digits ?? null) : zahl(b.barcode_stellen),
+    sort_order: b.reihenfolge === undefined ? (alt.sort_order ?? 100) : Number(b.reihenfolge) || 100,
+    active: b.aktiv === undefined ? (alt.active ?? 1) : b.aktiv ? 1 : 0,
+  };
+}
+
+function schemaGueltig(name) {
+  return !name || !!db.prepare('SELECT 1 FROM size_schemes WHERE name = ?').get(name);
+}
+
+router.post('/arten', schreiben, (req, res) => {
+  const d = artFelder(req.body || {});
+  if (!d.name) return res.status(400).json({ fehler: 'Feld "name" fehlt.' });
+  if (!schemaGueltig(d.size_scheme)) {
+    return res.status(400).json({ fehler: 'Unbekanntes Größenschema.', bekannt: sizes.schemes().map((s) => s.name) });
+  }
+
+  try {
+    const info = db
+      .prepare(
+        'INSERT INTO equipment_types (name, has_size, has_inventory, size_scheme, barcode_prefix, barcode_digits, sort_order, active) ' +
+          'VALUES (@name, @has_size, @has_inventory, @size_scheme, @barcode_prefix, @barcode_digits, @sort_order, @active)'
+      )
+      .run(d);
+    db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'art', ?, 'angelegt', ?)")
+      .run(`API: ${req.apiToken.name}`, info.lastInsertRowid, d.name);
+    res.status(201).json({ id: info.lastInsertRowid, ...d });
+  } catch (err) {
+    if (!/UNIQUE/i.test(err.message)) throw err;
+    res.status(409).json({ fehler: `Die Art „${d.name}“ gibt es schon.` });
+  }
+});
+
+router.patch('/arten/:id(\\d+)', schreiben, (req, res) => {
+  const alt = m.q.typeById.get(req.params.id);
+  if (!alt) return res.status(404).json({ fehler: 'Ausrüstungsart nicht gefunden.' });
+
+  const d = artFelder(req.body || {}, alt);
+  if (!d.name) return res.status(400).json({ fehler: 'Der Name darf nicht leer sein.' });
+  if (!schemaGueltig(d.size_scheme)) {
+    return res.status(400).json({ fehler: 'Unbekanntes Größenschema.', bekannt: sizes.schemes().map((s) => s.name) });
+  }
+
+  try {
+    db.prepare(
+      'UPDATE equipment_types SET name = @name, has_size = @has_size, has_inventory = @has_inventory, ' +
+        'size_scheme = @size_scheme, barcode_prefix = @barcode_prefix, barcode_digits = @barcode_digits, ' +
+        'sort_order = @sort_order, active = @active WHERE id = @id'
+    ).run({ ...d, id: alt.id });
+  } catch (err) {
+    if (!/UNIQUE/i.test(err.message)) throw err;
+    return res.status(409).json({ fehler: `Der Name „${d.name}“ ist schon vergeben.` });
+  }
+
+  db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'art', ?, 'geändert', 'über die API')")
+    .run(`API: ${req.apiToken.name}`, alt.id);
+  res.json({ id: alt.id, ...d, groessen: sizes.sizesOfType(alt.id).map((s) => s.wert) });
+});
+
+router.delete('/arten/:id(\\d+)', schreiben, (req, res) => {
+  const art = m.q.typeById.get(req.params.id);
+  if (!art) return res.status(404).json({ fehler: 'Ausrüstungsart nicht gefunden.' });
+
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM equipment WHERE type_id = ?').get(art.id);
+  if (n > 0) {
+    return res.status(409).json({
+      fehler: `„${art.name}“ wird noch von ${n} Teil(en) verwendet.`,
+      hinweis: 'Stattdessen mit PATCH und "aktiv": false stilllegen.',
+    });
+  }
+  db.prepare('DELETE FROM equipment_types WHERE id = ?').run(art.id);
+  db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'art', ?, 'gelöscht', ?)")
+    .run(`API: ${req.apiToken.name}`, art.id, art.name);
+  res.json({ geloescht: art.name });
+});
+
+router.get('/groessen', lesen, (req, res) => {
+  const daten = sizes.schemes().map((s) => ({
+    schema: s.name,
+    bezeichnung: s.label,
+    hinweis: s.note || null,
+    gruppen: [...new Set(s.sizes.map((x) => x.gruppe || 'Größen'))].map((g) => ({
+      gruppe: g,
+      groessen: s.sizes.filter((x) => (x.gruppe || 'Größen') === g).map((x) => x.wert),
+    })),
+  }));
+  res.json({ anzahl: daten.length, daten });
+});
+
+router.put('/groessen/:schema', schreiben, (req, res) => {
+  const schema = db.prepare('SELECT * FROM size_schemes WHERE name = ?').get(req.params.schema);
+  if (!schema) {
+    return res.status(404).json({ fehler: 'Größenschema nicht gefunden.', bekannt: sizes.schemes().map((s) => s.name) });
+  }
+
+  // Erwartet: { "gruppen": [ { "gruppe": "Körpergröße", "groessen": ["116", …] } ] }
+  const gruppen = Array.isArray(req.body?.gruppen) ? req.body.gruppen : null;
+  if (!gruppen || !gruppen.length) {
+    return res.status(400).json({
+      fehler: 'Feld "gruppen" fehlt.',
+      beispiel: { gruppen: [{ gruppe: 'Körpergröße', groessen: ['116', '122'] }] },
+    });
+  }
+
+  const gesehen = new Set();
+  const sauber = [];
+  for (const g of gruppen) {
+    const werte = (Array.isArray(g.groessen) ? g.groessen : []).map((w) => String(w).trim()).filter(Boolean);
+    for (const w of werte) {
+      if (gesehen.has(w.toLowerCase())) {
+        return res.status(400).json({ fehler: `Die Größe „${w}“ steht mehrfach in der Liste.` });
+      }
+      gesehen.add(w.toLowerCase());
+    }
+    sauber.push({ gruppe: String(g.gruppe || 'Größen').trim(), werte });
+  }
+  if (!gesehen.size) return res.status(400).json({ fehler: 'Mindestens eine Größe muss übrig bleiben.' });
+
+  const einfuegen = db.prepare('INSERT INTO sizes (scheme, gruppe, wert, sort_order) VALUES (?, ?, ?, ?)');
+  db.transaction(() => {
+    db.prepare('DELETE FROM sizes WHERE scheme = ?').run(schema.name);
+    let sort = 10;
+    for (const g of sauber) for (const w of g.werte) einfuegen.run(schema.name, g.gruppe, w, (sort += 10));
+  })();
+
+  db.prepare("INSERT INTO audit_log (username, entity, entity_id, action, detail) VALUES (?, 'groessen', NULL, 'geändert', ?)")
+    .run(`API: ${req.apiToken.name}`, `${schema.label}: ${gesehen.size} Größen`);
+
+  res.json({
+    schema: schema.name,
+    anzahl: gesehen.size,
+    gruppen: sauber.map((g) => ({ gruppe: g.gruppe, groessen: g.werte })),
+  });
 });
 
 router.post('/aufgaben', schreiben, (req, res) => {

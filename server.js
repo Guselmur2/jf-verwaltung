@@ -88,6 +88,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Der Datei-Upload muss vor der CSRF-Pruefung ausgewertet werden — erst danach
+// steht das Token aus dem Formular in req.body.
+app.use('/einrichtung/sicherung', require('./src/upload').sicherungHochladen);
+
 app.use(auth.csrf);
 
 // Solange kein Benutzer existiert, fuehrt jede Seite zur Ersteinrichtung.
@@ -105,6 +109,8 @@ const OHNE_ANMELDUNG = [
   /^\/anmelden$/,
   /^\/abmelden$/,
   /^\/einrichtung$/,
+  // Die Route prueft selbst, dass es noch keinen Zugang gibt — danach ist sie zu.
+  /^\/einrichtung\/sicherung$/,
   /^\/static\//,
   /^\/vendor\//,
   /^\/s\/[a-z2-9]+$/, // Spint per QR-Code

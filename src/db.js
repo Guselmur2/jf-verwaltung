@@ -204,4 +204,6 @@ function seedEquipmentTypes() {
   db.transaction(() => defaults.forEach((d) => insert.run(...d)))();
 }
 
-module.exports = { db, init, DB_FILE, DATA_DIR };
+// migrate wird auch nach dem Einspielen einer Sicherung gebraucht, damit ein
+// aelterer Bestand die inzwischen dazugekommenen Spalten erhaelt.
+module.exports = { db, init, migrate, DB_FILE, DATA_DIR };
