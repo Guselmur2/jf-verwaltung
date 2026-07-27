@@ -7,17 +7,21 @@
    Bildschirm genauso aussehen wie im hellen. */
 
 @page {
-  size: A4 portrait;
+  size: A4 landscape;
   margin: 0;
 }
+
+/* Im Querformat ist das Blatt breiter als der uebliche Inhaltsbereich. Diese
+   Datei wird nur auf den Etikettenseiten geladen, darum darf sie ihn aufweiten. */
+.inhalt { max-width: 1180px; }
 
 .a4 {
   --a4-rot: #c0261f;
   --a4-text: #17181c;
   --a4-grau: #55585f;
 
-  width: 210mm;
-  height: 297mm;
+  width: 297mm;
+  height: 210mm;
   margin: 0 auto 1.5rem;
   display: flex;
   flex-direction: column;
@@ -33,7 +37,7 @@
 
 /* ---------- Kopf: Logo und Name der Wehr ---------- */
 .a4-kopf {
-  flex: 0 0 44mm;
+  flex: 0 0 40mm;
   display: flex;
   align-items: center;
   gap: 8mm;
@@ -44,7 +48,7 @@
 
 .a4-logo {
   flex: 0 0 auto;
-  max-height: 32mm;
+  max-height: 28mm;
   max-width: 44mm;
   object-fit: contain;
   /* Das Logo ist selbst rot hinterlegt — auf dem roten Balken braucht es
@@ -75,7 +79,7 @@
 
 .a4-anrede {
   margin: 0;
-  font-size: 20pt;
+  font-size: 18pt;
   color: var(--a4-grau);
 }
 
@@ -94,7 +98,7 @@
 
 .a4-spint {
   display: inline-block;
-  margin: 10mm 0 0;
+  margin: 8mm 0 0;
   padding-top: 4mm;
   border-top: 1.4mm solid var(--a4-rot);
   font-size: 17pt;
@@ -105,7 +109,7 @@
 
 /* ---------- QR-Code mit Hinweis ---------- */
 .a4-qr {
-  flex: 0 0 58mm;
+  flex: 0 0 62mm;
   text-align: center;
 }
 
@@ -138,7 +142,7 @@
 
 /* ---------- Fuss: Abteilung und Leitspruch ---------- */
 .a4-fuss {
-  flex: 0 0 26mm;
+  flex: 0 0 24mm;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,14 +167,23 @@
 }
 
 /* ---------- Am Bildschirm ---------- */
-/* Ein A4-Blatt ist 794 Pixel breit und passt damit auf keinen Handybildschirm.
-   Fuer die Vorschau wird es verkleinert; gedruckt wird immer in Originalgroesse. */
-@media screen and (max-width: 900px) {
-  .a4 { zoom: .60; }
+/* Ein A4-Blatt im Querformat ist 1123 Pixel breit und passt damit auf keinen
+   Handybildschirm und auf manchen Laptop knapp nicht. Fuer die Vorschau wird es
+   verkleinert; gedruckt wird immer in Originalgroesse. */
+@media screen and (max-width: 1200px) {
+  .a4 { zoom: .78; }
 }
 
-@media screen and (max-width: 620px) {
-  .a4 { zoom: .40; }
+@media screen and (max-width: 960px) {
+  .a4 { zoom: .58; }
+}
+
+@media screen and (max-width: 740px) {
+  .a4 { zoom: .43; }
+}
+
+@media screen and (max-width: 560px) {
+  .a4 { zoom: .29; }
 }
 
 @media print {

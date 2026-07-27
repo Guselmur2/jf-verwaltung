@@ -23,7 +23,7 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Arten & Größen (inkl. Barcode-Präfix) | `/ausruestungsarten` | Betreuer |
 | Ausgemusterte Teile | `/ausgemustert` | Betreuer |
 | QR-Aufkleber drucken | `/qr` | Betreuer |
-| Spint-Etiketten in A4 | `/etiketten`, `/etikett/7` | Betreuer |
+| Spint-Etiketten in A4 quer | `/etiketten`, `/etikett/7` | Betreuer |
 | Logo der Wehr | `/logo` | **jeder** |
 | Änderungsverlauf | `/verlauf` | Betreuer |
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
@@ -404,7 +404,7 @@ Es gibt zwei Formate für dieselbe Sache:
 
 | | `/qr` | `/etiketten` |
 |---|---|---|
-| Größe | mehrere Aufkleber je Blatt | ein DIN-A4-Blatt je Spint |
+| Größe | mehrere Aufkleber je Blatt | ein DIN-A4-Blatt **quer** je Spint |
 | Zeigt | Nummer, Name, Klartext-Adresse | Logo, Name der Wehr, Name in groß, QR-Code |
 | Wofür | Lagerorte, Kisten, kleine Beschriftungen | die Spinttür |
 
@@ -417,21 +417,33 @@ Namen man die Seite gerade aufruft.
 
 ### Das A4-Etikett für die Spinttür
 
-`/etiketten` druckt für jeden Spint ein Blatt: oben Logo und Name der Wehr, in der Mitte
-groß **„Dieser Spint wird benutzt von …"**, seitlich der QR-Code mit der Frage
-*„Was ist hier drin?"*, unten der Schriftzug der Abteilung. Ein einzelnes Blatt gibt es
+`/etiketten` druckt für jeden Spint ein Blatt im **Querformat** (297 × 210 mm): oben Logo und
+Name der Wehr, links groß **„Dieser Spint wird benutzt von …"**, rechts der QR-Code mit der
+Frage *„Was ist hier drin?"*, unten der Schriftzug der Abteilung. Ein einzelnes Blatt gibt es
 über den Knopf **Etikett drucken** auf der Spint-Seite oder unter `/etikett/<nr>`.
 
-Zwei Dinge zum Drucken:
+Drei Dinge zum Drucken:
 
-* Im Druckdialog **„Ränder: keine"** wählen, sonst schrumpft der Browser das Blatt und die
-  roten Balken enden vor der Papierkante.
+* **Querformat** wählen — der Browser übernimmt es meist von selbst aus der Seite, manche
+  Druckdialoge fragen trotzdem.
+* **„Ränder: keine"**, sonst schrumpft der Browser das Blatt und die roten Balken enden vor
+  der Papierkante.
 * **Hintergrundgrafiken** müssen an sein — in Chrome unter „Weitere Einstellungen“. Sonst
   bleiben die Balken weiß.
 
-Die Schriftgröße des Namens richtet sich nach dem breitesten Wort: „Ben“ steht in 84 pt da,
-„Maximilian Schmidtberger“ rückt auf 37 pt herunter, damit nichts aus dem Satzspiegel läuft
-oder mitten im Wort umbricht.
+Die Schriftgröße des Namens wird nicht geschätzt, sondern ausgerechnet: `namensgroesse()` in
+`src/routes/etiketten.js` stellt den Zeilenumbruch nach und nimmt den größten Grad, bei dem
+kein Wort breiter als eine Zeile ist und alle Zeilen zusammen in die Höhe passen. Dabei
+zählen `m` und `w` breiter als `i` und `l` — ohne diese Gewichtung zerriss der Browser
+„Wollmann“ mitten im Wort, während „Lindenberger“ unnötig klein blieb.
+
+Weil die Spalte im Querformat 195 mm breit ist, wird zusätzlich einzeilig gesetzt, sofern das
+höchstens ein Drittel Schriftgröße kostet: „Lena Sommer“ steht so in einer Zeile statt in
+zwei. „Maximilian Schmidtberger“ wäre einzeilig zu klein und bleibt zweizeilig, dafür groß.
+In der Praxis füllen die Namen damit 78–84 % der Spalte.
+
+> Ändert sich die Aufteilung in `public/etikett.css`, müssen `SPALTE_MM` und `NAME_MM` in
+> `src/routes/etiketten.js` mitgezogen werden — sie beschreiben denselben Satzspiegel.
 
 ### Stammdaten: Name und Logo
 
@@ -839,7 +851,7 @@ src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
 views/                 EJS-Vorlagen
 public/                CSS, kleine Skripte, Barcode-Scanner
-public/etikett.css     nur für das A4-Etikett (enthält die randlose @page-Regel)
+public/etikett.css     nur für das A4-Etikett (enthält die @page-Regel: quer, randlos)
 ```
 
 Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig.

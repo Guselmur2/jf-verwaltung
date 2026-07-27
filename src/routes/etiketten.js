@@ -23,20 +23,77 @@ function wortbreite(wort) {
   }, 0);
 }
 
+// Satzspiegel des Etiketts in Millimetern. Muss zu etikett.css passen — dort
+// steht dieselbe Aufteilung (A4 quer, 297 x 210 mm).
+const SPALTE_MM = 195; // Breite der Namensspalte
+const NAME_MM = 78; //    Hoehe, die dem Namen bleibt
+const PT_JE_MM = 2.8346;
+
+// Wie viele Zeichenbreiten bei einem Schriftgrad von 1 pt in einen Millimeter
+// passen — an der Schrift gemessen.
+const EINHEITEN_JE_MM = 4.107;
+
+const GROESSTE = 96;
+const KLEINSTE = 24;
+const ZEILENHOEHE = 1.02; // wie in etikett.css
+const LEERZEICHEN = 0.5;
+
+/** Wie viele Zeilen der Name bei dieser Zeilenkapazitaet braucht. */
+function zeilenzahl(worte, kapazitaet) {
+  let zeilen = 1;
+  let belegt = 0;
+  for (const wort of worte) {
+    const zusammen = belegt ? belegt + LEERZEICHEN + wort : wort;
+    if (zusammen <= kapazitaet) belegt = zusammen;
+    else {
+      zeilen++;
+      belegt = wort;
+    }
+  }
+  return zeilen;
+}
+
 /**
- * Schriftgroesse fuer den Namen. Der Name ist das Groesste auf dem Blatt — er
- * soll aber auch bei "Schmidtberger" noch in die Spalte passen.
+ * Schriftgroesse fuer den Namen — das Groesste auf dem Blatt.
  *
- * Massgeblich ist das breiteste Wort: umbrochen wird zwischen Woertern, und
- * passt selbst ein einzelnes Wort nicht mehr, zerreisst es der Browser
- * mittendrin. Der Faktor 460 ist an der Schrift gemessen; er entspricht der
- * Spaltenbreite von 112 mm.
+ * Statt einer Faustformel wird der Zeilenumbruch nachgestellt und der groesste
+ * Grad genommen, bei dem beides stimmt: kein Wort ist breiter als eine Zeile
+ * (sonst zerreisst der Browser es mittendrin), und alle Zeilen zusammen bleiben
+ * in der Hoehe. So bekommt "Ben" die volle Groesse, waehrend
+ * "Maximilian Schmidtberger" so weit heruntergeht, wie es noetig ist — aber
+ * keinen Punkt weiter.
  */
 function namensgroesse(name) {
-  const breiteste = String(name)
+  const worte = String(name)
+    .trim()
     .split(/\s+/)
-    .reduce((n, wort) => Math.max(n, wortbreite(wort)), 0);
-  return Math.max(24, Math.min(84, Math.round(460 / Math.max(breiteste, 5.5))));
+    .filter(Boolean)
+    .map(wortbreite);
+  if (!worte.length) return GROESSTE;
+
+  const jeZeile = EINHEITEN_JE_MM * SPALTE_MM; // Einheiten mal Schriftgrad
+  const platz = NAME_MM * PT_JE_MM;
+
+  let mehrzeilig = KLEINSTE;
+  for (let grad = GROESSTE; grad > KLEINSTE; grad--) {
+    const kapazitaet = jeZeile / grad;
+    if (worte.some((wort) => wort > kapazitaet)) continue;
+    if (zeilenzahl(worte, kapazitaet) * grad * ZEILENHOEHE <= platz) {
+      mehrzeilig = grad;
+      break;
+    }
+  }
+
+  // Im Querformat ist die Spalte breit. "Lena Sommer" wuerde im groesstmoeglichen
+  // Grad zweizeilig gesetzt und liesse die halbe Spalte leer — einzeilig sieht
+  // das deutlich besser aus. Also einzeilig setzen, sofern das nicht mehr als ein
+  // Drittel Schriftgroesse kostet. Bei "Maximilian Schmidtberger" waere der
+  // Verlust zu gross; der bleibt zweizeilig und dafuer gross.
+  const gesamt = worte.reduce((summe, wort) => summe + wort, 0) + LEERZEICHEN * (worte.length - 1);
+  const einzeilig = Math.min(GROESSTE, Math.floor(jeZeile / gesamt));
+  if (einzeilig >= mehrzeilig * 0.7) return einzeilig;
+
+  return mehrzeilig;
 }
 
 function basisAdresse(req) {

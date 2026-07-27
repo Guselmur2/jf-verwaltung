@@ -938,7 +938,7 @@ const einSpint = Number((await req('/')).text.match(/href="\/spint\/(\d+)"/)?.[1
 r = await req('/etikett/' + einSpint);
 check('einzelnes Etikett', r.status === 200 && (r.text.match(/class="a4"/g) || []).length === 1, String(r.status));
 const groesse = (html) => Number(html.match(/a4-name[^"]*" style="font-size: (\d+)pt/)?.[1]);
-check('Schriftgröße ist gesetzt', groesse(r.text) >= 24 && groesse(r.text) <= 84, String(groesse(r.text)));
+check('Schriftgröße ist gesetzt', groesse(r.text) >= 24 && groesse(r.text) <= 96, String(groesse(r.text)));
 
 // Ein langer Name muss kleiner gesetzt werden als ein kurzer, sonst laeuft er
 // aus der Spalte.
