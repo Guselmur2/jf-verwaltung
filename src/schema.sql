@@ -176,6 +176,19 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS audit_ts_idx ON audit_log(ts DESC);
 
+-- Zugaenge fuer andere Systeme. Gespeichert wird nur der Hash des Tokens —
+-- im Klartext bekommt man ihn genau einmal beim Anlegen zu sehen.
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id         INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  scope      TEXT NOT NULL DEFAULT 'lesen' CHECK (scope IN ('lesen', 'schreiben')),
+  active     INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_by TEXT,
+  last_used  TEXT
+);
+
 -- Sessions (eigener Store, damit kein zweites DB-Modul noetig ist)
 CREATE TABLE IF NOT EXISTS sessions (
   sid     TEXT PRIMARY KEY,

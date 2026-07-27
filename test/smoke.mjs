@@ -683,5 +683,140 @@ check('Art ohne Präfix lässt die Nummer stehen', r.text.includes('value="55"')
 r = await req('/scannen?nr=801');
 check('Suche mit Kurznummer findet das Teil', r.status === 302 && !r.location.startsWith('/suche'), r.location);
 
+console.log('\n24) Datensicherung über das Menü');
+r = await req('/sicherung');
+check('Sicherungsseite für den Jugendwart', r.status === 200 && r.text.includes('Datensicherung'));
+check('zeigt den Bestand', r.text.includes('Mitglieder') && r.text.includes('Datenbank'));
+check('erklärt das Zurückspielen', r.text.includes('systemctl stop jf-spinte'));
+
+const dl = await fetch(BASE + '/sicherung/herunterladen', { headers: { cookie }, redirect: 'manual' });
+const kopf = dl.headers.get('content-disposition') || '';
+const rumpf = Buffer.from(await dl.arrayBuffer());
+check('Sicherung wird geliefert', dl.status === 200 && rumpf.length > 1000, `${dl.status}, ${rumpf.length} Bytes`);
+check('als Datei mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}\.db/.test(kopf), kopf);
+check('ist eine echte SQLite-Datei', rumpf.subarray(0, 15).toString() === 'SQLite format 3');
+
+console.log('\n25) API');
+r = await req('/api-zugaenge');
+check('Verwaltung der Zugänge erreichbar', r.status === 200 && r.text.includes('API-Zugänge'));
+
+r = await req('/api/v1/');
+check('API ohne Token abgewiesen', r.status === 401, String(r.status));
+
+token = await csrf('/api-zugaenge');
+r = await req('/api-zugaenge/neu', { method: 'POST', form: { _csrf: token, name: 'Testsystem', scope: 'lesen' } });
+r = await req('/api-zugaenge');
+const apiToken = r.text.match(/id="frischerToken">(jfw_[a-f0-9]+)</)?.[1];
+check('Token wird einmalig angezeigt', !!apiToken && apiToken.startsWith('jfw_'));
+r = await req('/api-zugaenge');
+check('und danach nicht mehr', !r.text.includes('frischerToken'));
+
+const apiGet = async (pfad, tok = apiToken) => {
+  const res2 = await fetch(BASE + pfad, { headers: tok ? { 'x-api-key': tok } : {} });
+  const text = await res2.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* kein JSON */ }
+  return { status: res2.status, json, text };
+};
+
+let a = await apiGet('/api/v1/');
+check('Übersicht mit Token', a.status === 200 && Array.isArray(a.json?.endpunkte?.lesen));
+a = await apiGet('/api/v1/', 'jfw_falsch');
+check('falscher Token abgewiesen', a.status === 401);
+
+a = await apiGet('/api/v1/status');
+check('Status liefert Zahlen', a.status === 200 && typeof a.json.spinte === 'number');
+
+a = await apiGet('/api/v1/spinte');
+check('Spinte als JSON', a.status === 200 && a.json.daten.length > 0);
+check('Spint nennt Nummer und QR-Pfad', /^\/s\/[a-z2-9]+$/.test(a.json.daten[0].qr_pfad || ''), a.json.daten[0]?.qr_pfad);
+
+a = await apiGet('/api/v1/mitglieder');
+check('Mitglieder als JSON', a.status === 200 && a.json.daten.some((x) => x.name === 'Max Muster'));
+
+a = await apiGet('/api/v1/ausruestung?nummer=801');
+check('Ausrüstung über die Kurznummer findbar', a.status === 200 && a.json.anzahl === 1, JSON.stringify(a.json?.anzahl));
+
+a = await apiGet('/api/v1/arten');
+check('Arten liefern Größen und Präfix', a.status === 200 && a.json.daten.some((t) => t.barcode_praefix === '112000'));
+
+a = await apiGet('/api/v1/suche?q=Jacke%20176');
+check('Suche über die API', a.status === 200 && Array.isArray(a.json.ausruestung));
+
+a = await apiGet('/api/v1/aufgaben');
+check('Aufgaben als JSON', a.status === 200 && Array.isArray(a.json.daten));
+
+a = await apiGet('/api/v1/gibtesnicht');
+check('unbekannter Endpunkt als JSON', a.status === 404 && !!a.json?.fehler);
+
+console.log('\n26) API: Schreibrechte');
+const schreibPost = async (pfad, body, tok) => {
+  const res2 = await fetch(BASE + pfad, {
+    method: 'POST',
+    headers: { 'x-api-key': tok, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { status: res2.status, json: await res2.json().catch(() => null) };
+};
+
+let w = await schreibPost('/api/v1/ausruestung', { art: 'Jacke', groesse: '164' }, apiToken);
+check('Lese-Token darf nicht schreiben', w.status === 403, String(w.status));
+
+token = await csrf('/api-zugaenge');
+await req('/api-zugaenge/neu', { method: 'POST', form: { _csrf: token, name: 'Schreibsystem', scope: 'schreiben' } });
+r = await req('/api-zugaenge');
+const schreibToken = r.text.match(/id="frischerToken">(jfw_[a-f0-9]+)</)?.[1];
+check('Schreib-Token angelegt', !!schreibToken);
+
+w = await schreibPost('/api/v1/ausruestung', { art: 'Jacke', groesse: '164', anzahl: 3 }, schreibToken);
+check('Ausrüstung über die API anlegen', w.status === 201 && w.json.angelegt === 3, JSON.stringify(w.json));
+
+w = await schreibPost('/api/v1/ausruestung', { art: 'Jacke', groesse: '163' }, schreibToken);
+check('unbekannte Größe wird auch über die API gemeldet', w.status === 409 && w.json.vorschlag === '164', JSON.stringify(w.json));
+
+w = await schreibPost('/api/v1/ausruestung', { art: 'Jacke', groesse: '163', groesse_ok: true }, schreibToken);
+check('mit groesse_ok trotzdem angelegt', w.status === 201);
+
+w = await schreibPost('/api/v1/aufgaben', { art: 'Schuhe', nach_groesse: '42', notiz: 'per API bestellt' }, schreibToken);
+check('Aufgabe über die API anlegen', w.status === 201 && w.json.status === 'offen', JSON.stringify(w.json));
+const aufgabeApiId = w.json?.id;
+
+const patch = await fetch(BASE + `/api/v1/aufgaben/${aufgabeApiId}`, {
+  method: 'PATCH',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ status: 'erledigt' }),
+});
+const patchJson = await patch.json();
+check('Aufgabe über die API abhaken', patch.status === 200 && patchJson.status === 'erledigt');
+
+console.log('\n27) Sicherung über die API');
+const sic = await fetch(BASE + '/api/v1/sicherung', { headers: { 'x-api-key': apiToken } });
+const sicRumpf = Buffer.from(await sic.arrayBuffer());
+check('Sicherung über die API', sic.status === 200 && sicRumpf.subarray(0, 15).toString() === 'SQLite format 3');
+check('Sicherung ist vollständig', sicRumpf.length > 20000, `${sicRumpf.length} Bytes`);
+
+// Der Abzug muss lesbar und inhaltlich vollstaendig sein.
+const { writeFileSync, mkdtempSync: mkT } = await import('node:fs');
+const pruefOrdner = mkT(path.join(tmpdir(), 'jf-sicherung-pruef-'));
+const pruefDatei = path.join(pruefOrdner, 'kopie.db');
+writeFileSync(pruefDatei, sicRumpf);
+const { createRequire } = await import('node:module');
+const req2 = createRequire(path.join(WURZEL, 'package.json'));
+const DB = req2('better-sqlite3');
+const kopie = new DB(pruefDatei, { readonly: true });
+const zahl = (t) => kopie.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n;
+check('Sicherung enthält die Mitglieder', zahl('members') >= 2, String(zahl('members')));
+check('Sicherung enthält die Spinte', zahl('lockers') >= 2, String(zahl('lockers')));
+check('Sicherung enthält die Ausrüstung', zahl('equipment') > 10, String(zahl('equipment')));
+kopie.close();
+rmSync(pruefOrdner, { recursive: true, force: true });
+
+// Gesperrter Zugang kommt nicht mehr rein
+token = await csrf('/api-zugaenge');
+const tokenId = (await req('/api-zugaenge')).text.match(/\/api-zugaenge\/(\d+)\/status/)?.[1];
+await req(`/api-zugaenge/${tokenId}/status`, { method: 'POST', form: { _csrf: token } });
+a = await apiGet('/api/v1/status', schreibToken);
+check('gesperrter Zugang wird abgewiesen', a.status === 401, String(a.status));
+
 console.log(fails === 0 ? '\nAlles grün.\n' : `\n${fails} Fehler.\n`);
 process.exit(fails ? 1 : 0);

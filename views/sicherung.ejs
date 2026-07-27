@@ -1,0 +1,74 @@
+<%- include('partials/kopf') %>
+<% const mb = (b) => (b / 1024 / 1024).toFixed(2).replace('.', ',') + ' MB'; %>
+
+<div class="seitenkopf">
+  <h1>Datensicherung</h1>
+</div>
+
+<section class="block">
+  <h2>Aktueller Bestand</h2>
+  <div class="kennzahlen">
+    <div class="kennzahl"><strong><%= info.mitglieder %></strong><span>Mitglieder</span></div>
+    <div class="kennzahl"><strong><%= info.spinte %></strong><span>Spinte</span></div>
+    <div class="kennzahl"><strong><%= info.ausruestung %></strong><span>Teile</span></div>
+    <div class="kennzahl"><strong><%= info.lagerorte %></strong><span>Lagerorte</span></div>
+    <div class="kennzahl"><strong><%= info.aufgaben %></strong><span>Aufgaben</span></div>
+    <div class="kennzahl"><strong><%= mb(info.groesse) %></strong><span>Datenbank</span></div>
+  </div>
+
+  <p>
+    Die Sicherung enthält <strong>alles</strong>: Mitglieder, Spinte, Ausrüstung, Lagerorte,
+    Aufgaben, Zugänge und den Änderungsverlauf. Sie wird beim Klick frisch erzeugt — die
+    Software darf dabei weiterlaufen.
+  </p>
+
+  <p class="aktionen">
+    <a class="btn btn-gross" href="/sicherung/herunterladen">Sicherung herunterladen</a>
+  </p>
+
+  <p class="klein">
+    Datei: <code><%= info.datei %></code>
+  </p>
+</section>
+
+<section class="block">
+  <h2>Wohin damit?</h2>
+  <p class="klein">
+    Die Datei gehört <strong>nicht</strong> auf denselben Rechner — bei einem Defekt der
+    SD-Karte wäre sie sonst mit weg. Auf einen USB-Stick, ins Vereinsnetz oder auf einen
+    zweiten Rechner. Sie enthält Namen und Geburtsdaten der Jugendlichen, gehört also nicht
+    in eine offene Cloud.
+  </p>
+  <p class="klein">
+    Sinnvoller Rhythmus: nach jedem größeren Einräumen, mindestens aber einmal im Halbjahr.
+  </p>
+</section>
+
+<section class="block">
+  <h2>Wiederherstellen</h2>
+  <p class="klein">
+    Zum Zurückspielen die Software anhalten, die Datei an die Stelle der bestehenden Datenbank
+    legen und wieder starten. Auf dem Raspberry Pi:
+  </p>
+  <pre class="befehl">sudo systemctl stop jf-spinte
+cp spinte-JJJJ-MM-TT-hhmm.db /opt/jf-spinte/data/spinte.db
+rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
+sudo systemctl start jf-spinte</pre>
+  <p class="klein">
+    Die beiden Dateien <code>-wal</code> und <code>-shm</code> müssen weg, sonst mischt SQLite
+    alte Änderungen in den zurückgespielten Stand.
+  </p>
+</section>
+
+<section class="block">
+  <h2>Automatisch sichern</h2>
+  <p class="klein">
+    Über die <a href="/api-zugaenge">API</a> lässt sich die Sicherung auch von einem anderen
+    Rechner abholen — etwa täglich per Aufgabenplanung:
+  </p>
+  <pre class="befehl">curl -k -H "X-API-Key: jfw_…" \
+  -o spinte-$(date +%F).db \
+  <%= (typeof basis !== 'undefined' && basis) || 'https://jfwpi.fritz.box' %>/api/v1/sicherung</pre>
+</section>
+
+<%- include('partials/fuss') %>

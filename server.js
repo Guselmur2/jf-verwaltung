@@ -68,6 +68,14 @@ app.use(
   })
 );
 
+// Die API bringt ihre eigene Anmeldung per Token mit und antwortet in JSON.
+// Sie steht deshalb vor der CSRF-Pruefung und vor dem Anmeldezwang — beide
+// sind auf Formulare im Browser zugeschnitten.
+app.use('/api/v1', express.json({ limit: '256kb' }), require('./src/routes/api'));
+app.use('/api', (req, res) =>
+  res.status(404).json({ fehler: 'Unbekannte API-Version.', hinweis: 'Aktuell ist /api/v1/.' })
+);
+
 app.use(auth.locals);
 
 // Ob nach Umkleidebereichen unterschieden wird und wie viele Aufgaben offen
@@ -127,6 +135,7 @@ app.use(require('./src/routes/tasks'));
 app.use(require('./src/routes/members'));
 app.use(require('./src/routes/types'));
 app.use(require('./src/routes/users'));
+app.use(require('./src/routes/backup'));
 app.use(require('./src/routes/history'));
 
 app.use((req, res) => {

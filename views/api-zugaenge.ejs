@@ -1,0 +1,96 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>API-Zugänge</h1>
+</div>
+
+<% if (frisch) { %>
+  <section class="block block-treffer">
+    <h2>Neuer Zugang: <%= frisch.name %></h2>
+    <p><strong>Diesen Schlüssel jetzt kopieren — er wird nicht noch einmal angezeigt.</strong></p>
+    <pre class="befehl" id="frischerToken"><%= frisch.token %></pre>
+    <p class="klein">
+      Gespeichert wird nur eine Prüfsumme. Geht der Schlüssel verloren, legt man einen neuen an
+      und löscht den alten.
+    </p>
+  </section>
+<% } %>
+
+<p class="klein">
+  Mit einem Zugang kann ein anderes Programm die Daten lesen und — je nach Berechtigung —
+  auch schreiben. Der Schlüssel gehört in die Kopfzeile jeder Anfrage:
+</p>
+<pre class="befehl">curl -k -H "X-API-Key: jfw_…" <%= basis %>/api/v1/</pre>
+
+<% if (tokens.length === 0) { %>
+  <p class="leer">Noch keine Zugänge angelegt.</p>
+<% } else { %>
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead>
+        <tr><th>Name</th><th>Darf</th><th>Angelegt</th><th>Zuletzt benutzt</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% tokens.forEach(function (t) { %>
+          <tr class="<%= t.active ? '' : 'zeile-inaktiv' %>">
+            <td data-label="Name"><strong><%= t.name %></strong></td>
+            <td data-label="Darf">
+              <span class="chip <%= t.scope === 'schreiben' ? 'chip-bestellung' : '' %>">
+                <%= t.scope === 'schreiben' ? 'lesen und schreiben' : 'nur lesen' %>
+              </span>
+            </td>
+            <td data-label="Angelegt">
+              <%= t.created_at.replace('T', ' ') %>
+              <% if (t.created_by) { %><span class="klein">von <%= t.created_by %></span><% } %>
+            </td>
+            <td data-label="Zuletzt benutzt"><%= t.last_used ? t.last_used.replace('T', ' ') : '—' %></td>
+            <td data-label="Status"><%= t.active ? 'aktiv' : 'gesperrt' %></td>
+            <td data-label="Aktion" class="zeilenaktionen">
+              <form method="post" action="/api-zugaenge/<%= t.id %>/status" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-still" type="submit"><%= t.active ? 'Sperren' : 'Freigeben' %></button>
+              </form>
+              <form method="post" action="/api-zugaenge/<%= t.id %>/loeschen" class="inline"
+                    onsubmit="return confirm('Zugang „<%= t.name %>“ löschen? Programme, die ihn nutzen, kommen dann nicht mehr rein.');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-gefahr" type="submit">Löschen</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<section class="block">
+  <h2>Neuen Zugang anlegen</h2>
+  <form method="post" action="/api-zugaenge/neu" class="teilform">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="name" placeholder="Wofür? z. B. Sicherung NAS" required aria-label="Name" class="wachsend">
+    <select name="scope" aria-label="Berechtigung">
+      <option value="lesen">nur lesen</option>
+      <option value="schreiben">lesen und schreiben</option>
+    </select>
+    <button class="btn btn-klein" type="submit">Anlegen</button>
+  </form>
+  <p class="klein">
+    Im Zweifel <strong>nur lesen</strong> — das genügt für Sicherungen und Auswertungen.
+  </p>
+</section>
+
+<section class="block">
+  <h2>Was die API kann</h2>
+  <p class="klein">Eine Übersicht aller Endpunkte liefert die API selbst:</p>
+  <pre class="befehl">curl -k -H "X-API-Key: jfw_…" <%= basis %>/api/v1/</pre>
+  <p class="klein">Häufig gebraucht:</p>
+  <ul class="liste">
+    <li><code>GET /api/v1/sicherung</code> — Datensicherung herunterladen</li>
+    <li><code>GET /api/v1/ausruestung?nummer=172</code> — Teil über die Inventarnummer finden</li>
+    <li><code>GET /api/v1/spinte</code> — alle Spinte mit Belegung</li>
+    <li><code>GET /api/v1/aufgaben</code> — offene Bestellungen und Tauschwünsche</li>
+    <li><code>GET /api/v1/suche?q=Jacke+164</code> — Suche über alles</li>
+  </ul>
+</section>
+
+<%- include('partials/fuss') %>

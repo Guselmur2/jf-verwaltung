@@ -26,6 +26,9 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Änderungsverlauf | `/verlauf` | Betreuer |
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
 | Betreuer verwalten | `/betreuer` | **nur Jugendwart** |
+| Datensicherung | `/sicherung` | **nur Jugendwart** |
+| API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
+| API für andere Systeme | `/api/v1/…` | **Token** |
 
 ## Wer was sehen darf
 
@@ -444,6 +447,97 @@ WAL-Modus läuft — `.backup` oder vorher den Dienst stoppen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
 
+## Datensicherung
+
+Alles steckt in einer einzigen SQLite-Datei. Der Jugendwart findet die Sicherung im Menü
+hinter dem eigenen Namen unter **Datensicherung** — ein Klick erzeugt einen frischen Abzug
+und lädt ihn als `spinte-2026-07-27-2241.db` herunter.
+
+Die Sicherung entsteht über die **Sicherungsfunktion von SQLite**, nicht durch Kopieren der
+Datei. Das ist wichtig: die Datenbank läuft im WAL-Modus, ein Teil der Änderungen steht in
+`spinte.db-wal` und noch nicht in `spinte.db`. Ein einfaches `cp` liefert deshalb einen
+unvollständigen Stand. Die Software darf während der Sicherung weiterlaufen.
+
+**Zurückspielen** — Dienst anhalten, Datei ersetzen, die WAL-Reste entfernen, starten:
+
+```bash
+sudo systemctl stop jf-spinte
+cp spinte-2026-07-27-2241.db /opt/jf-spinte/data/spinte.db
+rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
+sudo systemctl start jf-spinte
+```
+
+Die beiden Dateien `-wal` und `-shm` müssen weg, sonst mischt SQLite alte Änderungen in den
+zurückgespielten Stand.
+
+**Automatisch sichern** geht über die API (siehe unten) — die Datei gehört auf ein anderes
+Gerät, bei einem Defekt der SD-Karte wäre sie sonst mit weg. Sie enthält Namen und
+Geburtsdaten der Jugendlichen und gehört damit nicht in eine offene Cloud.
+
+## API
+
+Andere Systeme greifen über `/api/v1/` zu. Zugänge legt der Jugendwart im Menü unter
+**API-Zugänge** an; der Schlüssel wird **einmalig** angezeigt, gespeichert wird nur seine
+Prüfsumme. Jeder Zugang darf entweder `nur lesen` oder `lesen und schreiben`.
+
+Der Schlüssel gehört in die Kopfzeile — beide Schreibweisen funktionieren:
+
+```bash
+curl -k -H "X-API-Key: jfw_…"           https://jfwpi.fritz.box/api/v1/
+curl -k -H "Authorization: Bearer jfw_…" https://jfwpi.fritz.box/api/v1/
+```
+
+`GET /api/v1/` listet alle Endpunkte auf. Die Felder heißen deutsch wie die Oberfläche.
+
+### Lesen
+
+| Endpunkt | liefert |
+|---|---|
+| `GET /status` | Zahlen im Überblick |
+| `GET /spinte`, `/spinte/:id` | Spinte, Detail mit Inhalt |
+| `GET /mitglieder?alle=1` | Mitglieder (`alle=1` inkl. ausgetretene) |
+| `GET /ausruestung?art=&groesse=&spint=&lagerort=&nummer=&ausgemustert=1` | Ausrüstung, gefiltert |
+| `GET /ausruestung/:id` | ein Teil |
+| `GET /lagerorte`, `/lagerorte/:id` | Lagerorte, Detail mit Zusammenfassung |
+| `GET /aufgaben?status=offen\|erledigt\|abgebrochen\|alle` | Aufgaben |
+| `GET /arten` | Ausrüstungsarten mit Größen und Barcode-Präfix |
+| `GET /suche?q=Jacke+164` | Suche über alles |
+| `GET /sicherung` | Datensicherung als `.db` |
+| `GET /sicherung/info` | Größe und Umfang des Bestands |
+
+Bei `nummer=` greift der Barcode-Präfix: `?nummer=172` findet auch `112000172`.
+
+### Schreiben
+
+| Endpunkt | Zweck |
+|---|---|
+| `POST /ausruestung` | Teile anlegen (`art`, `groesse`, `inventarnummer`, `anzahl`, `spint_id`/`lagerort_id`) |
+| `PATCH /ausruestung/:id` | Größe, Nummer, Zustand, Notiz oder Ablageort ändern |
+| `POST /aufgaben` | Bestellung oder Tauschwunsch anlegen |
+| `PATCH /aufgaben/:id` | Status auf `offen`, `erledigt` oder `abgebrochen` setzen |
+
+Die Prüfungen der Oberfläche gelten auch hier: doppelte Inventarnummern werden mit `409`
+abgelehnt, und eine unbekannte Größe liefert `409` samt Vorschlag:
+
+```json
+{ "fehler": "Die Größe „162“ gibt es bei Jacke nicht.",
+  "vorschlag": "164",
+  "hinweis": "Mit \"groesse_ok\": true trotzdem übernehmen." }
+```
+
+Änderungen über die API landen im Verlauf, gekennzeichnet als `API: <Name des Zugangs>`.
+
+### Tägliche Sicherung einrichten
+
+```bash
+curl -k -H "X-API-Key: jfw_…" \
+  -o "spinte-$(date +%F).db" \
+  https://jfwpi.fritz.box/api/v1/sicherung
+```
+
+Dafür genügt ein Zugang mit `nur lesen`. Das `-k` ist nötig, weil das Zertifikat
+selbstsigniert ist.
+
 ## Barcode-Präfix
 
 Auf den Etiketten einer Ausrüstungsart steht meist derselbe Anfang — im Gerätehaus etwa
@@ -578,6 +672,8 @@ src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
 src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
 src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
 src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
+src/backup.js          Datensicherung über die SQLite-Sicherungsfunktion
+src/api-auth.js        Token für die API prüfen und verwalten
 src/tokens.js          Geheimnisse für die QR-Links
 scripts/               Testdaten, HTTPS-Testinstanz, Deployment auf den Pi
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
