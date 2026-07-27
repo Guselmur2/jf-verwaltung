@@ -1,0 +1,80 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Stammdaten</h1>
+</div>
+
+<p class="klein">
+  Name und Logo eurer Wehr. Sie stehen auf den <a href="/etiketten">Spint-Etiketten</a> und im Kopf
+  dieser Seiten — hier einmal eingetragen, überall richtig.
+</p>
+
+<section class="block">
+  <h2>Bezeichnungen</h2>
+  <form method="post" action="/stammdaten" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span>Name der Wehr</span>
+      <input name="organisation" value="<%= daten.organisation %>" maxlength="80"
+             placeholder="<%= standard.organisation %>" autocomplete="off">
+      <small>Steht oben auf dem Etikett, z.&nbsp;B. <code>Jugendfeuerwehr Ebertsheim</code>.</small>
+    </label>
+    <label>
+      <span>Abteilung</span>
+      <input name="abteilung" value="<%= daten.abteilung %>" maxlength="40"
+             placeholder="<%= standard.abteilung %>" autocomplete="off">
+      <small>
+        Das große Wort unten auf dem Etikett. Hebt die Jugendfeuerwehr von der Kinderfeuerwehr ab,
+        wenn beide dasselbe Logo tragen.
+      </small>
+    </label>
+    <label>
+      <span>Leitspruch</span>
+      <input name="slogan" value="<%= daten.slogan %>" maxlength="80"
+             placeholder="<%= standard.slogan %>" autocomplete="off">
+      <small>Kleine Zeile neben der Abteilung. Leer lassen, wenn nichts stehen soll.</small>
+    </label>
+    <div class="formfuss">
+      <button class="btn" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
+<section class="block">
+  <h2>Logo</h2>
+
+  <% if (daten.hatLogo) { %>
+    <div class="logovorschau">
+      <img src="/logo?v=<%= daten.logoStand %>" alt="Logo der Wehr">
+      <form method="post" action="/stammdaten/logo/loeschen" class="inline"
+            onsubmit="return confirm('Logo entfernen?');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-klein btn-gefahr" type="submit">Logo entfernen</button>
+      </form>
+    </div>
+  <% } else { %>
+    <p class="leer">Noch kein Logo hinterlegt. Die Etiketten tragen bis dahin nur den Schriftzug.</p>
+  <% } %>
+
+  <form method="post" action="/stammdaten/logo" enctype="multipart/form-data" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>
+      <span><%= daten.hatLogo ? 'Logo austauschen' : 'Logo hochladen' %></span>
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" required>
+      <small>
+        PNG, JPEG, GIF, WebP oder SVG, höchstens 2&nbsp;MB. Für den Druck gern groß —
+        etwa 600&nbsp;Pixel Kantenlänge, am besten quadratisch.
+      </small>
+    </label>
+    <div class="formfuss">
+      <button class="btn" type="submit">Hochladen</button>
+    </div>
+  </form>
+
+  <p class="klein">
+    Das Logo liegt in der Datenbank und ist damit in jeder <a href="/sicherung">Datensicherung</a>
+    enthalten. Nach einer Wiederherstellung ist es sofort wieder da.
+  </p>
+</section>
+
+<%- include('partials/fuss') %>

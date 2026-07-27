@@ -189,6 +189,22 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   last_used  TEXT
 );
 
+-- Stammdaten der Wehr: Name, Untertitel und aehnliches.
+CREATE TABLE IF NOT EXISTS settings (
+  schluessel TEXT PRIMARY KEY,
+  wert       TEXT
+);
+
+-- Bilder (Logo). Bewusst in der Datenbank und nicht als Datei im Dateisystem:
+-- so steckt das Logo in der Datensicherung und ist nach einer
+-- Wiederherstellung sofort wieder da.
+CREATE TABLE IF NOT EXISTS assets (
+  name      TEXT PRIMARY KEY,
+  mime      TEXT NOT NULL,
+  daten     BLOB NOT NULL,
+  geaendert TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Sessions (eigener Store, damit kein zweites DB-Modul noetig ist)
 CREATE TABLE IF NOT EXISTS sessions (
   sid     TEXT PRIMARY KEY,

@@ -48,6 +48,7 @@
   <div class="aktionen">
     <% if (user) { %>
       <a class="btn" href="/spint/<%= locker.id %>/bearbeiten">Bearbeiten</a>
+      <a class="btn btn-still" href="/etikett/<%= locker.id %>">Etikett drucken</a>
       <a class="btn btn-still" href="/">Alle Spinte</a>
     <% } else { %>
       <a class="btn btn-still" href="/anmelden">Als Betreuer anmelden zum Bearbeiten</a>

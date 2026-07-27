@@ -4,21 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title><%= title %> · Jugendfeuerwehr</title>
+  <title><%= title %> · <%= stammdaten.organisation %></title>
   <link rel="stylesheet" href="/static/style.css?v=<%= assetVersion %>">
+  <%# Zusatz-Stil einzelner Seiten, z.B. das A4-Etikett mit seiner @page-Regel. %>
+  <% if (typeof stil !== 'undefined' && stil) { %>
+    <link rel="stylesheet" href="/static/<%= stil %>.css?v=<%= assetVersion %>">
+  <% } %>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>%F0%9F%9A%92</text></svg>">
 </head>
 <body>
 <header class="topbar">
+  <%
+    // Marke: Logo der Wehr, solange eines hinterlegt ist — sonst das Kuerzel.
+    const marke = stammdaten.hatLogo
+      ? `<img class="brand-logo" src="/logo?v=${stammdaten.logoStand}" alt="">`
+      : '<span class="brand-mark">JF</span>';
+  %>
   <% if (user) { %>
     <a class="brand" href="/">
-      <span class="brand-mark">JF</span>
-      <span>Spintverwaltung</span>
+      <%- marke %>
+      <span class="brand-text">
+        <span>Spintverwaltung</span>
+        <small><%= stammdaten.organisation %></small>
+      </span>
     </a>
   <% } else { %>
     <span class="brand">
-      <span class="brand-mark">JF</span>
-      <span>Spintverwaltung</span>
+      <%- marke %>
+      <span class="brand-text">
+        <span>Spintverwaltung</span>
+        <small><%= stammdaten.organisation %></small>
+      </span>
     </span>
   <% } %>
   <%# Ohne Anmeldung gibt es keine Navigation — die Seite zeigt dann nur den
@@ -48,9 +64,11 @@
           <a href="/lagerorte">Lagerorte</a>
           <a href="/ausruestungsarten">Ausrüstungsarten</a>
           <a href="/ausgemustert">Ausgemustert</a>
+          <a href="/etiketten">Spint-Etiketten</a>
           <% if (isJugendwart) { %>
             <a href="/bereiche">Umkleidebereiche</a>
             <a href="/betreuer">Betreuer verwalten</a>
+            <a href="/stammdaten">Stammdaten &amp; Logo</a>
             <a href="/sicherung">Datensicherung</a>
             <a href="/api-zugaenge">API-Zugänge</a>
           <% } %>

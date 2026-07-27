@@ -22,10 +22,13 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Lagerorte verwalten | `/lagerorte` | Betreuer |
 | Arten & Größen (inkl. Barcode-Präfix) | `/ausruestungsarten` | Betreuer |
 | Ausgemusterte Teile | `/ausgemustert` | Betreuer |
-| QR-Etiketten drucken | `/qr` | Betreuer |
+| QR-Aufkleber drucken | `/qr` | Betreuer |
+| Spint-Etiketten in A4 | `/etiketten`, `/etikett/7` | Betreuer |
+| Logo der Wehr | `/logo` | **jeder** |
 | Änderungsverlauf | `/verlauf` | Betreuer |
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
 | Betreuer verwalten | `/betreuer` | **nur Jugendwart** |
+| Stammdaten &amp; Logo | `/stammdaten` | **nur Jugendwart** |
 | Datensicherung | `/sicherung` | **nur Jugendwart** |
 | API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
 | API für andere Systeme | `/api/v1/…` | **Token** |
@@ -46,8 +49,11 @@ es dort keine Navigation und keinen Link, der irgendwo anders hinführt — nur 
 
 Der Zugriffsschutz ist als **Positivliste** in `server.js` gebaut: gesperrt ist alles, was
 nicht ausdrücklich freigegeben ist (Anmeldung, statische Dateien, `/s/<token>`,
-`/l/<token>`). Eine neu hinzugefügte Seite ist damit automatisch geschützt, statt
-versehentlich offen zu stehen.
+`/l/<token>` und `/logo`). Eine neu hinzugefügte Seite ist damit automatisch geschützt,
+statt versehentlich offen zu stehen.
+
+`/logo` steht bewusst offen: das Logo der Wehr erscheint auch im Kopf der Spint-Seite, die
+man ohne Anmeldung per QR-Code aufruft. Es verrät nichts über Mitglieder.
 
 Intern verlinkt die Software Spinte weiter über die kurze Nummer (`/spint/7`) — die
 funktioniert aber **nur angemeldet**. Nötig ist die interne Nummer, weil die aufgedruckte
@@ -394,14 +400,56 @@ Zufälliges Secret erzeugen: `openssl rand -hex 32`
 
 ### QR-Codes drucken
 
-`/qr` aufrufen, im Feld „Adresse" die feste Pi-Adresse eintragen (z. B.
-`http://192.168.1.50:3000`), **Übernehmen**, einen Code am Handy testen, dann drucken.
-Jedes Etikett zeigt Spintnummer, Name und die Klartext-Adresse — falls das Scannen mal
-nicht klappt, kann man sie abtippen.
+Es gibt zwei Formate für dieselbe Sache:
 
-Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=http://192.168.1.50:3000`
+| | `/qr` | `/etiketten` |
+|---|---|---|
+| Größe | mehrere Aufkleber je Blatt | ein DIN-A4-Blatt je Spint |
+| Zeigt | Nummer, Name, Klartext-Adresse | Logo, Name der Wehr, Name in groß, QR-Code |
+| Wofür | Lagerorte, Kisten, kleine Beschriftungen | die Spinttür |
+
+Bei beiden zuerst im Feld „Adresse" die feste Pi-Adresse eintragen (z. B.
+`https://jfwpi.fritz.box`), **Übernehmen**, einen Code am Handy testen, dann drucken.
+
+Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=https://jfwpi.fritz.box`
 in die Service-Datei eintragen. Dann stimmen die QR-Codes unabhängig davon, über welchen
 Namen man die Seite gerade aufruft.
+
+### Das A4-Etikett für die Spinttür
+
+`/etiketten` druckt für jeden Spint ein Blatt: oben Logo und Name der Wehr, in der Mitte
+groß **„Dieser Spint wird benutzt von …"**, seitlich der QR-Code mit der Frage
+*„Was ist hier drin?"*, unten der Schriftzug der Abteilung. Ein einzelnes Blatt gibt es
+über den Knopf **Etikett drucken** auf der Spint-Seite oder unter `/etikett/<nr>`.
+
+Zwei Dinge zum Drucken:
+
+* Im Druckdialog **„Ränder: keine"** wählen, sonst schrumpft der Browser das Blatt und die
+  roten Balken enden vor der Papierkante.
+* **Hintergrundgrafiken** müssen an sein — in Chrome unter „Weitere Einstellungen“. Sonst
+  bleiben die Balken weiß.
+
+Die Schriftgröße des Namens richtet sich nach dem breitesten Wort: „Ben“ steht in 84 pt da,
+„Maximilian Schmidtberger“ rückt auf 37 pt herunter, damit nichts aus dem Satzspiegel läuft
+oder mitten im Wort umbricht.
+
+### Stammdaten: Name und Logo
+
+Unter `/stammdaten` (nur Jugendwart) stehen drei Textfelder und das Logo:
+
+| Feld | steht auf dem Etikett | Beispiel |
+|---|---|---|
+| Name der Wehr | oben im roten Balken | `Jugendfeuerwehr Ebertsheim` |
+| Abteilung | unten in Großbuchstaben | `Jugendfeuerwehr` |
+| Leitspruch | unten rechts, klein | `Wir sind die Helden von morgen!` |
+
+Die **Abteilung** ist dafür da, sich von der Kinderfeuerwehr abzuheben, wenn beide dasselbe
+Logo tragen — auf dem Blatt steht dann groß, zu wem der Spint gehört.
+
+Das Logo (PNG, JPEG, GIF, WebP oder SVG, höchstens 2 MB) liegt **in der Datenbank**, nicht
+als Datei daneben. Damit steckt es in jeder Datensicherung und ist nach einer
+Wiederherstellung ohne Zutun wieder da. Ob eine hochgeladene Datei wirklich ein Bild ist,
+prüft die Software am Dateiinhalt, nicht am Namen oder am gemeldeten Typ.
 
 ## Sicherheit — was diese Software leistet und was nicht
 
@@ -550,6 +598,7 @@ curl -k -H "Authorization: Bearer jfw_…" https://jfwpi.fritz.box/api/v1/
 | `GET /aufgaben?status=offen\|erledigt\|abgebrochen\|alle` | Aufgaben |
 | `GET /arten` | Ausrüstungsarten mit Größen und Barcode-Präfix |
 | `GET /groessen` | Größenschemata mit ihren Reihen |
+| `GET /stammdaten` | Name der Wehr, Abteilung, Leitspruch, ob ein Logo hinterlegt ist |
 | `GET /suche?q=Jacke+164` | Suche über alles |
 | `GET /sicherung` | Datensicherung als `.db.enc` (Passwort in `X-Sicherung-Passwort`) |
 | `GET /sicherung/info` | Größe und Umfang des Bestands |
@@ -567,7 +616,10 @@ Bei `nummer=` greift der Barcode-Präfix: `?nummer=172` findet auch `112000172`.
 | `POST /arten` | Ausrüstungsart anlegen |
 | `PATCH /arten/:id` | Art ändern (Name, Größenschema, Barcode-Präfix, stilllegen) |
 | `DELETE /arten/:id` | Art löschen (nur ohne zugehörige Teile) |
+| `POST /groessen` | Größenschema anlegen |
 | `PUT /groessen/:schema` | Größenreihe eines Schemas ersetzen |
+| `DELETE /groessen/:schema` | Schema löschen (nur, wenn keine Art es benutzt) |
+| `PATCH /stammdaten` | Name der Wehr, Abteilung oder Leitspruch ändern |
 
 Größen ersetzen — die Reihenfolge in der Liste bestimmt, was „eine Nummer größer" ist:
 
@@ -779,12 +831,15 @@ src/api-auth.js        Token für die API prüfen und verwalten
 src/backup.js          Sicherung erzeugen und verschlüsseln
 src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
+src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
+src/upload.js          Dateiannahme für Sicherung und Logo
 scripts/               Testdaten, HTTPS-Testinstanz, Deployment, Sicherung holen
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
 views/                 EJS-Vorlagen
 public/                CSS, kleine Skripte, Barcode-Scanner
+public/etikett.css     nur für das A4-Etikett (enthält die randlose @page-Regel)
 ```
 
 Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig.
@@ -792,4 +847,5 @@ Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig.
 `npm test` startet einen eigenen Server mit leerer Datenbank in einem temporären Ordner
 und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Umkleidebereiche,
 Spinte, Lagerorte mit Mengenanlage, Barcode-Endpunkt, Tauschen mit und ohne Lagertreffer,
-Aufgaben, Suche, QR und öffentlicher Lesezugriff. Die echte Datenbank wird nicht angefasst.
+Aufgaben, Suche, QR, Stammdaten mit Logo, A4-Etiketten und öffentlicher Lesezugriff.
+Die echte Datenbank wird nicht angefasst.

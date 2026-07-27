@@ -1,0 +1,188 @@
+/* Spint-Etikett in DIN A4.
+   Wird nur von /etiketten und /etikett/:id geladen, damit die @page-Regel
+   (randlos) nicht die uebrigen Druckseiten der Software beeinflusst.
+
+   Die Farben stehen hier absichtlich fest und kommen nicht aus den
+   CSS-Variablen: das Blatt geht auf Papier und soll im dunklen Modus am
+   Bildschirm genauso aussehen wie im hellen. */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.a4 {
+  --a4-rot: #c0261f;
+  --a4-text: #17181c;
+  --a4-grau: #55585f;
+
+  width: 210mm;
+  height: 297mm;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  color: var(--a4-text);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+  box-shadow: 0 2px 22px rgba(0, 0, 0, .28);
+  /* Ohne das druckt der Browser die roten Balken standardmaessig weiss. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------- Kopf: Logo und Name der Wehr ---------- */
+.a4-kopf {
+  flex: 0 0 44mm;
+  display: flex;
+  align-items: center;
+  gap: 8mm;
+  padding: 0 14mm;
+  background: var(--a4-rot);
+  color: #fff;
+}
+
+.a4-logo {
+  flex: 0 0 auto;
+  max-height: 32mm;
+  max-width: 44mm;
+  object-fit: contain;
+  /* Das Logo ist selbst rot hinterlegt — auf dem roten Balken braucht es
+     deshalb eine weisse Flaeche, sonst verschwindet der Rand darin. */
+  background: #fff;
+  padding: 2mm;
+  border-radius: 2mm;
+}
+
+.a4-org {
+  font-size: 27pt;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: .005em;
+}
+
+/* ---------- Mitte: Name gross, QR-Code seitlich ---------- */
+.a4-mitte {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 12mm;
+  padding: 14mm;
+}
+
+.a4-haupt { flex: 1; min-width: 0; }
+
+.a4-anrede {
+  margin: 0;
+  font-size: 20pt;
+  color: var(--a4-grau);
+}
+
+.a4-name {
+  margin: 5mm 0 0;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -.02em;
+  /* Umbrochen wird nur zwischen Woertern; die Schriftgroesse richtet sich
+     deshalb nach dem laengsten Wort (namensgroesse in routes/etiketten.js). */
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+.a4-name.frei { color: #9aa0a8; font-weight: 700; }
+
+.a4-spint {
+  display: inline-block;
+  margin: 10mm 0 0;
+  padding-top: 4mm;
+  border-top: 1.4mm solid var(--a4-rot);
+  font-size: 17pt;
+  font-weight: 600;
+}
+
+.a4-spint span { font-weight: 400; color: var(--a4-grau); }
+
+/* ---------- QR-Code mit Hinweis ---------- */
+.a4-qr {
+  flex: 0 0 58mm;
+  text-align: center;
+}
+
+.a4-qr-bild {
+  padding: 3.5mm;
+  border: 1mm solid var(--a4-text);
+  border-radius: 3mm;
+  background: #fff;
+}
+
+.a4-qr-bild svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.a4-qr-titel {
+  margin: 5mm 0 2mm;
+  font-size: 15pt;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.a4-qr-text {
+  margin: 0;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: var(--a4-grau);
+}
+
+/* ---------- Fuss: Abteilung und Leitspruch ---------- */
+.a4-fuss {
+  flex: 0 0 26mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8mm;
+  padding: 0 14mm;
+  background: var(--a4-rot);
+  color: #fff;
+}
+
+.a4-abteilung {
+  font-size: 20pt;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.a4-slogan {
+  font-size: 12pt;
+  text-align: right;
+  opacity: .92;
+}
+
+/* ---------- Am Bildschirm ---------- */
+/* Ein A4-Blatt ist 794 Pixel breit und passt damit auf keinen Handybildschirm.
+   Fuer die Vorschau wird es verkleinert; gedruckt wird immer in Originalgroesse. */
+@media screen and (max-width: 900px) {
+  .a4 { zoom: .60; }
+}
+
+@media screen and (max-width: 620px) {
+  .a4 { zoom: .40; }
+}
+
+@media print {
+  .a4 {
+    margin: 0;
+    box-shadow: none;
+    zoom: 1;
+    break-after: page;
+    page-break-after: always;
+  }
+  .a4:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

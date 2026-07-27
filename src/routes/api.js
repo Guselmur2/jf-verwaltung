@@ -6,6 +6,7 @@ const m = require('../model');
 const sizes = require('../sizes');
 const barcode = require('../barcode');
 const backup = require('../backup');
+const settings = require('../settings');
 const api = require('../api-auth');
 const { formatGermanDate, parseGermanDate } = require('../dates');
 
@@ -107,6 +108,7 @@ router.get('/', lesen, (req, res) => {
         'GET /api/v1/aufgaben?status=offen|erledigt|abgebrochen|alle',
         'GET /api/v1/arten',
         'GET /api/v1/groessen',
+        'GET /api/v1/stammdaten',
         'GET /api/v1/suche?q=',
         'GET /api/v1/sicherung  (Kopfzeile X-Sicherung-Passwort nötig)',
       ],
@@ -121,6 +123,7 @@ router.get('/', lesen, (req, res) => {
         'POST /api/v1/groessen',
         'PUT /api/v1/groessen/:schema',
         'DELETE /api/v1/groessen/:schema',
+        'PATCH /api/v1/stammdaten',
       ],
     },
   });
@@ -298,7 +301,31 @@ router.get('/sicherung', lesen, async (req, res, next) => {
 
 router.get('/sicherung/info', lesen, (req, res) => res.json(backup.info()));
 
+// Stammdaten der Wehr — das, was auf den Spint-Etiketten steht.
+router.get('/stammdaten', lesen, (req, res) => {
+  const d = settings.alle();
+  res.json({
+    organisation: d.organisation,
+    abteilung: d.abteilung,
+    slogan: d.slogan,
+    logo: d.hatLogo ? { vorhanden: true, adresse: '/logo', stand: d.logoStand } : { vorhanden: false },
+  });
+});
+
 // -------------------------------------------------------------- Schreiben
+
+router.patch('/stammdaten', schreiben, (req, res) => {
+  const b = req.body || {};
+  const unbekannt = Object.keys(b).filter((f) => !settings.FELDER.includes(f));
+  if (unbekannt.length) {
+    return res.status(400).json({
+      fehler: `Unbekanntes Feld: ${unbekannt.join(', ')}.`,
+      erlaubt: settings.FELDER,
+    });
+  }
+  const geaendert = settings.speichern(b);
+  res.json({ geaendert, stammdaten: settings.alle() });
+});
 
 router.post('/ausruestung', schreiben, (req, res) => {
   const b = req.body || {};

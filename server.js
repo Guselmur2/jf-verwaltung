@@ -13,6 +13,7 @@ init();
 
 const auth = require('./src/auth');
 const model = require('./src/model');
+const settings = require('./src/settings');
 const { formatGermanDate } = require('./src/dates');
 
 const app = express();
@@ -40,7 +41,7 @@ app.use(
 
 // CSS und JS werden lange gecacht. Damit nach einem Update trotzdem die neue
 // Fassung ankommt, haengt an den URLs der Aenderungszeitpunkt der Dateien.
-app.locals.assetVersion = ['style.css', 'app.js', 'scanner.js']
+app.locals.assetVersion = ['style.css', 'etikett.css', 'app.js', 'scanner.js']
   .map((f) => Math.round(fs.statSync(path.join(__dirname, 'public', f)).mtimeMs))
   .reduce((a, b) => Math.max(a, b), 0)
   .toString(36);
@@ -85,12 +86,14 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/static')) return next();
   res.locals.showAreas = model.showAreas();
   res.locals.offeneAufgaben = req.session.user ? model.openTaskCount() : 0;
+  res.locals.stammdaten = settings.alle();
   next();
 });
 
 // Der Datei-Upload muss vor der CSRF-Pruefung ausgewertet werden — erst danach
 // steht das Token aus dem Formular in req.body.
 app.use('/einrichtung/sicherung', require('./src/upload').sicherungHochladen);
+app.use('/stammdaten/logo', require('./src/upload').logoHochladen);
 
 app.use(auth.csrf);
 
@@ -113,6 +116,7 @@ const OHNE_ANMELDUNG = [
   /^\/einrichtung\/sicherung$/,
   /^\/static\//,
   /^\/vendor\//,
+  /^\/logo$/, // Logo der Wehr, steht auch auf der Spint-Seite hinter dem QR-Code
   /^\/s\/[a-z2-9]+$/, // Spint per QR-Code
   /^\/l\/[a-z2-9]+$/, // Lagerort per QR-Code
 ];
@@ -142,6 +146,8 @@ app.use(require('./src/routes/members'));
 app.use(require('./src/routes/types'));
 app.use(require('./src/routes/users'));
 app.use(require('./src/routes/backup'));
+app.use(require('./src/routes/settings'));
+app.use(require('./src/routes/etiketten'));
 app.use(require('./src/routes/history'));
 
 app.use((req, res) => {

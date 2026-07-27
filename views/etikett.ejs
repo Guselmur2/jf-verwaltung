@@ -1,0 +1,93 @@
+<%- include('partials/kopf', { stil: 'etikett' }) %>
+
+<div class="seitenkopf nichtdrucken">
+  <h1><%= einzeln ? `Etikett Spint ${seiten[0].locker.code}` : 'Spint-Etiketten' %></h1>
+  <% if (seiten.length) { %>
+    <button class="btn" type="button" onclick="window.print()">
+      <%= seiten.length === 1 ? 'Drucken' : `Alle ${seiten.length} drucken` %>
+    </button>
+  <% } %>
+</div>
+
+<p class="klein nichtdrucken">
+  Ein DIN-A4-Blatt je Spint, zum Aufkleben oder Einstecken an der Spinttür.
+  Name und Logo kommen aus den <a href="/stammdaten">Stammdaten</a>.
+  <% if (!einzeln) { %>
+    Beim Drucken „Ränder: keine“ oder „Randlos“ wählen, damit die roten Balken bis zur Blattkante gehen.
+  <% } %>
+</p>
+
+<% if (!einzeln) { %>
+  <form method="get" action="/etiketten" class="filterleiste nichtdrucken">
+    <% if (showAreas && areas.length > 1) { %>
+      <label>
+        <span>Umkleidebereich</span>
+        <select name="bereich" onchange="this.form.submit()">
+          <option value="">alle Bereiche</option>
+          <% areas.forEach(function (a) { %>
+            <option value="<%= a.id %>" <%= String(bereich) === String(a.id) ? 'selected' : '' %>><%= a.name %></option>
+          <% }); %>
+        </select>
+      </label>
+    <% } %>
+    <label class="kasten">
+      <input type="checkbox" name="belegt" value="1" <%= nurBelegt ? 'checked' : '' %> onchange="this.form.submit()">
+      nur belegte Spinte
+    </label>
+    <label class="breit">
+      <span>Adresse, die im QR-Code steht</span>
+      <input name="basis" value="<%= basis %>" size="34">
+      <small>
+        Muss von den Handys erreichbar sein — Hostname oder feste IP des Raspberry Pi.
+        Nach dem Ändern erst prüfen, dann drucken.
+      </small>
+    </label>
+    <button class="btn btn-klein" type="submit">Übernehmen</button>
+  </form>
+<% } %>
+
+<% if (!seiten.length) { %>
+  <p class="leer nichtdrucken">Keine Spinte für diese Auswahl.</p>
+<% } %>
+
+<% seiten.forEach(function (s) { %>
+  <article class="a4">
+    <header class="a4-kopf">
+      <% if (daten.hatLogo) { %>
+        <img class="a4-logo" src="/logo?v=<%= daten.logoStand %>" alt="">
+      <% } %>
+      <div class="a4-org"><%= daten.organisation %></div>
+    </header>
+
+    <div class="a4-mitte">
+      <div class="a4-haupt">
+        <% if (s.name) { %>
+          <p class="a4-anrede">Dieser Spint wird benutzt von</p>
+          <p class="a4-name" style="font-size: <%= s.schrift %>pt"><%= s.name %></p>
+        <% } else { %>
+          <p class="a4-anrede">Dieser Spint ist</p>
+          <p class="a4-name frei" style="font-size: <%= s.schrift %>pt">frei</p>
+        <% } %>
+        <p class="a4-spint">
+          Spint <%= s.locker.code %><% if (s.bereich && showAreas) { %> <span>· <%= s.bereich %></span><% } %>
+        </p>
+      </div>
+
+      <aside class="a4-qr">
+        <div class="a4-qr-bild"><%- s.svg %></div>
+        <p class="a4-qr-titel">Was ist hier drin?</p>
+        <p class="a4-qr-text">
+          Mit der Handykamera scannen. Dann steht da, welche Jacke, Hose, Handschuhe,
+          Schuhe und welcher Helm zu diesem Spint gehören — mit Größe und Nummer.
+        </p>
+      </aside>
+    </div>
+
+    <footer class="a4-fuss">
+      <span class="a4-abteilung"><%= daten.abteilung %></span>
+      <% if (daten.slogan) { %><span class="a4-slogan"><%= daten.slogan %></span><% } %>
+    </footer>
+  </article>
+<% }); %>
+
+<%- include('partials/fuss') %>

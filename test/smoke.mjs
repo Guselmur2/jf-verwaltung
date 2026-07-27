@@ -808,7 +808,163 @@ const patch = await fetch(BASE + `/api/v1/aufgaben/${aufgabeApiId}`, {
 const patchJson = await patch.json();
 check('Aufgabe über die API abhaken', patch.status === 200 && patchJson.status === 'erledigt');
 
-console.log('\n27) Sicherung über die API');
+console.log('\n27) Stammdaten und Logo');
+// 1x1-PNG, reicht als Nachweis, dass ein echtes Bild angenommen wird.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+r = await req('/stammdaten');
+check('Stammdaten sind für den Jugendwart erreichbar', r.status === 200 && r.text.includes('Name der Wehr'), String(r.status));
+
+const logoRoh = async (basis = BASE) => {
+  const res5 = await fetch(basis + '/logo', { headers: cookie ? { cookie } : {} });
+  return { status: res5.status, typ: res5.headers.get('content-type'), sniff: res5.headers.get('x-content-type-options'),
+           laenge: (await res5.arrayBuffer()).byteLength };
+};
+check('ohne Logo antwortet /logo mit 404', (await logoRoh()).status === 404);
+
+token = await csrf('/stammdaten');
+r = await req('/stammdaten', {
+  method: 'POST',
+  form: { _csrf: token, organisation: 'Jugendfeuerwehr Ebertsheim', abteilung: 'Jugendfeuerwehr',
+          slogan: 'Wir sind die Helden von morgen!' },
+});
+check('Stammdaten gespeichert', r.status === 302 && r.location === '/stammdaten', `${r.status} ${r.location}`);
+r = await req('/');
+check('Name der Wehr steht im Seitentitel', r.text.includes('· Jugendfeuerwehr Ebertsheim'));
+
+// Logo hochladen — erst etwas, das kein Bild ist.
+const logoHoch = async (inhalt, typ, name, tok) => {
+  const fd = new FormData();
+  fd.append('_csrf', tok);
+  fd.append('logo', new Blob([inhalt], { type: typ }), name);
+  const res5 = await fetch(BASE + '/stammdaten/logo', {
+    method: 'POST', body: fd, headers: cookie ? { cookie } : {}, redirect: 'manual',
+  });
+  return { status: res5.status, location: res5.headers.get('location') };
+};
+
+token = await csrf('/stammdaten');
+r = await logoHoch(Buffer.from('<html>kein Bild, sondern Text</html>'), 'image/png', 'boese.png', token);
+check('Datei ohne Bildinhalt wird abgelehnt', r.status === 302, String(r.status));
+r = await req('/stammdaten');
+check('Hinweis auf das falsche Format', r.text.includes('keine Bilddatei'));
+check('nichts gespeichert', (await logoRoh()).status === 404);
+
+token = await csrf('/stammdaten');
+r = await logoHoch(PNG, 'image/png', 'logo.png', token);
+check('PNG wird angenommen', r.status === 302 && r.location === '/stammdaten', `${r.status} ${r.location}`);
+const logoDa = await logoRoh();
+check('Logo wird ausgeliefert', logoDa.status === 200 && logoDa.laenge === PNG.length, JSON.stringify(logoDa));
+check('Logo wird als PNG ausgeliefert', logoDa.typ === 'image/png', String(logoDa.typ));
+check('Browser darf den Typ nicht raten', logoDa.sniff === 'nosniff', String(logoDa.sniff));
+r = await req('/stammdaten');
+check('Vorschau zeigt das Logo', r.text.includes('logovorschau'));
+
+// Leeres Feld faellt auf die Voreinstellung zurueck.
+token = await csrf('/stammdaten');
+await req('/stammdaten', { method: 'POST', form: { _csrf: token, organisation: '', abteilung: 'Jugendfeuerwehr', slogan: '' } });
+r = await req('/stammdaten');
+check('leerer Name fällt auf die Voreinstellung zurück', r.text.includes('value="Jugendfeuerwehr"'));
+token = await csrf('/stammdaten');
+await req('/stammdaten', {
+  method: 'POST',
+  form: { _csrf: token, organisation: 'Jugendfeuerwehr Ebertsheim', abteilung: 'Jugendfeuerwehr',
+          slogan: 'Wir sind die Helden von morgen!' },
+});
+
+// Ohne Anmeldung: Stammdaten zu, Logo offen (es steht auf der QR-Spintseite).
+let merkeCookie = cookie;
+cookie = '';
+r = await req('/stammdaten');
+check('Stammdaten ohne Anmeldung gesperrt', r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+check('Logo ist auch ohne Anmeldung sichtbar', (await logoRoh()).status === 200);
+cookie = merkeCookie;
+
+a = await apiGet('/api/v1/stammdaten');
+check('Stammdaten über die API lesbar', a.status === 200 && a.json.organisation === 'Jugendfeuerwehr Ebertsheim', String(a.status));
+check('API meldet das Logo', a.json.logo?.vorhanden === true);
+
+const patchLesen = await fetch(BASE + '/api/v1/stammdaten', {
+  method: 'PATCH',
+  headers: { 'x-api-key': apiToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ slogan: 'geht nicht' }),
+});
+check('Lesezugang darf Stammdaten nicht ändern', patchLesen.status === 403, String(patchLesen.status));
+
+const patchFalsch = await fetch(BASE + '/api/v1/stammdaten', {
+  method: 'PATCH',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ farbe: 'rot' }),
+});
+check('unbekanntes Feld wird abgelehnt', patchFalsch.status === 400, String(patchFalsch.status));
+
+const patchOk = await fetch(BASE + '/api/v1/stammdaten', {
+  method: 'PATCH',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: JSON.stringify({ slogan: 'Wir sind die Helden von morgen!' }),
+});
+check('Schreibzugang ändert die Stammdaten', patchOk.status === 200, String(patchOk.status));
+
+console.log('\n28) A4-Etikett für den Spint');
+r = await req('/etiketten');
+const blaetter = (r.text.match(/class="a4"/g) || []).length;
+check('Etikettenseite wird ausgeliefert', r.status === 200 && blaetter > 0, `${r.status}, ${blaetter} Blätter`);
+check('ein Blatt je Spint', blaetter === (await req('/')).text.match(/href="\/spint\/\d+"/g)?.length, String(blaetter));
+check('eigener Druck-Stil ist eingebunden', r.text.includes('/static/etikett.css'));
+check('Name der Wehr steht auf dem Blatt', r.text.includes('Jugendfeuerwehr Ebertsheim'));
+check('Abteilung hebt sich von der Kinderfeuerwehr ab', r.text.includes('a4-abteilung'));
+check('Hinweis zum QR-Code', r.text.includes('Was ist hier drin?'));
+check('Logo ist eingebunden', r.text.includes('src="/logo?v='));
+// Der Link steht nicht im Klartext auf dem Blatt, er steckt im QR-Bild. Also
+// denselben Code noch einmal erzeugen und vergleichen — das beweist, dass der
+// Etikett-QR auf die Token-Adresse zeigt und nicht auf die interne Nummer.
+const qrSeite = await req('/qr');
+const tokenUrl = qrSeite.text.match(/>(http:\/\/[^<]*\/s\/[a-z2-9]{12})</)?.[1];
+const { createRequire: cr } = await import('node:module');
+const QRCodeLib = cr(path.join(WURZEL, 'package.json'))('qrcode');
+const erwartetesSvg = await QRCodeLib.toString(tokenUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'Q' });
+check('QR-Code trägt den Token-Link', !!tokenUrl && r.text.includes(erwartetesSvg), String(tokenUrl));
+check('Blatt trägt die Spintnummer', r.text.includes('a4-spint'));
+
+r = await req('/etiketten?belegt=1');
+const nurBelegt = (r.text.match(/class="a4"/g) || []).length;
+check('Filter „nur belegte Spinte“ wirkt', nurBelegt > 0 && nurBelegt <= blaetter, `${nurBelegt} von ${blaetter}`);
+check('kein freier Spint mehr dabei', !r.text.includes('a4-name frei'));
+
+const einSpint = Number((await req('/')).text.match(/href="\/spint\/(\d+)"/)?.[1]);
+r = await req('/etikett/' + einSpint);
+check('einzelnes Etikett', r.status === 200 && (r.text.match(/class="a4"/g) || []).length === 1, String(r.status));
+const groesse = (html) => Number(html.match(/a4-name[^"]*" style="font-size: (\d+)pt/)?.[1]);
+check('Schriftgröße ist gesetzt', groesse(r.text) >= 24 && groesse(r.text) <= 84, String(groesse(r.text)));
+
+// Ein langer Name muss kleiner gesetzt werden als ein kurzer, sonst laeuft er
+// aus der Spalte.
+token = await csrf('/mitglieder');
+await req('/mitglieder/neu', { method: 'POST', form: { _csrf: token, name: 'Maximilian Schmidtberger', gender: 'm' } });
+const langId = Number((await req('/mitglieder')).text.match(/\/mitglieder\/(\d+)\/bearbeiten/g)?.pop()?.match(/(\d+)/)?.[1]);
+const langSpint = await createLocker({ code: 'ET-LANG', area_id: (await areaMap())['Umkleide Jungs'] || '' });
+token = await csrf(`/spint/${langSpint.id}/bearbeiten`);
+await req(`/spint/${langSpint.id}/bearbeiten`, {
+  method: 'POST',
+  form: { _csrf: token, code: 'ET-LANG', member_id: String(langId), label: '', location: '', note: '' },
+});
+const langBlatt = await req('/etikett/' + langSpint.id);
+check('langer Name wird kleiner gesetzt', groesse(langBlatt.text) < groesse(r.text),
+  `${groesse(langBlatt.text)}pt vs ${groesse(r.text)}pt`);
+
+r = await req('/etikett/999999');
+check('unbekannter Spint gibt 404', r.status === 404, String(r.status));
+
+merkeCookie = cookie;
+cookie = '';
+r = await req('/etiketten');
+check('Etiketten ohne Anmeldung gesperrt', r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+cookie = merkeCookie;
+
+console.log('\n29) Sicherung über die API');
 const ohnePw = await fetch(BASE + '/api/v1/sicherung', { headers: { 'x-api-key': apiToken } });
 check('API-Sicherung ohne Passwort abgelehnt', ohnePw.status === 400, String(ohnePw.status));
 
@@ -848,7 +1004,7 @@ await req(`/api-zugaenge/${tokenId}/status`, { method: 'POST', form: { _csrf: to
 a = await apiGet('/api/v1/status', schreibToken);
 check('gesperrter Zugang wird abgewiesen', a.status === 401, String(a.status));
 
-console.log('\n28) API: Arten und Größen pflegen');
+console.log('\n30) API: Arten und Größen pflegen');
 // Der vorige Abschnitt hat den Schreib-Zugang gesperrt — hier wieder freigeben.
 token = await csrf('/api-zugaenge');
 await req(`/api-zugaenge/${tokenId}/status`, { method: 'POST', form: { _csrf: token } });
@@ -956,7 +1112,7 @@ const artWeg = await fetch(BASE + `/api/v1/arten/${artApiId}`, {
 });
 check('benutzte Art lässt sich nicht löschen', artWeg.status === 409, String(artWeg.status));
 
-console.log('\n29) Wiederherstellung bei der Ersteinrichtung');
+console.log('\n31) Wiederherstellung bei der Ersteinrichtung');
 // Zweiter Server mit leerer Datenbank — dort wird die Sicherung eingespielt.
 const zweiterOrdner = mkdtempSync(path.join(tmpdir(), 'jf-restore-test-'));
 const PORT2 = 3988;
@@ -1032,6 +1188,15 @@ r2 = await req2Neu('/ausruestungsarten');
 check('Arten und Größen sind zurück', r2.text.includes('112000') && r2.text.includes('116, 122'));
 r2 = await req2Neu('/verlauf');
 check('Verlauf ist zurück', r2.status === 200 && r2.text.includes('angelegt'));
+r2 = await req2Neu('/stammdaten');
+check('Stammdaten sind zurück', r2.text.includes('Jugendfeuerwehr Ebertsheim'));
+// Der eigentliche Grund, warum das Logo in der Datenbank liegt und nicht als
+// Datei daneben: so ist es nach der Wiederherstellung ohne Zutun wieder da.
+const logoZurueck = await fetch(BASE2 + '/logo', { headers: cookie2 ? { cookie: cookie2 } : {} });
+check('Logo ist zurück', logoZurueck.status === 200 && (await logoZurueck.arrayBuffer()).byteLength === PNG.length,
+  String(logoZurueck.status));
+r2 = await req2Neu('/etiketten');
+check('Etiketten lassen sich sofort drucken', r2.status === 200 && r2.text.includes('Jugendfeuerwehr Ebertsheim'));
 
 server2.kill();
 

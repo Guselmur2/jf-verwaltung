@@ -64,6 +64,21 @@ code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-siz
   background: #fff; color: var(--rot); font-weight: 800;
   border-radius: 6px; padding: .1rem .35rem; font-size: .85rem; letter-spacing: .02em;
 }
+.brand-logo {
+  height: 1.9rem; width: auto; max-width: 3.2rem; object-fit: contain;
+  background: #fff; border-radius: 6px; padding: 2px;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text small { font-weight: 400; font-size: .72rem; opacity: .85; }
+/* Auf schmalen Geraeten zaehlt jeder Millimeter in der Kopfleiste. */
+@media (max-width: 520px) { .brand-text small { display: none; } }
+
+.logovorschau { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.logovorschau img {
+  max-height: 6rem; max-width: 10rem; object-fit: contain;
+  background: #fff; border: 1px solid var(--linie); border-radius: var(--radius); padding: .5rem;
+}
+
 .mainnav { display: flex; gap: .25rem; flex-wrap: wrap; flex: 1; }
 .mainnav a {
   color: #fff; text-decoration: none; padding: .35rem .6rem;

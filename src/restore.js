@@ -27,6 +27,8 @@ const TABELLEN = [
   'tasks',
   'api_tokens',
   'audit_log',
+  'settings',
+  'assets',
 ];
 
 const ITERATIONEN = 10000;
