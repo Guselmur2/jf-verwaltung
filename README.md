@@ -589,7 +589,44 @@ abgelehnt, und eine unbekannte Größe liefert `409` samt Vorschlag:
 
 Änderungen über die API landen im Verlauf, gekennzeichnet als `API: <Name des Zugangs>`.
 
-### Tägliche Sicherung einrichten
+### Sicherung auf Knopfdruck (Windows)
+
+Im Projektordner liegt **`Sicherung holen.cmd`**. Doppelklick genügt — die Sicherung landet
+verschlüsselt in einem Ordner auf diesem Rechner.
+
+Beim **ersten** Start richtet sich das Skript ein und fragt drei Dinge:
+
+1. Adresse des Pi (Vorgabe `jfwpi.fritz.box`)
+2. Passwort für die Sicherung — **das wählst du hier, und ohne dieses Passwort ist die
+   Sicherung später nicht zu öffnen**
+3. Zielordner und wie viele Sicherungen aufgehoben werden (Vorgabe 14)
+
+Den API-Schlüssel nimmt es automatisch aus `api.txt`, falls die Datei danebenliegt.
+
+Danach ist jeder weitere Doppelklick ein einziger Klick: Sicherung holen, prüfen, ablegen,
+alte aufräumen.
+
+**Wo die Zugangsdaten liegen:** in `%LOCALAPPDATA%\jf-spintverwaltung\sicherung.json`,
+verschlüsselt mit der Windows-Datenschutzfunktion (DPAPI). Sie lassen sich nur von *diesem*
+Benutzerkonto auf *diesem* Rechner wieder lesen — im Klartext steht dort nichts.
+
+**Zertifikat wird festgenagelt:** Beim Einrichten merkt sich das Skript den Fingerabdruck des
+Pi-Zertifikats und vergleicht ihn bei jedem Lauf. Ändert er sich, bricht es ab, statt
+blind weiterzumachen. Wurde das Zertifikat absichtlich neu erstellt, einmal neu einrichten:
+
+```
+"Sicherung holen.cmd" -Einrichten
+```
+
+**Für die Aufgabenplanung** (automatisch, ohne Fenster):
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Dev\jugendfeuerwehr\scripts\sicherung-holen.ps1" -Still
+```
+
+Rückgabewert 0 = geklappt, 1 = Fehler, 2 = Zertifikat hat sich geändert.
+
+### Tägliche Sicherung einrichten (Linux/macOS)
 
 ```bash
 curl -k -H "X-API-Key: jfw_…" \
@@ -742,7 +779,7 @@ src/api-auth.js        Token für die API prüfen und verwalten
 src/backup.js          Sicherung erzeugen und verschlüsseln
 src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
-scripts/               Testdaten, HTTPS-Testinstanz, Deployment auf den Pi
+scripts/               Testdaten, HTTPS-Testinstanz, Deployment, Sicherung holen
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich

@@ -3,9 +3,16 @@ data/
 *.log
 .env
 
-# Zertifikate und Schluessel gehoeren nie ins Repo
+# Zertifikate, Schluessel und Zugangsdaten gehoeren nie ins Repo
 tls/
 *.key
 *.crt
 *.pem
+api.txt
+*.secret
+sicherung.config.json
+
+# Heruntergeladene Sicherungen (enthalten personenbezogene Daten)
+sicherungen/
+*.db.enc
 data-test/
