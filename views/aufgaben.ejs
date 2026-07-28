@@ -59,6 +59,16 @@
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-klein" type="submit">Erledigt</button>
             </form>
+            <%# Verlorenes taucht oft wieder auf — dann in einem Schritt zurück. %>
+            <% if (t.reason === 'verloren') { %>
+              <form method="post" action="/aufgaben/<%= t.id %>/gefunden" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-klein btn-still" type="submit"
+                        title="Bestellung zurücknehmen und das Teil, falls ausgemustert, zurück in den Spint legen">
+                  Doch gefunden
+                </button>
+              </form>
+            <% } %>
             <form method="post" action="/aufgaben/<%= t.id %>/abbrechen" class="inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-klein btn-still" type="submit">Abbrechen</button>

@@ -403,6 +403,20 @@ check('Aufgabe erscheint im Tab', r.text.includes('52') && r.text.includes('wäc
 check('Aufgabe nennt das Mitglied', r.text.includes('Max Muster'));
 check('Zähler in der Navigation', r.text.includes('zaehler'));
 
+// Beim Einräumen soll oben stehen, was noch fehlt — nicht die Jacke, die
+// längst hängt.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+const auswahl = r.text.split('<h3>Neues Teil eintragen</h3>')[1]?.split('</select>')[0] || '';
+check('Auswahl trennt fehlende von vorhandenen Arten',
+  auswahl.includes('optgroup label="fehlt noch"') && auswahl.includes('optgroup label="schon im Spint"'));
+const gruppe = (name) => auswahl.match(new RegExp(`label="${name}">([\\s\\S]*?)</optgroup>`))?.[1] || '';
+const fehltNoch = gruppe('fehlt noch');
+const schonDa = gruppe('schon im Spint');
+check('die vorhandene Jacke steht unten',
+  !fehltNoch.includes('>Jacke<') && schonDa.includes('>Jacke<'),
+  `oben: ${fehltNoch.replace(/\s+/g, ' ').slice(0, 80)}`);
+check('eine fehlende Art steht oben', fehltNoch.includes('>Schuhe<'), fehltNoch.replace(/\s+/g, ' ').slice(0, 80));
+
 // Am Teil selbst muss die offene Bestellung zu sehen sein — sonst bestellt der
 // nächste Betreuer dasselbe noch einmal.
 r = await req(`/spint/${boys01.id}/bearbeiten`);
@@ -1376,6 +1390,84 @@ r2 = await req2Neu('/system');
 check('Grund steht auf der Seite', r2.text.includes('Interactive authentication required'));
 r2 = await req2Neu('/verlauf');
 check('Fehlschlag steht im Verlauf', r2.text.includes('fehlgeschlagen'));
+
+console.log('\n33) Ausmustern eines Teils mit offener Bestellung');
+// Der Fall aus dem Alltag: Handschuhe sind verloren, Ersatz ist bestellt, und
+// dann mustert jemand das alte Teil aus. Die Bestellung darf dabei nicht aus
+// dem Blick geraten — sonst steht der Spint ohne Handschuhe da und niemand
+// weiss mehr, dass welche unterwegs sind.
+token = await csrf(`/spint/${boys01.id}/bearbeiten`);
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: {
+    _csrf: token, zurueck: `/spint/${boys01.id}/bearbeiten`, locker_id: String(boys01.id),
+    // Größe 10: in der Reihe (7–10) gültig, aber nichts davon im Lager — sonst
+    // schlägt der Tausch einen Fundort vor, statt eine Bestellung anzulegen.
+    type_id: '4', size: '10', note: 'Testhandschuhe verloren',
+  },
+});
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+const verlorenId = idAusZeile(r.text, 'Testhandschuhe verloren');
+check('Handschuhe angelegt', !!verlorenId, String(verlorenId));
+
+token = await csrf(`/ausruestung/${verlorenId}/tauschen`);
+r = await req(`/ausruestung/${verlorenId}/tauschen`, {
+  method: 'POST',
+  form: { _csrf: token, to_size: '10', reason: 'verloren', note: 'Ersatz bestellt' },
+});
+check('Ersatz bestellt', r.status === 302 && r.location === '/aufgaben', `${r.status} ${r.location}`);
+
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('Bestellung hängt am Teil', r.text.includes('chip-offen'));
+
+token = await csrf(`/spint/${boys01.id}/bearbeiten`);
+r = await req(`/ausruestung/${verlorenId}/ausmustern`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: `/spint/${boys01.id}/bearbeiten` },
+});
+check('Ausmustern führt zurück zum Spint', r.status === 302, String(r.status));
+
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('das Teil ist aus dem Spint verschwunden', !r.text.includes('Testhandschuhe verloren'));
+check('die Bestellung bleibt trotzdem sichtbar', r.text.includes('Offen für diesen Spint'));
+check('und nennt weiterhin die Art', /offeneaufgaben[\s\S]*?Handschuhe/.test(r.text));
+r = await req('/aufgaben');
+check('die Aufgabe steht weiter offen', r.text.includes('Ersatz bestellt'));
+
+// Auch am Spint selbst, ohne Anmeldung.
+merkeAnmeldung = cookie;
+cookie = '';
+r = await req('/s/' + spintToken);
+check('auch ohne Anmeldung sichtbar', r.status === 200 && r.text.includes('Schon unterwegs'), String(r.status));
+cookie = merkeAnmeldung;
+
+console.log('\n34) Verlorenes taucht wieder auf');
+// Ein Knopf statt zweier Schritte an zwei Orten: Bestellung zurücknehmen und
+// das ausgemusterte Teil zurück in den Spint.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('„Doch gefunden“ steht am Spint', r.text.includes('Doch gefunden'));
+const gefundenId = Number(r.text.match(/\/aufgaben\/(\d+)\/gefunden/)?.[1]);
+check('Aufgabe dazu gefunden', !!gefundenId, String(gefundenId));
+
+token = await csrf(`/spint/${boys01.id}/bearbeiten`);
+r = await req(`/aufgaben/${gefundenId}/gefunden`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: `/spint/${boys01.id}/bearbeiten` },
+});
+check('führt zurück zum Spint', r.status === 302 && r.location === `/spint/${boys01.id}/bearbeiten`, `${r.status} ${r.location}`);
+
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('das Teil liegt wieder im Spint', r.text.includes('Testhandschuhe verloren'));
+check('die Bestellung ist verschwunden', !r.text.includes('Offen für diesen Spint'));
+r = await req('/aufgaben');
+check('Aufgabe nicht mehr offen', !r.text.includes('Ersatz bestellt'));
+r = await req('/aufgaben?status=abgebrochen');
+check('sie steht als abgebrochen im Archiv', r.text.includes('Ersatz bestellt'));
+check('mit Vermerk, dass es wieder auftauchte', r.text.includes('wieder aufgetaucht'));
+r = await req('/ausgemustert');
+check('nicht mehr unter „Ausgemustert“', !r.text.includes('Testhandschuhe verloren'));
+r = await req('/verlauf');
+check('der Verlauf hält es fest', r.text.includes('wieder aufgetaucht'));
 
 server2.kill();
 

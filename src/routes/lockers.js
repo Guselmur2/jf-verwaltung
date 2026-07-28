@@ -24,20 +24,41 @@ function clean(body) {
   };
 }
 
+/**
+ * Sortiert die Ausruestungsarten fuer "Neues Teil eintragen": was im Spint noch
+ * fehlt, steht oben. Beim Einraeumen arbeitet man eine Liste ab — dann soll
+ * ganz oben stehen, was noch aussteht, und nicht die Jacke, die laengst haengt.
+ *
+ * Unter den schon vorhandenen steht zuletzt, was zuletzt dazukam.
+ */
+function artenSortiert(types, items) {
+  const zuletzt = new Map();
+  for (const it of items) zuletzt.set(it.type_id, Math.max(zuletzt.get(it.type_id) ?? 0, it.id));
+  return {
+    fehlend: types.filter((t) => !zuletzt.has(t.id)),
+    vorhanden: types
+      .filter((t) => zuletzt.has(t.id))
+      .sort((a, b) => zuletzt.get(a.id) - zuletzt.get(b.id)),
+  };
+}
+
 // Gemeinsame Daten fuer das Bearbeiten-Formular.
 function formData(locker, extra = {}) {
   const areaId = extra.area_id ?? locker?.area_id ?? m.primaryArea()?.id ?? null;
   const area = areaId ? m.q.areaById.get(areaId) : null;
+  const items = locker ? m.equipmentOfLocker(locker.id) : [];
+  const types = m.activeTypes();
   return {
     locker,
     areas: m.areasAll(),
     area_id: areaId,
     vorschlag: locker ? locker.code : m.suggestNextCode(area),
     members: m.assignableMembers(locker?.member_id ?? null, areaId),
-    items: locker ? m.equipmentOfLocker(locker.id) : [],
+    items,
     // Aufgaben, die an keinem Teil mehr haengen (z. B. "verloren").
     lockerTasks: locker ? m.openTasksOfLocker(locker.id) : [],
-    types: m.activeTypes(),
+    types,
+    arten: artenSortiert(types, items),
     storage: locker ? m.storageEquipment() : [],
     storagePlaces: m.storagesAll(),
     sizeSchemes: sizes.schemes(),

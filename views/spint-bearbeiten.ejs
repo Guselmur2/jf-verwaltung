@@ -90,6 +90,13 @@
               <%- include('partials/aufgabe', { aufgabe: { kind: it.task_kind, von: it.task_from, nach: it.task_to, seit: it.task_created } }) %>
               <span>seit <%= datum(it.task_created) %><% if (it.task_reason) { %>, Grund: <%= it.task_reason %><% } %></span>
               <a href="/aufgaben">Aufgaben ansehen</a>
+              <% if (it.task_reason === 'verloren') { %>
+                <form method="post" action="/aufgaben/<%= it.task_id %>/gefunden" class="inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="zurueck" value="/spint/<%= locker.id %>/bearbeiten">
+                  <button class="btn btn-klein btn-still" type="submit">Doch gefunden</button>
+                </form>
+              <% } %>
             </p>
           <% } %>
           <form method="post" action="/ausruestung/<%= it.id %>/bearbeiten" class="teilform">
@@ -160,6 +167,13 @@
           <li>
             <%- include('partials/aufgabe', { aufgabe: { kind: k.kind, von: k.from_size, nach: k.to_size, seit: k.created_at } }) %>
             <%= k.type_name || 'Teil' %> — seit <%= datum(k.created_at) %><% if (k.reason) { %>, Grund: <%= k.reason %><% } %>
+            <% if (k.reason === 'verloren') { %>
+              <form method="post" action="/aufgaben/<%= k.id %>/gefunden" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="zurueck" value="/spint/<%= locker.id %>/bearbeiten">
+                <button class="btn btn-klein btn-still" type="submit">Doch gefunden</button>
+              </form>
+            <% } %>
           </li>
         <% }); %>
       </ul>
@@ -173,11 +187,23 @@
     <input type="hidden" name="zurueck" value="<%= zurueck %>">
     <input type="hidden" name="locker_id" value="<%= locker.id %>">
 
+    <%#
+      Was im Spint noch fehlt, steht oben — beim Einräumen arbeitet man eine
+      Liste ab, und ganz oben soll stehen, was noch aussteht. Unter „schon
+      vorhanden“ steht zuletzt, was zuletzt dazukam.
+    %>
     <select name="type_id" required aria-label="Art">
       <option value="">Art wählen …</option>
-      <% types.forEach(function (t) { %>
+      <% const artOption = function (t) { %>
         <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
-      <% }); %>
+      <% }; %>
+      <% if (arten.fehlend.length && arten.vorhanden.length) { %>
+        <optgroup label="fehlt noch"><% arten.fehlend.forEach(artOption); %></optgroup>
+        <optgroup label="schon im Spint"><% arten.vorhanden.forEach(artOption); %></optgroup>
+      <% } else { %>
+        <% arten.fehlend.forEach(artOption); %>
+        <% arten.vorhanden.forEach(artOption); %>
+      <% } %>
     </select>
     <input name="size" placeholder="Größe" aria-label="Größe" size="8">
     <span class="feldpaar">

@@ -412,6 +412,48 @@ router.post('/aufgaben/:id/erledigt', login, (req, res) => setStatus(req, res, '
 router.post('/aufgaben/:id/abbrechen', login, (req, res) => setStatus(req, res, 'abgebrochen', 'abgebrochen'));
 router.post('/aufgaben/:id/oeffnen', login, (req, res) => setStatus(req, res, 'offen', 'wieder geöffnet'));
 
+/**
+ * "Gefunden": verlorene Sachen tauchen wieder auf. Statt die Bestellung von
+ * Hand abzubrechen und das Teil an anderer Stelle zu reaktivieren — zwei
+ * Schritte an zwei Orten — erledigt ein Knopf beides:
+ *
+ *   1. die Aufgabe wird abgebrochen, mit Vermerk im Verlauf
+ *   2. war das Teil ausgemustert, kommt es in seinen Spint zurueck
+ */
+router.post('/aufgaben/:id/gefunden', login, (req, res) => {
+  const task = m.q.taskById.get(req.params.id);
+  if (!task) return res.redirect('/aufgaben');
+  const zurueck = req.body.zurueck && req.body.zurueck.startsWith('/') ? req.body.zurueck : '/aufgaben';
+  if (task.status !== 'offen') return res.redirect(zurueck);
+
+  const teil = task.equipment_id ? m.q.equipmentById.get(task.equipment_id) : null;
+  const zurueckInSpint = teil && teil.retired && task.locker_id;
+
+  db.transaction(() => {
+    db.prepare(
+      "UPDATE tasks SET status = 'abgebrochen', done_at = datetime('now'), done_by = ?, " +
+        "note = TRIM(COALESCE(note || ' · ', '') || 'wieder aufgetaucht') WHERE id = ?"
+    ).run(req.session.user.name, task.id);
+
+    if (zurueckInSpint) {
+      db.prepare('UPDATE equipment SET retired = 0, locker_id = ?, storage_id = NULL WHERE id = ?')
+        .run(task.locker_id, teil.id);
+    }
+  })();
+
+  audit.log(req, 'aufgabe', task.id, 'wieder aufgetaucht', beschreibung(task));
+  if (zurueckInSpint) audit.log(req, 'ausruestung', teil.id, 'wieder da', 'zurück in den Spint');
+
+  const locker = task.locker_id ? m.q.lockerById.get(task.locker_id) : null;
+  req.session.flash = {
+    type: 'ok',
+    text: zurueckInSpint
+      ? `Wieder da — die Bestellung ist zurückgenommen und das Teil liegt wieder in Spint ${locker?.code ?? '?'}.`
+      : 'Wieder da — die Bestellung ist zurückgenommen.',
+  };
+  res.redirect(zurueck);
+});
+
 router.post('/aufgaben/:id/loeschen', auth.requireJugendwart, (req, res) => {
   const task = m.q.taskById.get(req.params.id);
   if (!task) return res.redirect('/aufgaben');
