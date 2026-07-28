@@ -132,6 +132,31 @@ else
   sagen "   in der Oberflaeche wird dann nicht funktionieren. Alles andere laeuft."
 fi
 
+# -------------------------------------------------- Naechtliche Sicherung
+# Die Zeitschaltung wird immer eingerichtet, aber nur eingeschaltet, wenn ein
+# Passwort hinterlegt ist — ohne Passwort gaebe es keine verschluesselte
+# Sicherung, und unverschluesselt gibt es hier keine.
+schritt "Naechtliche Sicherung"
+ZIEL="${ZIEL:-/mnt/jf-sicherung}"
+for einheit in jf-sicherung.service jf-sicherung.timer; do
+  sed -e "s|@BENUTZER@|$BENUTZER|g" -e "s|@ORDNER@|$ORDNER|g" -e "s|@ZIEL@|$ZIEL|g" \
+    "$ORDNER/deploy/$einheit" > "/etc/systemd/system/$einheit"
+  chmod 644 "/etc/systemd/system/$einheit"
+done
+
+PASSWORTDATEI=/etc/jf-spinte/sicherung.passwort
+if [ -s "$PASSWORTDATEI" ]; then
+  systemctl enable --now jf-sicherung.timer >/dev/null 2>&1
+  sagen "   eingeschaltet, naechster Lauf: $(systemctl show jf-sicherung.timer -p NextElapseUSecRealtime --value 2>/dev/null)"
+else
+  sagen "   Zeitschaltung liegt bereit, aber noch aus — es fehlt das Passwort."
+  sagen "   Einschalten mit:"
+  sagen "     sudo mkdir -p /etc/jf-spinte"
+  sagen "     sudo sh -c 'printf \"%s\\n\" \"DEIN-PASSWORT\" > $PASSWORTDATEI'"
+  sagen "     sudo chmod 600 $PASSWORTDATEI"
+  sagen "     sudo systemctl enable --now jf-sicherung.timer"
+fi
+
 # ------------------------------------------------------------------ Start
 schritt "Dienst starten"
 systemctl daemon-reload

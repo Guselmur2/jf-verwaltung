@@ -2,6 +2,7 @@
 
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 const { execFile } = require('child_process');
 const express = require('express');
 const auth = require('../auth');
@@ -55,6 +56,25 @@ function speicherplatz() {
   }
 }
 
+/**
+ * Stand der naechtlichen Sicherung. Die Datei schreibt
+ * scripts/sicherung-automatisch.sh nach jedem Lauf — fehlt sie, ist der Timer
+ * nicht eingerichtet.
+ */
+function sicherungsstand() {
+  try {
+    const stand = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sicherung-status.json'), 'utf8'));
+    const zeit = new Date(stand.zeitpunkt);
+    return {
+      ...stand,
+      zeit,
+      alterTage: Number.isNaN(zeit.getTime()) ? null : Math.floor((Date.now() - zeit.getTime()) / 86400000),
+    };
+  } catch {
+    return null; // noch nie gelaufen oder nicht eingerichtet
+  }
+}
+
 function zustand() {
   return {
     rechner: os.hostname(),
@@ -67,7 +87,7 @@ function zustand() {
 }
 
 router.get('/system', auth.requireJugendwart, (req, res) => {
-  res.render('system', { title: 'System', zustand: zustand() });
+  res.render('system', { title: 'System', zustand: zustand(), sicherung: sicherungsstand() });
 });
 
 router.post('/system/herunterfahren', auth.requireJugendwart, (req, res) => {

@@ -21,6 +21,44 @@
 </section>
 
 <section class="block">
+  <h2>Nächtliche Sicherung</h2>
+
+  <% if (!sicherung) { %>
+    <p class="leer">
+      Noch keine automatische Sicherung eingerichtet. Wie das geht, steht im README unter
+      „Nächtliche Sicherung auf einen USB-Stick“.
+    </p>
+  <% } else { %>
+    <p class="hinweis hinweis-<%= sicherung.ergebnis === 'ok' ? 'ok' : 'warn' %>">
+      <% if (sicherung.ergebnis === 'ok') { %>
+        Zuletzt gesichert am <%= sicherung.zeit.toLocaleString('de-DE') %>
+        <% if (sicherung.alterTage > 2) { %> — das ist <%= sicherung.alterTage %> Tage her,
+          läuft der Timer noch?<% } %>
+      <% } else if (sicherung.ergebnis === 'warnung') { %>
+        <%= sicherung.meldung %> (am <%= sicherung.zeit.toLocaleString('de-DE') %>)
+      <% } else { %>
+        Die letzte Sicherung ist fehlgeschlagen: <%= sicherung.meldung %>
+        (am <%= sicherung.zeit.toLocaleString('de-DE') %>)
+      <% } %>
+    </p>
+
+    <% if (sicherung.datenbank) { %>
+      <p class="klein">
+        Ziel: <code><%= sicherung.ziel %></code> · <%= sicherung.staende %> Stände<br>
+        Datenbank: <code><%= sicherung.datenbank %></code>
+        <% if (sicherung.wlan) { %><br>WLAN-Zugangsdaten: <code><%= sicherung.wlan %></code><% } %>
+      </p>
+    <% } %>
+  <% } %>
+
+  <p class="klein">
+    Läuft jede Nacht um 3:30 Uhr, verschlüsselt, und hebt die letzten 30 Stände auf.
+    Zusätzlich lässt sich jederzeit eine <a href="/sicherung">Sicherung von Hand</a> herunterladen —
+    die gehört an einen anderen Ort als den Pi.
+  </p>
+</section>
+
+<section class="block">
   <h2>Herunterfahren</h2>
 
   <p>

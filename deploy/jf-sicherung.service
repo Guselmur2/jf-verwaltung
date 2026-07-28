@@ -1,0 +1,20 @@
+[Unit]
+Description=Naechtliche Sicherung der Spintverwaltung
+# Der USB-Stick muss da sein. Fehlt er, laeuft die Sicherung trotzdem und
+# weicht auf die Speicherkarte aus — sie meldet das dann auf der Systemseite.
+After=jf-spinte.service
+
+[Service]
+Type=oneshot
+# Laeuft als root: die WLAN-Zugangsdaten unter /etc/NetworkManager und
+# /etc/netplan darf sonst niemand lesen. Die Datenbank-Sicherung reicht das
+# Skript selbst an den Dienstbenutzer weiter.
+User=root
+Environment=ORDNER=@ORDNER@
+Environment=ZIEL=@ZIEL@
+Environment=BENUTZER=@BENUTZER@
+Environment=STAENDE=30
+ExecStart=/bin/sh @ORDNER@/scripts/sicherung-automatisch.sh
+
+[Install]
+WantedBy=multi-user.target

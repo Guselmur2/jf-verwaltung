@@ -1,0 +1,13 @@
+[Unit]
+Description=Sichert die Spintverwaltung jede Nacht
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+# War der Pi um 3:30 aus, wird nachgeholt, sobald er wieder laeuft. Ohne das
+# faellt bei einem Geraet, das nicht durchlaeuft, die Sicherung schlicht aus.
+Persistent=true
+# Nicht alle Geraete zur selben Sekunde loslegen lassen.
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
