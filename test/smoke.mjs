@@ -2,7 +2,7 @@
 // mit leerer Datenbank. Aufruf: npm test
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -11,9 +11,30 @@ const PORT = 3987;
 const BASE = `http://127.0.0.1:${PORT}`;
 const datenordner = mkdtempSync(path.join(tmpdir(), 'jf-spinte-test-'));
 
+// Der Abschalt-Befehl wird im Test durch ein harmloses Skript ersetzt — es legt
+// eine Datei an, statt den Rechner auszuschalten. Damit laesst sich der ganze
+// Weg pruefen, ohne dass der Testlauf den Rechner mitnimmt.
+const abschaltHelfer = path.join(datenordner, 'abschalt-helfer.js');
+const abschaltNachweis = path.join(datenordner, 'abgeschaltet.txt');
+writeFileSync(
+  abschaltHelfer,
+  "const fs = require('fs');\n" +
+    "if (process.argv[2] === '--fehler') {\n" +
+    "  process.stderr.write('Interactive authentication required.\\n');\n" +
+    '  process.exit(1);\n' +
+    '}\n' +
+    "fs.writeFileSync(process.argv[2], 'abgeschaltet');\n"
+);
+
 const server = spawn(process.execPath, ['server.js'], {
   cwd: WURZEL,
-  env: { ...process.env, PORT: String(PORT), DATA_DIR: datenordner, SESSION_SECRET: 'test' },
+  env: {
+    ...process.env,
+    PORT: String(PORT),
+    DATA_DIR: datenordner,
+    SESSION_SECRET: 'test',
+    ABSCHALT_BEFEHL: JSON.stringify([process.execPath, abschaltHelfer, abschaltNachweis]),
+  },
   stdio: ['ignore', 'ignore', 'inherit'],
 });
 
@@ -976,7 +997,7 @@ check('Sicherung über die API', sic.status === 200 && sicRumpf.subarray(0, 8).t
 check('Sicherung ist vollständig', sicRumpf.length > 20000, `${sicRumpf.length} Bytes`);
 
 // Der Abzug muss lesbar und inhaltlich vollstaendig sein.
-const { writeFileSync, mkdtempSync: mkT } = await import('node:fs');
+const { mkdtempSync: mkT } = await import('node:fs');
 const pruefOrdner = mkT(path.join(tmpdir(), 'jf-sicherung-pruef-'));
 const pruefDatei = path.join(pruefOrdner, 'kopie.db');
 const cryptoMod = await import('node:crypto');
@@ -1119,7 +1140,15 @@ const PORT2 = 3988;
 const BASE2 = `http://127.0.0.1:${PORT2}`;
 const server2 = spawn(process.execPath, ['server.js'], {
   cwd: WURZEL,
-  env: { ...process.env, PORT: String(PORT2), DATA_DIR: zweiterOrdner, SESSION_SECRET: 'test2' },
+  env: {
+    ...process.env,
+    PORT: String(PORT2),
+    DATA_DIR: zweiterOrdner,
+    SESSION_SECRET: 'test2',
+    // Hier absichtlich ein Befehl, der scheitert — damit auch der Fehlerfall
+    // des Herunterfahrens geprueft wird (fehlende polkit-Regel auf dem Pi).
+    ABSCHALT_BEFEHL: JSON.stringify([process.execPath, abschaltHelfer, '--fehler']),
+  },
   stdio: ['ignore', 'ignore', 'inherit'],
 });
 process.on('exit', () => {
@@ -1197,6 +1226,52 @@ check('Logo ist zurück', logoZurueck.status === 200 && (await logoZurueck.array
   String(logoZurueck.status));
 r2 = await req2Neu('/etiketten');
 check('Etiketten lassen sich sofort drucken', r2.status === 200 && r2.text.includes('Jugendfeuerwehr Ebertsheim'));
+
+console.log('\n32) Pi herunterfahren');
+// Erst als Betreuer: der darf das nicht.
+cookie = '';
+token = await csrf('/anmelden');
+await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'tim', password: 'passwort123' } });
+r = await req('/system');
+check('Betreuer kommt nicht an die Systemseite', r.status === 403, String(r.status));
+token = await csrf('/');
+r = await req('/system/herunterfahren', { method: 'POST', form: { _csrf: token } });
+check('Betreuer kann nicht herunterfahren', r.status === 403, String(r.status));
+check('nichts passiert', !existsSync(abschaltNachweis));
+
+cookie = '';
+token = await csrf('/anmelden');
+await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'jugendwart', password: 'geheim1234' } });
+r = await req('/system');
+check('Jugendwart sieht die Systemseite', r.status === 200 && r.text.includes('Herunterfahren'), String(r.status));
+check('Seite zeigt die Betriebszeit', r.text.includes('läuft seit'));
+
+r = await req('/system/herunterfahren', { method: 'POST', form: { _csrf: 'falsch' } });
+check('Herunterfahren ohne gültiges Token abgelehnt', r.status === 403, String(r.status));
+check('immer noch nichts passiert', !existsSync(abschaltNachweis));
+
+token = await csrf('/system');
+r = await req('/system/herunterfahren', { method: 'POST', form: { _csrf: token } });
+check('Abschiedsseite wird ausgeliefert', r.status === 200 && r.text.includes('fährt herunter'), String(r.status));
+check('der Befehl wurde wirklich ausgeführt', existsSync(abschaltNachweis));
+r = await req('/verlauf');
+check('Herunterfahren steht im Verlauf', r.text.includes('heruntergefahren'));
+
+// Auf dem zweiten Server scheitert der Befehl — so wie auf einem Pi, dem die
+// polkit-Regel fehlt. Der Fehler muss lesbar auf der Seite landen.
+r2 = await req2Neu('/system');
+check('zweite Instanz zeigt die Systemseite', r2.status === 200, String(r2.status));
+const tokenAb = r2.text.match(/name="_csrf" value="([^"]+)"/)[1];
+r2 = await req2Neu('/system/herunterfahren', {
+  method: 'POST',
+  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({ _csrf: tokenAb }).toString(),
+});
+check('gescheitertes Herunterfahren leitet zurück', r2.status === 302 && r2.location === '/system', `${r2.status} ${r2.location}`);
+r2 = await req2Neu('/system');
+check('Grund steht auf der Seite', r2.text.includes('Interactive authentication required'));
+r2 = await req2Neu('/verlauf');
+check('Fehlschlag steht im Verlauf', r2.text.includes('fehlgeschlagen'));
 
 server2.kill();
 

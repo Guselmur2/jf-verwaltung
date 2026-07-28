@@ -31,6 +31,7 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Stammdaten &amp; Logo | `/stammdaten` | **nur Jugendwart** |
 | Datensicherung | `/sicherung` | **nur Jugendwart** |
 | API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
+| System, Pi herunterfahren | `/system` | **nur Jugendwart** |
 | API für andere Systeme | `/api/v1/…` | **Token** |
 
 ## Wer was sehen darf
@@ -356,47 +357,81 @@ Dienst kurz stoppen und die Datei mit `scp` kopieren.
 
 ## Installation auf einem anderen Raspberry Pi
 
-Getestet mit Raspberry Pi OS (64 Bit) und Node.js 18+.
+Getestet mit Raspberry Pi 5, Debian 13 und Node.js 20. Alles Nötige erledigt ein Skript:
 
 ```bash
-sudo apt update && sudo apt install -y nodejs npm git
-git clone <dein-repo> /opt/jf-spinte && cd /opt/jf-spinte
-npm install --omit=dev
+git clone <dein-repo> jf-spinte && cd jf-spinte
+sudo sh scripts/install-pi.sh
 ```
 
-Feste IP-Adresse vergeben (z. B. im Router als DHCP-Reservierung) — die Adresse steckt
-in den gedruckten QR-Codes und darf sich nicht mehr ändern.
+Das war es. Der Aufruf darf wiederholt werden — Datenbank, Zertifikat und
+Sitzungsgeheimnis bleiben dabei erhalten.
 
-Als Dienst einrichten, damit die Software nach einem Stromausfall von selbst hochkommt —
-`/etc/systemd/system/jf-spinte.service`:
+Was das Skript tut:
 
-```ini
-[Unit]
-Description=Spintverwaltung Jugendfeuerwehr
-After=network.target
+| Schritt | |
+|---|---|
+| Pakete | `nodejs`, `npm`, `openssl`, `polkitd`, `avahi-daemon` nachinstallieren |
+| Software | nach `/opt/jf-spinte` kopieren, `npm install --omit=dev` |
+| Zertifikat | selbstsigniert für `<name>.fritz.box`, `<name>.local`, `localhost` und die aktuelle IP |
+| Dienst | `jf-spinte.service` aus `deploy/` erzeugen, Geheimnis würfeln, starten |
+| Herunterfahren | polkit-Regel aus `deploy/` einspielen |
+| Probe | Weboberfläche antwortet? Herunterfahren erlaubt? |
 
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/opt/jf-spinte
-Environment=PORT=443
-Environment=SESSION_SECRET=hier-eine-lange-zufallszeichenkette-eintragen
-# Port 443 ohne Root binden duerfen:
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-ExecStart=/usr/bin/node server.js
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
+Anpassen lässt sich das über Umgebungsvariablen:
 
 ```bash
-sudo systemctl enable --now jf-spinte
-sudo systemctl status jf-spinte
+sudo BENUTZER=pi ORDNER=/opt/jf-spinte ADRESSE=spinte.fritz.box sh scripts/install-pi.sh
 ```
 
-Zufälliges Secret erzeugen: `openssl rand -hex 32`
+Nach einem Umzug in ein anderes Netz steht im Zertifikat noch die alte IP. Über den
+Hostnamen funktioniert trotzdem alles; wer es sauber will, stellt es neu aus:
+
+```bash
+sudo ZERTIFIKAT_NEU=1 sh /opt/jf-spinte/scripts/install-pi.sh
+```
+
+> Danach hat das Zertifikat einen neuen Fingerabdruck. Das Sicherungsskript auf dem
+> Windows-Rechner merkt sich den alten und bricht ab — einmal mit `-Einrichten` neu starten.
+
+### Warum der Pi über polkit heruntergefahren wird und nicht über sudo
+
+Der Dienst läuft als gewöhnlicher Benutzer und ist mit `NoNewPrivileges=true` abgesichert.
+Damit kann er **kein sudo starten** — sudo ist ein setuid-Programm, und genau das unterbindet
+diese Einstellung. Das ist so gewollt: der Benutzer, unter dem der Dienst läuft, darf per sudo
+meist ohnehin alles, und aus einer Lücke in der Weboberfläche würden sonst sofort Root-Rechte.
+
+`systemctl poweroff` geht stattdessen über D-Bus an `systemd-logind` — kein setuid nötig,
+nur eine Erlaubnis. Die steht in
+[`deploy/49-jf-spinte-poweroff.rules`](deploy/49-jf-spinte-poweroff.rules) und gilt für genau
+eine Aktion und genau einen Benutzer. Neustarten, Dienste verwalten, Dateien lesen: alles
+weiterhin gesperrt.
+
+Ohne diese Regel läuft die Software normal weiter, nur der Knopf **Pi herunterfahren** meldet
+dann „Interactive authentication required". Von Hand nachrüsten:
+
+```bash
+sudo sed 's/@BENUTZER@/sam/' /opt/jf-spinte/deploy/49-jf-spinte-poweroff.rules \
+  | sudo tee /etc/polkit-1/rules.d/49-jf-spinte-poweroff.rules
+sudo systemctl reload polkit
+```
+
+Prüfen, ob es greift — ohne den Pi wirklich abzuschalten:
+
+```bash
+busctl --system call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanPowerOff
+```
+
+Antwortet das mit `s "yes"`, sitzt die Regel. Bei `s "challenge"` fehlt sie noch.
+
+### Pi herunterfahren
+
+Unter **eigener Name → System** (nur Jugendwart) steht der Knopf **Pi herunterfahren**. Der
+fährt den Rechner geordnet herunter — wichtig, bevor jemand den Stecker zieht, sonst kann die
+Speicherkarte Schaden nehmen.
+
+Danach warten, bis die grüne Leuchte am Pi aufhört zu blinken. Zum Einschalten hilft nur der
+Stecker: Netzteil ziehen und wieder einstecken.
 
 ### QR-Codes drucken
 
@@ -845,7 +880,8 @@ src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
 src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
 src/upload.js          Dateiannahme für Sicherung und Logo
-scripts/               Testdaten, HTTPS-Testinstanz, Deployment, Sicherung holen
+scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
+deploy/                Dienst-Datei und polkit-Regel als Vorlage (siehe install-pi.sh)
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
@@ -861,3 +897,8 @@ und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Umkleideber
 Spinte, Lagerorte mit Mengenanlage, Barcode-Endpunkt, Tauschen mit und ohne Lagertreffer,
 Aufgaben, Suche, QR, Stammdaten mit Logo, A4-Etiketten und öffentlicher Lesezugriff.
 Die echte Datenbank wird nicht angefasst.
+
+Auch das Herunterfahren wird geprüft: der Abschaltbefehl lässt sich über `ABSCHALT_BEFEHL`
+austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner abzuschalten.
+So läuft der ganze Weg durch — Rechte, Token, Protokolleintrag und Fehlerfall —, ohne dass
+ein Testlauf den Rechner mitnimmt.

@@ -1,0 +1,30 @@
+/* Erlaubt der Spintverwaltung, den Raspberry Pi herunterzufahren.
+ *
+ * Warum ueberhaupt eine Regel: der Dienst laeuft als gewoehnlicher Benutzer und
+ * ist mit NoNewPrivileges=true abgesichert. Dadurch kann er kein sudo starten —
+ * sudo ist ein setuid-Programm, und genau das verhindert die Absicherung. Das
+ * ist so gewollt: aus einer Luecke in der Weboberflaeche sollen keine
+ * Root-Rechte werden koennen. Der Benutzer, unter dem der Dienst laeuft, darf
+ * per sudo naemlich in der Regel alles.
+ *
+ * "systemctl poweroff" geht stattdessen ueber D-Bus an systemd-logind. Dafuer
+ * braucht es kein setuid, sondern nur diese Erlaubnis — und die gilt fuer genau
+ * eine Aktion und genau einen Benutzer. Alles andere (Neustart, Dienste
+ * verwalten, Dateien lesen) bleibt gesperrt.
+ *
+ * Nach /etc/polkit-1/rules.d/ kopieren; @BENUTZER@ ersetzt scripts/install-pi.sh
+ * durch den Benutzer aus der Dienst-Datei.
+ */
+polkit.addRule(function (action, subject) {
+  var erlaubt = [
+    'org.freedesktop.login1.power-off',
+    // Greift, sobald noch jemand angemeldet ist — etwa eine offene
+    // SSH-Sitzung. Ohne diese Zeile scheitert das Herunterfahren genau dann,
+    // wenn man per SSH danebensteht.
+    'org.freedesktop.login1.power-off-multiple-sessions',
+  ];
+
+  if (subject.user === '@BENUTZER@' && erlaubt.indexOf(action.id) !== -1) {
+    return polkit.Result.YES;
+  }
+});

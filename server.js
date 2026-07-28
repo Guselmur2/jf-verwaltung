@@ -147,6 +147,7 @@ app.use(require('./src/routes/types'));
 app.use(require('./src/routes/users'));
 app.use(require('./src/routes/backup'));
 app.use(require('./src/routes/settings'));
+app.use(require('./src/routes/system'));
 app.use(require('./src/routes/etiketten'));
 app.use(require('./src/routes/history'));
 

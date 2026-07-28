@@ -1,0 +1,55 @@
+<%- include('partials/kopf') %>
+<% const mb = (b) => (b / 1024 / 1024).toFixed(0).replace('.', ',') + ' MB'; %>
+<% const gb = (b) => (b / 1024 / 1024 / 1024).toFixed(1).replace('.', ',') + ' GB'; %>
+
+<div class="seitenkopf">
+  <h1>System</h1>
+</div>
+
+<section class="block">
+  <h2>Zustand</h2>
+  <div class="kennzahlen">
+    <div class="kennzahl"><strong><%= zustand.betriebszeit %></strong><span>läuft seit</span></div>
+    <% if (zustand.speicher) { %>
+      <div class="kennzahl"><strong><%= gb(zustand.speicher.frei) %></strong><span>Platz frei</span></div>
+    <% } %>
+    <div class="kennzahl"><strong><%= mb(zustand.arbeitsspeicher.frei) %></strong><span>Arbeitsspeicher frei</span></div>
+  </div>
+  <p class="klein">
+    Rechner: <code><%= zustand.rechner %></code> · <%= zustand.system %>
+  </p>
+</section>
+
+<section class="block">
+  <h2>Herunterfahren</h2>
+
+  <p>
+    Fährt den Raspberry Pi geordnet herunter. <strong>Das ist wichtig, bevor der Stecker
+    gezogen wird</strong> — reißt man die Stromversorgung im laufenden Betrieb ab, kann die
+    Speicherkarte Schaden nehmen und im schlimmsten Fall der ganze Bestand verloren gehen.
+  </p>
+
+  <p class="klein">
+    Danach ist die Seite nicht mehr erreichbar. Zum Einschalten hilft nur der Stecker: Netzteil
+    kurz ziehen und wieder einstecken. Der Pi startet dann von selbst, die Spintverwaltung ist
+    nach etwa einer Minute wieder da.
+  </p>
+
+  <p class="klein">
+    <strong>Vorher lohnt sich eine <a href="/sicherung">Datensicherung</a></strong>, besonders
+    wenn der Pi umziehen soll.
+  </p>
+
+  <form method="post" action="/system/herunterfahren" class="formstapel"
+        onsubmit="return confirm('Den Raspberry Pi jetzt herunterfahren?\n\nDie Spintverwaltung ist danach nicht mehr erreichbar. Zum Einschalten muss jemand den Stecker ziehen und wieder einstecken.');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn btn-gross btn-gefahr" type="submit">Pi herunterfahren</button>
+  </form>
+
+  <p class="klein">
+    Führt aus: <code><%= zustand.befehl %></code>. Das läuft über systemd und braucht keine
+    Sonderrechte für die Weboberfläche — erlaubt ist genau diese eine Aktion.
+  </p>
+</section>
+
+<%- include('partials/fuss') %>
