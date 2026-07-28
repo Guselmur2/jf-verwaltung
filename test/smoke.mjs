@@ -1245,6 +1245,42 @@ await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'jugend
 r = await req('/system');
 check('Jugendwart sieht die Systemseite', r.status === 200 && r.text.includes('Herunterfahren'), String(r.status));
 check('Seite zeigt die Betriebszeit', r.text.includes('läuft seit'));
+check('ohne Zeitschaltung ein Hinweis darauf', r.text.includes('Noch keine automatische Sicherung'));
+
+// Den Stand schreibt sonst scripts/sicherung-automatisch.sh auf dem Pi.
+const standDatei = path.join(datenordner, 'sicherung-status.json');
+writeFileSync(
+  standDatei,
+  JSON.stringify({
+    zeitpunkt: new Date().toISOString(),
+    ergebnis: 'ok',
+    meldung: '',
+    ziel: '/mnt/jf-sicherung',
+    datenbank: 'spinte-2026-01-01-0330.db.enc',
+    wlan: 'wlan-2026-01-01-0330.tar.gz.enc',
+    staende: 7,
+  })
+);
+r = await req('/system');
+check('Stand der nächtlichen Sicherung wird angezeigt', r.text.includes('Zuletzt gesichert'));
+check('Ziel und Anzahl stehen dabei', r.text.includes('/mnt/jf-sicherung') && r.text.includes('7 Stände'));
+check('die WLAN-Sicherung wird genannt', r.text.includes('wlan-2026-01-01-0330.tar.gz.enc'));
+
+writeFileSync(
+  standDatei,
+  JSON.stringify({
+    zeitpunkt: new Date().toISOString(),
+    ergebnis: 'warnung',
+    meldung: 'USB-Stick nicht eingehängt — auf die Speicherkarte ausgewichen.',
+    ziel: '/opt/jf-spinte/data/sicherungen',
+    datenbank: 'spinte-2026-01-01-0330.db.enc',
+    wlan: '',
+    staende: 3,
+  })
+);
+r = await req('/system');
+check('fehlender Stick wird gemeldet', r.text.includes('USB-Stick nicht eingehängt') && r.text.includes('hinweis-warn'));
+rmSync(standDatei, { force: true });
 
 r = await req('/system/herunterfahren', { method: 'POST', form: { _csrf: 'falsch' } });
 check('Herunterfahren ohne gültiges Token abgelehnt', r.status === 403, String(r.status));

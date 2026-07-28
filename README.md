@@ -376,6 +376,7 @@ Was das Skript tut:
 | Zertifikat | selbstsigniert für `<name>.fritz.box`, `<name>.local`, `localhost` und die aktuelle IP |
 | Dienst | `jf-spinte.service` aus `deploy/` erzeugen, Geheimnis würfeln, starten |
 | Herunterfahren | polkit-Regel aus `deploy/` einspielen |
+| Sicherung | `jf-sicherung.timer` bereitlegen (schaltet sich ein, sobald ein Passwort hinterlegt ist) |
 | Probe | Weboberfläche antwortet? Herunterfahren erlaubt? |
 
 Anpassen lässt sich das über Umgebungsvariablen:
@@ -423,6 +424,75 @@ busctl --system call org.freedesktop.login1 /org/freedesktop/login1 org.freedesk
 ```
 
 Antwortet das mit `s "yes"`, sitzt die Regel. Bei `s "challenge"` fehlt sie noch.
+
+### Nächtliche Sicherung auf einen USB-Stick
+
+Das Windows-Skript holt die Sicherung nur, wenn der Rechner an ist **und** im selben Netz
+steht wie der Pi. Sobald der Pi im Gerätehaus hängt, fällt das weg. Der Pi läuft ohnehin
+durch — also sichert er sich selbst, jede Nacht um 3:30 Uhr.
+
+Gesichert wird zweierlei, beides mit demselben Passwort verschlüsselt:
+
+| Datei | Inhalt |
+|---|---|
+| `spinte-JJJJ-MM-TT-hhmm.db.enc` | die Datenbank |
+| `wlan-JJJJ-MM-TT-hhmm.tar.gz.enc` | die WLAN-Zugangsdaten |
+
+Die WLAN-Daten stehen an zwei Stellen: von Hand angelegte Verbindungen unter
+`/etc/NetworkManager/system-connections`, die bei der Ersteinrichtung erzeugten in
+`/etc/netplan`. Beide gehen mit — sonst fehlt nach einer Neuinstallation ausgerechnet der
+Netzzugang, und man steht mit einem Pi da, der nirgends hinkommt.
+
+**Einrichten** (der Timer selbst kommt aus `install-pi.sh`, es fehlt nur Ziel und Passwort):
+
+```bash
+sudo mkdir -p /mnt/jf-sicherung
+sudo blkid | grep -i usb   # UUID des Sticks herausfinden
+```
+
+Den Stick fest einhängen, damit er auch ohne angemeldeten Benutzer da ist — der
+Desktop-Automount unter `/media/...` hilft nachts nicht. In `/etc/fstab`:
+
+```
+UUID=XXXX-XXXX  /mnt/jf-sicherung  vfat  defaults,nofail,noatime,uid=1000,gid=1000,umask=0077,x-systemd.device-timeout=10  0  0
+```
+
+`nofail` ist wichtig: fehlt der Stick, bootet der Pi trotzdem durch. Dann Passwort
+hinterlegen und einschalten:
+
+```bash
+sudo mkdir -p /etc/jf-spinte
+sudo sh -c 'printf "%s\n" "DEIN-PASSWORT" > /etc/jf-spinte/sicherung.passwort'
+sudo chmod 600 /etc/jf-spinte/sicherung.passwort
+sudo systemctl daemon-reload && sudo mount -a
+sudo systemctl enable --now jf-sicherung.timer
+sudo systemctl start jf-sicherung.service   # einmal zur Probe
+```
+
+Wann zuletzt gesichert wurde, steht unter **System** in der Weboberfläche. Ist der Stand
+älter als zwei Tage, sagt die Seite es.
+
+**Fehlt der Stick**, weicht die Sicherung auf die Speicherkarte aus
+(`/opt/jf-spinte/data/sicherungen`) und meldet das als Warnung. Eine Sicherung am
+schlechteren Ort ist besser als gar keine — verschwiegen wird es aber nicht.
+
+> **Was das nicht leistet:** Passwort und Sicherung liegen beide auf dem Pi. Wer das Gerät
+> mitnimmt, hat beides. Der Schutz wirkt für den Stick, wenn man ihn herausnimmt und
+> woanders hinlegt — und genau dafür ist er gedacht. Die Sicherung, die du über die
+> Weboberfläche von Hand herunterlädst, kann ruhig ein anderes Passwort haben; dann bleibt
+> sie auch dann geschützt, wenn der Pi in fremde Hände gerät.
+
+Der Timer läuft als root, weil die WLAN-Zugangsdaten sonst niemand lesen darf. Die
+Datenbank-Sicherung reicht das Skript an den Dienstbenutzer weiter — als root gehörten die
+Begleitdateien der Datenbank (`-wal`, `-shm`) plötzlich root, und der Dienst könnte danach
+nicht mehr schreiben.
+
+Zurückspielen geht mit Standardwerkzeug, die Software wird dafür nicht gebraucht:
+
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -in wlan-2026-07-28-0330.tar.gz.enc -out wlan.tar.gz
+tar -tzf wlan.tar.gz
+```
 
 ### Pi herunterfahren
 
