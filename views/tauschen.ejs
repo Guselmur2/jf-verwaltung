@@ -8,6 +8,23 @@
 
 <% if (typeof error !== 'undefined' && error) { %><p class="hinweis hinweis-warn"><%= error %></p><% } %>
 
+<% if (typeof offeneAufgabe !== 'undefined' && offeneAufgabe) { %>
+  <section class="block block-gefahr">
+    <h2>Dafür läuft schon etwas</h2>
+    <p>
+      Für dieses Teil steht seit <strong><%= datum(offeneAufgabe.created_at) %></strong> bereits
+      <strong><%= offeneAufgabe.kind === 'bestellung' ? 'eine Bestellung' : 'ein Tausch' %></strong> offen<%
+        if (offeneAufgabe.to_size) { %>: <%= offeneAufgabe.from_size || '?' %> → <%= offeneAufgabe.to_size %><% } %>.
+      <% if (offeneAufgabe.created_by) { %>Eingetragen von <%= offeneAufgabe.created_by %>.<% } %>
+    </p>
+    <p class="klein">
+      Noch einmal bestellen führt dazu, dass zweimal geliefert wird. Erst in den
+      <a href="/aufgaben">Aufgaben</a> nachsehen — vielleicht ist die Ware längst da und muss nur
+      noch eingeräumt werden.
+    </p>
+  </section>
+<% } %>
+
 <% if (typeof unbekannteGroesse !== 'undefined' && unbekannteGroesse) { %>
   <section class="block block-gefahr">
     <h2>Größe prüfen</h2>

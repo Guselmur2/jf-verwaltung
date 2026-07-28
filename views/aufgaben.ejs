@@ -49,8 +49,8 @@
         <% if (t.note) { %><div class="aufgabe-notiz"><%= t.note %></div><% } %>
 
         <div class="aufgabe-fuss klein">
-          angelegt <%= t.created_at.replace('T', ' ') %><% if (t.created_by) { %> von <%= t.created_by %><% } %>
-          <% if (t.done_at) { %> · <%= t.status %> <%= t.done_at %><% if (t.done_by) { %> von <%= t.done_by %><% } %><% } %>
+          angelegt <%= datum(t.created_at) %><% if (t.created_by) { %> von <%= t.created_by %><% } %>
+          <% if (t.done_at) { %> · <%= t.status %> <%= datum(t.done_at) %><% if (t.done_by) { %> von <%= t.done_by %><% } %><% } %>
         </div>
 
         <div class="aufgabe-aktionen">

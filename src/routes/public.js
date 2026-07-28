@@ -62,6 +62,7 @@ function spintSeite(res, locker) {
     area: locker.area_id ? m.q.areaById.get(locker.area_id) : null,
     member: locker.member_id ? m.q.memberById.get(locker.member_id) : null,
     items: m.equipmentOfLocker(locker.id),
+    lockerTasks: m.openTasksOfLocker(locker.id),
   });
 }
 

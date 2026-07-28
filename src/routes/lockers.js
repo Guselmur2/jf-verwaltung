@@ -35,6 +35,8 @@ function formData(locker, extra = {}) {
     vorschlag: locker ? locker.code : m.suggestNextCode(area),
     members: m.assignableMembers(locker?.member_id ?? null, areaId),
     items: locker ? m.equipmentOfLocker(locker.id) : [],
+    // Aufgaben, die an keinem Teil mehr haengen (z. B. "verloren").
+    lockerTasks: locker ? m.openTasksOfLocker(locker.id) : [],
     types: m.activeTypes(),
     storage: locker ? m.storageEquipment() : [],
     storagePlaces: m.storagesAll(),

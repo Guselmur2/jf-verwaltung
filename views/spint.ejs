@@ -34,11 +34,28 @@
             <% if (it.size) { %><span class="wert"><span class="wert-label">Größe</span><%= it.size %></span><% } %>
             <% if (it.inventory_no) { %><span class="wert"><span class="wert-label">Inv.-Nr.</span><%= it.inventory_no %></span><% } %>
             <% if (it.condition !== 'gut') { %><span class="chip chip-<%= it.condition %>"><%= it.condition %></span><% } %>
+            <% if (it.task_id) { %>
+              <%- include('partials/aufgabe', { aufgabe: { kind: it.task_kind, von: it.task_from, nach: it.task_to, seit: it.task_created } }) %>
+            <% } %>
           </span>
           <% if (it.note) { %><span class="teil-notiz"><%= it.note %></span><% } %>
         </li>
       <% }); %>
     </ul>
+  <% } %>
+
+  <% if (lockerTasks && lockerTasks.length) { %>
+    <div class="offeneaufgaben">
+      <h3>Schon unterwegs</h3>
+      <ul>
+        <% lockerTasks.forEach(function (k) { %>
+          <li>
+            <%- include('partials/aufgabe', { aufgabe: { kind: k.kind, von: k.from_size, nach: k.to_size, seit: k.created_at } }) %>
+            <%= k.type_name || 'Teil' %> — seit <%= datum(k.created_at) %>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
   <% } %>
 
   <% if (locker.note) { %>

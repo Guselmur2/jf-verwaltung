@@ -73,6 +73,9 @@ router.get('/ausruestung/:id/tauschen', login, (req, res) => {
     reason: null,
     storages: m.storagesAll(),
     sizeSchemes: sizes.schemes(),
+    // Laeuft fuer dieses Teil schon etwas? Dann davor warnen, statt dieselbe
+    // Bestellung ein zweites Mal auszuloesen.
+    offeneAufgabe: m.openTaskOfEquipment(item.id),
   });
 });
 
@@ -94,7 +97,8 @@ router.post('/ausruestung/:id/tauschen', login, (req, res) => {
       reason,
       note,
       storages: m.storagesAll(),
-    sizeSchemes: sizes.schemes(),
+      sizeSchemes: sizes.schemes(),
+      offeneAufgabe: m.openTaskOfEquipment(item.id),
       treffer: null,
       ...extra,
     });

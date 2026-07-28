@@ -45,9 +45,12 @@ function normalize(year, month, day) {
 }
 
 // ISO (yyyy-mm-dd) -> deutsche Anzeige (dd.mm.yyyy). Unbekanntes bleibt, wie es ist.
+// Nimmt "2016-05-05" ebenso wie "2026-07-28 09:12:33" — Geburtstage stehen als
+// reines Datum in der Datenbank, Zeitstempel von Aufgaben mit Uhrzeit. Die
+// Uhrzeit faellt weg: auf einer Aufgabenliste zaehlt der Tag.
 function formatGermanDate(iso) {
   if (!iso) return '';
-  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T]|$)/);
   return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso);
 }
 

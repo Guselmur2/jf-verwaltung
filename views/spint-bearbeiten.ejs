@@ -84,7 +84,14 @@
   <% } else { %>
     <div class="teilliste">
       <% items.forEach(function (it) { %>
-        <div class="teilzeile">
+        <div class="teilzeile<%= it.task_id ? ' teilzeile-offen' : '' %>">
+          <% if (it.task_id) { %>
+            <p class="teilhinweis">
+              <%- include('partials/aufgabe', { aufgabe: { kind: it.task_kind, von: it.task_from, nach: it.task_to, seit: it.task_created } }) %>
+              <span>seit <%= datum(it.task_created) %><% if (it.task_reason) { %>, Grund: <%= it.task_reason %><% } %></span>
+              <a href="/aufgaben">Aufgaben ansehen</a>
+            </p>
+          <% } %>
           <form method="post" action="/ausruestung/<%= it.id %>/bearbeiten" class="teilform">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <input type="hidden" name="zurueck" value="<%= zurueck %>">
@@ -116,7 +123,9 @@
           </form>
 
           <div class="teilaktionen">
-            <a class="btn btn-klein btn-still" href="/ausruestung/<%= it.id %>/tauschen">Tauschen / Bestellen</a>
+            <a class="btn btn-klein btn-still" href="/ausruestung/<%= it.id %>/tauschen">
+              <%= it.task_id ? 'Nochmal tauschen / bestellen' : 'Tauschen / Bestellen' %>
+            </a>
 
             <form method="post" action="/ausruestung/<%= it.id %>/verschieben" class="inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -139,6 +148,22 @@
           </div>
         </div>
       <% }); %>
+    </div>
+  <% } %>
+
+  <%# Aufgaben ohne Teil — etwa, wenn das alte Stück als verloren abgehakt wurde. %>
+  <% if (lockerTasks && lockerTasks.length) { %>
+    <div class="offeneaufgaben">
+      <h3>Offen für diesen Spint</h3>
+      <ul>
+        <% lockerTasks.forEach(function (k) { %>
+          <li>
+            <%- include('partials/aufgabe', { aufgabe: { kind: k.kind, von: k.from_size, nach: k.to_size, seit: k.created_at } }) %>
+            <%= k.type_name || 'Teil' %> — seit <%= datum(k.created_at) %><% if (k.reason) { %>, Grund: <%= k.reason %><% } %>
+          </li>
+        <% }); %>
+      </ul>
+      <p class="klein">Steht kein Teil mehr dahinter, weil es verloren oder schon ausgemustert ist.</p>
     </div>
   <% } %>
 

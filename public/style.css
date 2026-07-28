@@ -290,6 +290,25 @@ button.link { background: none; border: none; padding: 0; color: var(--rot); cur
 .aufgabe-aktionen { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .25rem; }
 .chip-bestellung { background: var(--warn); color: #fff; border-color: var(--warn); }
 
+/* Offene Aufgabe an einem Teil: soll ins Auge fallen, damit niemand dasselbe
+   ein zweites Mal bestellt. */
+.chip-offen { background: var(--warn); color: #fff; border-color: var(--warn); font-weight: 600; }
+
+.teilzeile-offen { border-left: 4px solid var(--warn); }
+.teilhinweis {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  margin: 0 0 .5rem; font-size: .85rem; color: var(--gedaempft);
+}
+
+.offeneaufgaben {
+  margin: 1rem 0; padding: .75rem 1rem;
+  border: 1px solid rgba(176, 106, 0, .4); border-radius: var(--radius);
+  background: rgba(176, 106, 0, .08);
+}
+.offeneaufgaben h3 { margin: 0 0 .5rem; color: var(--text); }
+.offeneaufgaben ul { margin: 0; padding-left: 1.1rem; }
+.offeneaufgaben li { margin: .25rem 0; }
+
 /* ---------- Lagerorte ---------- */
 .kachel-lager { border-left-color: var(--warn); }
 .kachel-aktiv { border-color: var(--rot); box-shadow: 0 0 0 2px rgba(192, 38, 31, .25); }

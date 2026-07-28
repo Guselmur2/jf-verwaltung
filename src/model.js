@@ -41,16 +41,53 @@ function allTypes() {
     .all();
 }
 
+// Zu jedem Teil die neueste offene Aufgabe mitliefern. Ohne die sieht man dem
+// Teil nicht an, dass laengst Ersatz bestellt ist — und der naechste Betreuer
+// bestellt ihn ein zweites Mal.
 function equipmentOfLocker(lockerId) {
   return db
     .prepare(
-      `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory, t.sort_order
+      `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory, t.sort_order,
+              k.id AS task_id, k.kind AS task_kind, k.from_size AS task_from,
+              k.to_size AS task_to, k.reason AS task_reason, k.created_at AS task_created
          FROM equipment e
          JOIN equipment_types t ON t.id = e.type_id
+         LEFT JOIN tasks k ON k.id = (SELECT id FROM tasks
+                                       WHERE equipment_id = e.id AND status = 'offen'
+                                       ORDER BY id DESC LIMIT 1)
         WHERE e.locker_id = ? AND e.retired = 0
         ORDER BY t.sort_order, t.name COLLATE NOCASE, e.id`
     )
     .all(lockerId);
+}
+
+/**
+ * Offene Aufgaben zum Spint, die an keinem Teil mehr haengen — etwa weil das
+ * alte Stueck als "verloren" abgehakt wurde. Sonst waeren gerade die Faelle
+ * unsichtbar, bei denen nichts mehr im Spint liegt.
+ */
+function openTasksOfLocker(lockerId) {
+  return db
+    .prepare(
+      `SELECT k.*, t.name AS type_name
+         FROM tasks k
+         LEFT JOIN equipment_types t ON t.id = k.type_id
+        WHERE k.locker_id = ? AND k.status = 'offen'
+          AND (k.equipment_id IS NULL
+               OR NOT EXISTS (SELECT 1 FROM equipment e
+                               WHERE e.id = k.equipment_id AND e.locker_id = k.locker_id AND e.retired = 0))
+        ORDER BY k.id DESC`
+    )
+    .all(lockerId);
+}
+
+/** Neueste offene Aufgabe zu einem einzelnen Teil. */
+function openTaskOfEquipment(equipmentId) {
+  return (
+    db
+      .prepare("SELECT * FROM tasks WHERE equipment_id = ? AND status = 'offen' ORDER BY id DESC LIMIT 1")
+      .get(equipmentId) || null
+  );
 }
 
 /**
@@ -590,6 +627,8 @@ module.exports = {
   activeTypes,
   allTypes,
   equipmentOfLocker,
+  openTasksOfLocker,
+  openTaskOfEquipment,
   storageEquipment,
   storagesAll,
   storageContents,

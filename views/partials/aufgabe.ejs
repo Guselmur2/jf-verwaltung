@@ -1,0 +1,12 @@
+<%#
+  Zeigt an, dass zu einem Teil schon eine Aufgabe offen ist. Ohne diesen
+  Hinweis sieht man dem Teil nicht an, dass Ersatz laengst bestellt ist — und
+  der naechste Betreuer bestellt ihn ein zweites Mal.
+
+  Erwartet: aufgabe = { kind, von, nach, seit }
+%>
+<span class="chip chip-offen" title="Seit <%= datum(aufgabe.seit) || 'unbekannt' %> offen — siehe Aufgaben">
+  <%= aufgabe.kind === 'bestellung' ? 'bestellt' : 'Tausch angefragt' %><%
+    if (aufgabe.von || aufgabe.nach) { %>: <%= aufgabe.von || '?' %> → <%= aufgabe.nach || '?' %><% }
+  %>
+</span>

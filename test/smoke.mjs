@@ -99,7 +99,9 @@ async function createLocker(fields) {
 // Sucht auf der Spint-Bearbeiten-Seite die Ausrüstungs-id in der Zeile, die
 // <text> enthält (z. B. eine Inventarnummer).
 function idAusZeile(html, text) {
-  for (const block of html.split('class="teilzeile"')) {
+  // Ohne schliessendes Anfuehrungszeichen trennen: die Zeile kann noch weitere
+  // Klassen tragen, etwa wenn eine Aufgabe an dem Teil offen ist.
+  for (const block of html.split('class="teilzeile')) {
     if (block.includes(text)) return Number(block.match(/\/ausruestung\/(\d+)\//)?.[1]) || null;
   }
   return null;
@@ -401,7 +403,29 @@ check('Aufgabe erscheint im Tab', r.text.includes('52') && r.text.includes('wäc
 check('Aufgabe nennt das Mitglied', r.text.includes('Max Muster'));
 check('Zähler in der Navigation', r.text.includes('zaehler'));
 
-const aufgabeId = Number(r.text.match(/\/aufgaben\/(\d+)\/erledigt/)?.[1]);
+// Am Teil selbst muss die offene Bestellung zu sehen sein — sonst bestellt der
+// nächste Betreuer dasselbe noch einmal.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('offene Bestellung steht am Teil', r.text.includes('chip-offen') && r.text.includes('teilzeile-offen'));
+// "zu klein" ist ein Tausch, kein Verlust — daher "Tausch angefragt".
+check('mit Richtung der Bestellung', /Tausch angefragt: [^<]*→\s*52/.test(r.text.replace(/\s+/g, ' ')),
+  'kein "→ 52" gefunden');
+check('Knopf weist auf die Wiederholung hin', r.text.includes('Nochmal tauschen / bestellen'));
+
+// Auch auf der Seite, die per QR-Code aufgerufen wird.
+const spintToken = (await req('/qr')).text.match(/\/s\/([a-z2-9]{12})/)?.[1];
+let merkeAnmeldung = cookie;
+cookie = '';
+r = await req('/s/' + spintToken);
+check('auch ohne Anmeldung sichtbar', r.status === 200 && r.text.includes('chip-offen'), String(r.status));
+cookie = merkeAnmeldung;
+
+// Und wer es trotzdem noch einmal versucht, wird gewarnt.
+r = await req(`/ausruestung/${ersatzId}/tauschen`);
+check('Tausch-Formular warnt vor der Doppelbestellung', r.text.includes('Dafür läuft schon etwas'));
+check('die Warnung nennt das Datum', /steht seit <strong>\d{2}\.\d{2}\.\d{4}/.test(r.text));
+
+const aufgabeId = Number((await req('/aufgaben')).text.match(/\/aufgaben\/(\d+)\/erledigt/)?.[1]);
 token = await csrf('/aufgaben');
 r = await req(`/aufgaben/${aufgabeId}/erledigt`, { method: 'POST', form: { _csrf: token } });
 check('Aufgabe abhakbar', r.status === 302);
@@ -409,6 +433,13 @@ r = await req('/aufgaben');
 check('erledigte Aufgabe nicht mehr offen', !r.text.includes('wächst schnell'));
 r = await req('/aufgaben?status=erledigt');
 check('erledigte Aufgabe im Archiv', r.text.includes('wächst schnell'));
+
+// Nach dem Abhaken muss der Hinweis am Teil wieder verschwinden, sonst traut
+// ihm bald niemand mehr.
+r = await req(`/spint/${boys01.id}/bearbeiten`);
+check('erledigte Aufgabe verschwindet vom Teil', !r.text.includes('chip-offen'));
+r = await req(`/ausruestung/${ersatzId}/tauschen`);
+check('und das Formular warnt nicht mehr', !r.text.includes('Dafür läuft schon etwas'));
 
 console.log('\n16) Kontrolle: Skip bei Verlust');
 // Zweite Jacke Gr. 170 ins Lager, damit es etwas zu tauschen gibt.
