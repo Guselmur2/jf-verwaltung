@@ -496,12 +496,22 @@ tar -tzf wlan.tar.gz
 
 ### Pi herunterfahren
 
-Unter **eigener Name → System** (nur Jugendwart) steht der Knopf **Pi herunterfahren**. Der
-fährt den Rechner geordnet herunter — wichtig, bevor jemand den Stecker zieht, sonst kann die
-Speicherkarte Schaden nehmen.
+Unter **eigener Name → System & Herunterfahren** (nur Jugendwart) steht der Knopf
+**Pi herunterfahren**. Der fährt den Rechner geordnet herunter — wichtig, bevor jemand den
+Stecker zieht, sonst kann die Speicherkarte Schaden nehmen.
 
-Danach warten, bis die grüne Leuchte am Pi aufhört zu blinken. Zum Einschalten hilft nur der
-Stecker: Netzteil ziehen und wieder einstecken.
+Die Status-Leuchte sagt, wann es soweit ist:
+
+| Leuchte | Bedeutung |
+|---|---|
+| grün, blinkend | läuft, es wird geschrieben — **nicht ziehen** |
+| ruhig rot | heruntergefahren, noch am Strom — ab hier ist Ziehen sicher |
+| aus | kein Strom |
+
+Der Raspberry Pi 5 hat neben dem USB-C-Anschluss einen **Ein-/Ausschalter**: ein kurzer Druck
+startet ihn wieder, Kabelziehen ist nicht nötig. Ältere Modelle haben den nicht — dort das
+Netzteil ziehen und **ein paar Sekunden warten**, bevor es wieder eingesteckt wird, sonst
+merkt der Pi den Unterbruch nicht.
 
 ### QR-Codes drucken
 
@@ -745,6 +755,24 @@ curl -k -X PUT -H "X-API-Key: jfw_…" -H "content-type: application/json" \
   -d '{"gruppen":[{"gruppe":"Körpergröße","groessen":["116","122","128"]},
                   {"gruppe":"Konfektion","groessen":["44","46"]}]}' \
   https://jfwpi.fritz.box/api/v1/groessen/bekleidung
+```
+
+### Umlaute
+
+Die API nimmt **nur gültiges UTF-8** an. Kommt etwas anderes, gibt es `400` mit Angabe des
+Feldes — statt dass „Doppelgrößen“ still als „Doppelgr??en“ in der Datenbank landet. Das ist
+kein theoretischer Fall: genau so sind die Größenschemata einmal zerlegt worden, weil eine
+Shell die Umlaute als Windows-1252 verschickt hat. Rückgängig machen lässt sich das nicht,
+das Byte ist weg.
+
+Wer sich nicht sicher ist, welche Kodierung sein Werkzeug verwendet, schreibt Umlaute als
+`\u`-Escape — das ist reines ASCII und kommt garantiert heil an:
+
+```bash
+curl -k -X POST -H "X-API-Key: jfw_…" -H "content-type: application/json" \
+  -d '{"schema":"jacke","bezeichnung":"Jacke (Doppelgrößen)",
+       "gruppen":[{"gruppe":"Körpergröße","groessen":["146/152"]}]}' \
+  https://jfwpi.fritz.box/api/v1/groessen
 ```
 
 Die Prüfungen der Oberfläche gelten auch hier: doppelte Inventarnummern werden mit `409`

@@ -1133,6 +1133,43 @@ const artWeg = await fetch(BASE + `/api/v1/arten/${artApiId}`, {
 });
 check('benutzte Art lässt sich nicht löschen', artWeg.status === 409, String(artWeg.status));
 
+console.log('\n30b) API: kaputte Umlaute werden abgewiesen');
+// Genau der Fehler, der die Größenschemata einmal zerlegt hat: das aufrufende
+// Programm schickt "ö" als einzelnes Windows-1252-Byte (0xF6). Beim Dekodieren
+// wird daraus U+FFFD, und das Byte ist unwiederbringlich weg. Also ablehnen,
+// statt es stillschweigend zu speichern.
+const kaputt = Buffer.concat([
+  Buffer.from('{"schema":"pruef","bezeichnung":"Gr'),
+  Buffer.from([0xf6]), // "ö" in Windows-1252 — kein gültiges UTF-8
+  Buffer.from('sse","gruppen":[{"gruppe":"Test","groessen":["1"]}]}'),
+]);
+const umlautFehler = await fetch(BASE + '/api/v1/groessen', {
+  method: 'POST',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: kaputt,
+});
+const umlautAntwort = await umlautFehler.json().catch(() => ({}));
+check('kaputte Kodierung wird abgelehnt', umlautFehler.status === 400, String(umlautFehler.status));
+check('die Meldung nennt das Feld', /bezeichnung/.test(umlautAntwort.fehler || ''), umlautAntwort.fehler);
+check('und erklärt, was zu tun ist', /UTF-8/.test(umlautAntwort.hinweis || ''), umlautAntwort.hinweis);
+
+a = await apiGet('/api/v1/groessen');
+check('nichts davon wurde angelegt', !a.json.daten.some((s) => s.schema === 'pruef'));
+
+// Richtig kodiert muss es dagegen durchgehen — auch als \u-Escape.
+const umlautOk = await fetch(BASE + '/api/v1/groessen', {
+  method: 'POST',
+  headers: { 'x-api-key': schreibToken, 'content-type': 'application/json' },
+  body: '{"schema":"pruef","bezeichnung":"Gr\\u00f6\\u00dfe","gruppen":[{"gruppe":"K\\u00f6rpergr\\u00f6\\u00dfe","groessen":["1"]}]}',
+});
+check('sauberes UTF-8 geht durch', umlautOk.status === 201 || umlautOk.status === 200, String(umlautOk.status));
+a = await apiGet('/api/v1/groessen');
+const geprueft = a.json.daten.find((s) => s.schema === 'pruef');
+check('Umlaute kommen heil an', geprueft?.bezeichnung === 'Größe', geprueft?.bezeichnung);
+check('auch in der Gruppe', geprueft?.gruppen?.[0]?.gruppe === 'Körpergröße', geprueft?.gruppen?.[0]?.gruppe);
+
+await fetch(BASE + '/api/v1/groessen/pruef', { method: 'DELETE', headers: { 'x-api-key': schreibToken } });
+
 console.log('\n31) Wiederherstellung bei der Ersteinrichtung');
 // Zweiter Server mit leerer Datenbank — dort wird die Sicherung eingespielt.
 const zweiterOrdner = mkdtempSync(path.join(tmpdir(), 'jf-restore-test-'));
