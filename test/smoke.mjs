@@ -976,14 +976,37 @@ check('Schreibzugang ändert die Stammdaten', patchOk.status === 200, String(pat
 
 console.log('\n28) A4-Etikett für den Spint');
 r = await req('/etiketten');
-const blaetter = (r.text.match(/class="a4"/g) || []).length;
-check('Etikettenseite wird ausgeliefert', r.status === 200 && blaetter > 0, `${r.status}, ${blaetter} Blätter`);
-check('ein Blatt je Spint', blaetter === (await req('/')).text.match(/href="\/spint\/\d+"/g)?.length, String(blaetter));
+const karten = (r.text.match(/class="a4"/g) || []).length;
+const spinteGesamt = (await req('/')).text.match(/href="\/spint\/\d+"/g)?.length;
+check('Etikettenseite wird ausgeliefert', r.status === 200 && karten > 0, `${r.status}, ${karten} Karten`);
+check('eine Karte je Spint', karten === spinteGesamt, `${karten} von ${spinteGesamt}`);
 check('eigener Druck-Stil ist eingebunden', r.text.includes('/static/etikett.css'));
 check('Name der Wehr steht auf dem Blatt', r.text.includes('Jugendfeuerwehr Ebertsheim'));
 check('Abteilung hebt sich von der Kinderfeuerwehr ab', r.text.includes('a4-abteilung'));
 check('Hinweis zum QR-Code', r.text.includes('Was ist hier drin?'));
 check('Logo ist eingebunden', r.text.includes('src="/logo?v='));
+
+// Voreinstellung: zwei Etiketten je Seite — das passte in der Praxis an den
+// Spinten. Die Karten stecken in Blatt-Abschnitten, einer je Druckseite.
+check('Voreinstellung sind zwei je Seite', r.text.includes('data-pro-seite="2"'));
+check('Auswahl der Anzahl vorhanden', r.text.includes('name="pro"'));
+check('hochkant bei zwei je Seite', r.text.includes('size: A4 portrait'));
+const blattZahl = (t) => (t.match(/class="blatt"/g) || []).length;
+check('zwei Karten je Blatt', blattZahl(r.text) === Math.ceil(karten / 2), `${blattZahl(r.text)} Blätter für ${karten} Karten`);
+
+r = await req('/etiketten?pro=4');
+check('vier je Seite umschaltbar', r.text.includes('data-pro-seite="4"'));
+check('vier Karten je Blatt', blattZahl(r.text) === Math.ceil(karten / 4), `${blattZahl(r.text)} Blätter`);
+
+r = await req('/etiketten?pro=1');
+check('eins je Seite umschaltbar', r.text.includes('data-pro-seite="1"'));
+check('quer bei einem je Seite', r.text.includes('size: A4 landscape'));
+check('ein Blatt je Karte', blattZahl(r.text) === karten, `${blattZahl(r.text)} Blätter`);
+
+// Unsinnige Angaben fallen auf die Voreinstellung zurück, statt zu scheitern.
+r = await req('/etiketten?pro=7');
+check('ungültige Anzahl fällt auf zwei zurück', r.text.includes('data-pro-seite="2"'));
+r = await req('/etiketten');
 // Der Link steht nicht im Klartext auf dem Blatt, er steckt im QR-Bild. Also
 // denselben Code noch einmal erzeugen und vergleichen — das beweist, dass der
 // Etikett-QR auf die Token-Adresse zeigt und nicht auf die interne Nummer.
@@ -997,7 +1020,7 @@ check('Blatt trägt die Spintnummer', r.text.includes('a4-spint'));
 
 r = await req('/etiketten?belegt=1');
 const nurBelegt = (r.text.match(/class="a4"/g) || []).length;
-check('Filter „nur belegte Spinte“ wirkt', nurBelegt > 0 && nurBelegt <= blaetter, `${nurBelegt} von ${blaetter}`);
+check('Filter „nur belegte Spinte“ wirkt', nurBelegt > 0 && nurBelegt <= karten, `${nurBelegt} von ${karten}`);
 check('kein freier Spint mehr dabei', !r.text.includes('a4-name frei'));
 
 const einSpint = Number((await req('/')).text.match(/href="\/spint\/(\d+)"/)?.[1]);

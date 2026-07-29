@@ -1,35 +1,65 @@
-/* Spint-Etikett in DIN A4.
-   Wird nur von /etiketten und /etikett/:id geladen, damit die @page-Regel
-   (randlos) nicht die uebrigen Druckseiten der Software beeinflusst.
+/* Spint-Etikett fuer DIN A4.
+   Wird nur von /etiketten und /etikett/:id geladen, damit die @page-Regel nicht
+   die uebrigen Druckseiten der Software beeinflusst.
 
-   Die Farben stehen hier absichtlich fest und kommen nicht aus den
-   CSS-Variablen: das Blatt geht auf Papier und soll im dunklen Modus am
-   Bildschirm genauso aussehen wie im hellen. */
+   Zwei Lehren aus der Praxis stecken hier drin:
+
+   1. Das Etikett geht NICHT mehr bis an den Blattrand. Jeder Heimdrucker hat
+      einen Rand, den er nicht bedrucken kann — vorher wurden die roten Balken
+      dort abgeschnitten. Jetzt sitzt jedes Etikett als umrandete Karte mit
+      Sicherheitsabstand auf der Seite (@page-Rand + Abstand im Raster).
+   2. Ein ganzes A4-Blatt je Etikett war am Spint viel zu gross. Darum gibt es
+      1, 2 oder 4 Etiketten je Seite (data-pro-seite). Alle sind dieselbe Karte
+      in verschiedenen Groessen: --kw ist die Kartenbreite, --u ein Hundertstel
+      davon, und alle Masse darin sind Vielfache von --u. So skaliert die Karte
+      als Ganzes, ohne dass man jede Zeile einzeln nachziehen muss.
+
+   Die Farben stehen absichtlich fest und kommen nicht aus den CSS-Variablen:
+   das Blatt geht auf Papier und soll im dunklen Modus am Bildschirm genauso
+   aussehen wie im hellen. */
 
 @page {
-  size: A4 landscape;
-  margin: 0;
+  size: A4 portrait;
+  /* Der Sicherheitsrand: hier druckt kein Heimdrucker mehr daneben. */
+  margin: 8mm;
 }
 
-/* Im Querformat ist das Blatt breiter als der uebliche Inhaltsbereich. Diese
-   Datei wird nur auf den Etikettenseiten geladen, darum darf sie ihn aufweiten. */
 .inhalt { max-width: 1180px; }
 
+/* ---------- Bogen und Blatt ---------- */
+.bogen[data-pro-seite="1"] { --kw: 281mm; }
+.bogen[data-pro-seite="2"] { --kw: 194mm; }
+.bogen[data-pro-seite="4"] { --kw: 94mm; }
+
+/* Ein Blatt = eine Druckseite. Die Karten sitzen mittig darin. */
+.blatt {
+  display: grid;
+  gap: 6mm;
+  justify-content: center;
+  align-content: center;
+  overflow: hidden;
+}
+.bogen[data-pro-seite="1"] .blatt { grid-template-columns: 1fr; width: 281mm; height: 194mm; }
+.bogen[data-pro-seite="2"] .blatt { grid-template-columns: 1fr; width: 194mm; height: 280mm; }
+.bogen[data-pro-seite="4"] .blatt { grid-template-columns: 1fr 1fr; width: 194mm; height: 280mm; }
+
+/* ---------- Die Karte ---------- */
 .a4 {
   --a4-rot: #c0261f;
   --a4-text: #17181c;
   --a4-grau: #55585f;
+  --u: calc(var(--kw) / 100);
 
-  width: 297mm;
-  height: 210mm;
-  margin: 0 auto 1.5rem;
+  width: var(--kw);
+  aspect-ratio: 1.45;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: #fff;
   color: var(--a4-text);
+  border: 0.4mm solid #d5d7db;
+  border-radius: calc(var(--u) * 1.6);
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
-  box-shadow: 0 2px 22px rgba(0, 0, 0, .28);
   /* Ohne das druckt der Browser die roten Balken standardmaessig weiss. */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -37,29 +67,29 @@
 
 /* ---------- Kopf: Logo und Name der Wehr ---------- */
 .a4-kopf {
-  flex: 0 0 40mm;
+  flex: 0 0 calc(var(--u) * 13);
   display: flex;
   align-items: center;
-  gap: 8mm;
-  padding: 0 14mm;
+  gap: calc(var(--u) * 2.7);
+  padding: 0 calc(var(--u) * 5);
   background: var(--a4-rot);
   color: #fff;
 }
 
 .a4-logo {
   flex: 0 0 auto;
-  max-height: 28mm;
-  max-width: 44mm;
+  max-height: calc(var(--u) * 9);
+  max-width: calc(var(--u) * 15);
   object-fit: contain;
   /* Das Logo ist selbst rot hinterlegt — auf dem roten Balken braucht es
      deshalb eine weisse Flaeche, sonst verschwindet der Rand darin. */
   background: #fff;
-  padding: 2mm;
-  border-radius: 2mm;
+  padding: calc(var(--u) * 0.7);
+  border-radius: calc(var(--u) * 0.7);
 }
 
 .a4-org {
-  font-size: 27pt;
+  font-size: calc(var(--u) * 3.2);
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: .005em;
@@ -71,25 +101,26 @@
   min-height: 0;
   display: flex;
   align-items: center;
-  gap: 12mm;
-  padding: 14mm;
+  gap: calc(var(--u) * 4);
+  padding: calc(var(--u) * 4.5);
 }
 
 .a4-haupt { flex: 1; min-width: 0; }
 
 .a4-anrede {
   margin: 0;
-  font-size: 18pt;
+  font-size: calc(var(--u) * 2.1);
   color: var(--a4-grau);
 }
 
 .a4-name {
-  margin: 5mm 0 0;
+  margin: calc(var(--u) * 1.5) 0 0;
   font-weight: 800;
   line-height: 1.02;
   letter-spacing: -.02em;
   /* Umbrochen wird nur zwischen Woertern; die Schriftgroesse richtet sich
-     deshalb nach dem laengsten Wort (namensgroesse in routes/etiketten.js). */
+     deshalb nach dem laengsten Wort (namensgroesse in routes/etiketten.js).
+     Die Groesse kommt je Etikett als style="font-size:…pt". */
   overflow-wrap: break-word;
   hyphens: none;
 }
@@ -98,10 +129,10 @@
 
 .a4-spint {
   display: inline-block;
-  margin: 8mm 0 0;
-  padding-top: 4mm;
-  border-top: 1.4mm solid var(--a4-rot);
-  font-size: 17pt;
+  margin: calc(var(--u) * 2.7) 0 0;
+  padding-top: calc(var(--u) * 1.35);
+  border-top: calc(var(--u) * 0.45) solid var(--a4-rot);
+  font-size: calc(var(--u) * 2);
   font-weight: 600;
 }
 
@@ -109,14 +140,14 @@
 
 /* ---------- QR-Code mit Hinweis ---------- */
 .a4-qr {
-  flex: 0 0 62mm;
+  flex: 0 0 calc(var(--u) * 21);
   text-align: center;
 }
 
 .a4-qr-bild {
-  padding: 3.5mm;
-  border: 1mm solid var(--a4-text);
-  border-radius: 3mm;
+  padding: calc(var(--u) * 1.2);
+  border: calc(var(--u) * 0.34) solid var(--a4-text);
+  border-radius: calc(var(--u) * 1);
   background: #fff;
 }
 
@@ -127,74 +158,70 @@
 }
 
 .a4-qr-titel {
-  margin: 5mm 0 2mm;
-  font-size: 15pt;
+  margin: calc(var(--u) * 1.7) 0 calc(var(--u) * 0.6);
+  font-size: calc(var(--u) * 1.8);
   font-weight: 700;
   line-height: 1.2;
 }
 
 .a4-qr-text {
   margin: 0;
-  font-size: 10.5pt;
-  line-height: 1.35;
+  font-size: calc(var(--u) * 1.25);
+  line-height: 1.3;
   color: var(--a4-grau);
 }
 
+/* Auf vier Etiketten je Seite ist die Karte zu klein fuer den Erklaertext —
+   der QR-Code und seine Frage genuegen dort. */
+.bogen[data-pro-seite="4"] .a4-qr-text { display: none; }
+
 /* ---------- Fuss: Abteilung und Leitspruch ---------- */
 .a4-fuss {
-  flex: 0 0 24mm;
+  flex: 0 0 calc(var(--u) * 8);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8mm;
-  padding: 0 14mm;
+  gap: calc(var(--u) * 3);
+  padding: 0 calc(var(--u) * 5);
   background: var(--a4-rot);
   color: #fff;
 }
 
 .a4-abteilung {
-  font-size: 20pt;
+  font-size: calc(var(--u) * 2.4);
   font-weight: 800;
-  letter-spacing: .16em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .a4-slogan {
-  font-size: 12pt;
+  font-size: calc(var(--u) * 1.45);
   text-align: right;
   opacity: .92;
 }
 
 /* ---------- Am Bildschirm ---------- */
-/* Ein A4-Blatt im Querformat ist 1123 Pixel breit und passt damit auf keinen
-   Handybildschirm und auf manchen Laptop knapp nicht. Fuer die Vorschau wird es
-   verkleinert; gedruckt wird immer in Originalgroesse. */
-@media screen and (max-width: 1200px) {
-  .a4 { zoom: .78; }
+/* Ein A4-Blatt ist in echten Millimetern breiter als die meisten Bildschirme.
+   Fuer die Vorschau werden die Blaetter verkleinert; gedruckt wird immer in
+   Originalgroesse. */
+@media screen {
+  .bogen { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; }
+  .blatt { box-shadow: 0 2px 22px rgba(0, 0, 0, .22); background: #fff; }
 }
-
-@media screen and (max-width: 960px) {
-  .a4 { zoom: .58; }
-}
-
-@media screen and (max-width: 740px) {
-  .a4 { zoom: .43; }
-}
-
-@media screen and (max-width: 560px) {
-  .a4 { zoom: .29; }
-}
+@media screen and (max-width: 1180px) { .blatt { zoom: .8; } }
+@media screen and (max-width: 940px)  { .blatt { zoom: .62; } }
+@media screen and (max-width: 720px)  { .blatt { zoom: .46; } }
+@media screen and (max-width: 520px)  { .blatt { zoom: .32; } }
 
 @media print {
-  .a4 {
-    margin: 0;
+  .blatt {
     box-shadow: none;
     zoom: 1;
     break-after: page;
     page-break-after: always;
   }
-  .a4:last-of-type {
+  .blatt:last-of-type {
     break-after: auto;
     page-break-after: auto;
   }

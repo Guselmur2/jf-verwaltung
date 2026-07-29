@@ -23,7 +23,7 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Arten & Größen (inkl. Barcode-Präfix) | `/ausruestungsarten` | Betreuer |
 | Ausgemusterte Teile | `/ausgemustert` | Betreuer |
 | QR-Aufkleber drucken | `/qr` | Betreuer |
-| Spint-Etiketten in A4 quer | `/etiketten`, `/etikett/7` | Betreuer |
+| Spint-Etiketten (1/2/4 je Seite) | `/etiketten`, `/etikett/7` | Betreuer |
 | Logo der Wehr | `/logo` | **jeder** |
 | Änderungsverlauf | `/verlauf` | Betreuer |
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
@@ -519,7 +519,7 @@ Es gibt zwei Formate für dieselbe Sache:
 
 | | `/qr` | `/etiketten` |
 |---|---|---|
-| Größe | mehrere Aufkleber je Blatt | ein DIN-A4-Blatt **quer** je Spint |
+| Größe | mehrere Aufkleber je Blatt | 1, 2 oder 4 Etiketten je Blatt |
 | Zeigt | Nummer, Name, Klartext-Adresse | Logo, Name der Wehr, Name in groß, QR-Code |
 | Wofür | Lagerorte, Kisten, kleine Beschriftungen | die Spinttür |
 
@@ -530,35 +530,43 @@ Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=https://jf
 in die Service-Datei eintragen. Dann stimmen die QR-Codes unabhängig davon, über welchen
 Namen man die Seite gerade aufruft.
 
-### Das A4-Etikett für die Spinttür
+### Das Spint-Etikett für die Spinttür
 
-`/etiketten` druckt für jeden Spint ein Blatt im **Querformat** (297 × 210 mm): oben Logo und
-Name der Wehr, links groß **„Dieser Spint wird benutzt von …"**, rechts der QR-Code mit der
-Frage *„Was ist hier drin?"*, unten der Schriftzug der Abteilung. Ein einzelnes Blatt gibt es
-über den Knopf **Etikett drucken** auf der Spint-Seite oder unter `/etikett/<nr>`.
+`/etiketten` druckt die Etiketten: oben Logo und Name der Wehr, groß **„Dieser Spint wird
+benutzt von …"**, daneben der QR-Code mit der Frage *„Was ist hier drin?"*, unten der
+Schriftzug der Abteilung. Ein einzelnes Etikett gibt es über den Knopf **Etikett drucken** auf
+der Spint-Seite oder unter `/etikett/<nr>`.
 
-Drei Dinge zum Drucken:
+**Wie viele je Seite** wählt man oben aus — 1, 2 oder 4. Voreinstellung ist **2 je Seite**;
+das passt an den meisten Spinten. Eins je Seite dreht das Blatt ins Querformat (für einen
+Aushang), vier je Seite ergibt kleine Etiketten für Kisten und Fächer.
 
-* **Querformat** wählen — der Browser übernimmt es meist von selbst aus der Seite, manche
-  Druckdialoge fragen trotzdem.
-* **„Ränder: keine"**, sonst schrumpft der Browser das Blatt und die roten Balken enden vor
-  der Papierkante.
-* **Hintergrundgrafiken** müssen an sein — in Chrome unter „Weitere Einstellungen“. Sonst
-  bleiben die Balken weiß.
+Zum Drucken nur zwei Dinge:
 
-Die Schriftgröße des Namens wird nicht geschätzt, sondern ausgerechnet: `namensgroesse()` in
-`src/routes/etiketten.js` stellt den Zeilenumbruch nach und nimmt den größten Grad, bei dem
-kein Wort breiter als eine Zeile ist und alle Zeilen zusammen in die Höhe passen. Dabei
-zählen `m` und `w` breiter als `i` und `l` — ohne diese Gewichtung zerriss der Browser
-„Wollmann“ mitten im Wort, während „Lindenberger“ unnötig klein blieb.
+* **„Tatsächliche Größe"** (100 %) statt „An Seite anpassen" — sonst skaliert der Browser das
+  Etikett.
+* **Hintergrundgrafiken** an — in Chrome unter „Weitere Einstellungen“, sonst bleiben die
+  roten Balken weiß.
 
-Weil die Spalte im Querformat 195 mm breit ist, wird zusätzlich einzeilig gesetzt, sofern das
-höchstens ein Drittel Schriftgröße kostet: „Lena Sommer“ steht so in einer Zeile statt in
-zwei. „Maximilian Schmidtberger“ wäre einzeilig zu klein und bleibt zweizeilig, dafür groß.
-In der Praxis füllen die Namen damit 78–84 % der Spalte.
+Um die **Ränder** muss man sich nicht mehr kümmern. Früher lief das Etikett bis an die
+Blattkante, und jeder Heimdrucker schnitt die roten Balken ab (der Grund, warum das erste
+Exemplar den Umweg über Word nehmen musste). Jetzt sitzt jedes Etikett als umrandete Karte mit
+Sicherheitsabstand (`@page`-Rand 8 mm plus Abstand im Raster) sicher innerhalb des bedruckbaren
+Bereichs.
 
-> Ändert sich die Aufteilung in `public/etikett.css`, müssen `SPALTE_MM` und `NAME_MM` in
-> `src/routes/etiketten.js` mitgezogen werden — sie beschreiben denselben Satzspiegel.
+**Ein Bauprinzip zum Nachlesen:** Alle Layouts sind dieselbe Karte in verschiedenen Größen. In
+`public/etikett.css` steht `--kw` (Kartenbreite) je `data-pro-seite`, `--u` ist ein Hundertstel
+davon, und alle Maße darin sind Vielfache von `--u`. So skaliert die Karte als Ganzes. Die
+Schriftgröße des Namens wird nicht geschätzt, sondern in `namensgroesse()`
+(`src/routes/etiketten.js`) ausgerechnet: der Zeilenumbruch wird nachgestellt und der größte
+Grad genommen, bei dem kein Wort breiter als eine Zeile ist und alle Zeilen in die Höhe passen.
+Dabei zählen `m` und `w` breiter als `i` und `l` — ohne diese Gewichtung zerriss der Browser
+„Wollmann“ mitten im Wort. Weil die Karte in allen Layouts gleich geformt ist, genügt der
+Anteil (`NAME_SPALTE`, `NAME_HOEHE`); die passende Schrift skaliert dann mit `kartenBreiteMm`
+aus `LAYOUTS`.
+
+> Ändert sich die Kartengröße in `public/etikett.css` (`--kw`), muss `kartenBreiteMm` in
+> `LAYOUTS` (`src/routes/etiketten.js`) mitgezogen werden — beide beschreiben dieselbe Karte.
 
 ### Stammdaten: Name und Logo
 

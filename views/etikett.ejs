@@ -1,24 +1,39 @@
 <%- include('partials/kopf', { stil: 'etikett' }) %>
 
+<%# Ein Etikett je Seite steht quer, zwei und vier hoch. Die @page-Regel legt
+    das fest und laesst sich nur so — pro Aufruf — umschalten. %>
+<style>@page { size: A4 <%= layout.quer ? 'landscape' : 'portrait' %>; margin: 8mm; }</style>
+
 <div class="seitenkopf nichtdrucken">
-  <h1><%= einzeln ? `Etikett Spint ${seiten[0].locker.code}` : 'Spint-Etiketten' %></h1>
-  <% if (seiten.length) { %>
+  <h1><%= einzeln ? `Etikett Spint ${etiketten[0].locker.code}` : 'Spint-Etiketten' %></h1>
+  <% if (etiketten.length) { %>
     <button class="btn" type="button" onclick="window.print()">
-      <%= seiten.length === 1 ? 'Drucken' : `Alle ${seiten.length} drucken` %>
+      <%= etiketten.length === 1 ? 'Drucken' : `Alle ${etiketten.length} drucken` %>
     </button>
   <% } %>
 </div>
 
 <p class="klein nichtdrucken">
-  Ein DIN-A4-Blatt im Querformat je Spint, zum Aufkleben oder Einstecken an der Spinttür.
-  Name und Logo kommen aus den <a href="/stammdaten">Stammdaten</a>.
-  Beim Drucken <strong>Querformat</strong> und <strong>„Ränder: keine“</strong> wählen und
-  Hintergrundgrafiken einschalten — sonst enden die roten Balken vor der Blattkante oder
-  bleiben ganz weiß.
+  Zum Aufkleben oder Einstecken an der Spinttür. Name und Logo kommen aus den
+  <a href="/stammdaten">Stammdaten</a>. Im Druckdialog <strong>„Tatsächliche Größe“</strong>
+  (100 %, nicht „An Seite anpassen“) wählen und Hintergrundgrafiken einschalten, damit die roten
+  Balken mitdrucken. Um die Ränder musst du dich nicht mehr kümmern — das Etikett hält von selbst
+  Abstand zur Blattkante.
 </p>
 
-<% if (!einzeln) { %>
-  <form method="get" action="/etiketten" class="filterleiste nichtdrucken">
+<form method="get" action="<%= einzeln ? `/etikett/${etiketten[0].locker.id}` : '/etiketten' %>"
+      class="filterleiste nichtdrucken">
+  <label>
+    <span>Etiketten je Seite</span>
+    <select name="pro" onchange="this.form.submit()">
+      <option value="1" <%= layout.proSeite === 1 ? 'selected' : '' %>>1 — ganze Seite (quer)</option>
+      <option value="2" <%= layout.proSeite === 2 ? 'selected' : '' %>>2 — halbe Seite</option>
+      <option value="4" <%= layout.proSeite === 4 ? 'selected' : '' %>>4 — Viertelseite</option>
+    </select>
+    <small>Zwei je Seite passen an den meisten Spinten.</small>
+  </label>
+
+  <% if (!einzeln) { %>
     <% if (showAreas && areas.length > 1) { %>
       <label>
         <span>Umkleidebereich</span>
@@ -42,52 +57,58 @@
         Nach dem Ändern erst prüfen, dann drucken.
       </small>
     </label>
-    <button class="btn btn-klein" type="submit">Übernehmen</button>
-  </form>
-<% } %>
+  <% } %>
+  <button class="btn btn-klein" type="submit">Übernehmen</button>
+</form>
 
-<% if (!seiten.length) { %>
+<% if (!etiketten.length) { %>
   <p class="leer nichtdrucken">Keine Spinte für diese Auswahl.</p>
 <% } %>
 
-<% seiten.forEach(function (s) { %>
-  <article class="a4">
-    <header class="a4-kopf">
-      <% if (daten.hatLogo) { %>
-        <img class="a4-logo" src="/logo?v=<%= daten.logoStand %>" alt="">
-      <% } %>
-      <div class="a4-org"><%= daten.organisation %></div>
-    </header>
+<div class="bogen" data-pro-seite="<%= layout.proSeite %>">
+  <% blaetter.forEach(function (blatt) { %>
+    <section class="blatt">
+      <% blatt.forEach(function (s) { %>
+        <article class="a4">
+          <header class="a4-kopf">
+            <% if (daten.hatLogo) { %>
+              <img class="a4-logo" src="/logo?v=<%= daten.logoStand %>" alt="">
+            <% } %>
+            <div class="a4-org"><%= daten.organisation %></div>
+          </header>
 
-    <div class="a4-mitte">
-      <div class="a4-haupt">
-        <% if (s.name) { %>
-          <p class="a4-anrede">Dieser Spint wird benutzt von</p>
-          <p class="a4-name" style="font-size: <%= s.schrift %>pt"><%= s.name %></p>
-        <% } else { %>
-          <p class="a4-anrede">Dieser Spint ist</p>
-          <p class="a4-name frei" style="font-size: <%= s.schrift %>pt">frei</p>
-        <% } %>
-        <p class="a4-spint">
-          Spint <%= s.locker.code %><% if (s.bereich && showAreas) { %> <span>· <%= s.bereich %></span><% } %>
-        </p>
-      </div>
+          <div class="a4-mitte">
+            <div class="a4-haupt">
+              <% if (s.name) { %>
+                <p class="a4-anrede">Dieser Spint wird benutzt von</p>
+                <p class="a4-name" style="font-size: <%= s.schrift %>pt"><%= s.name %></p>
+              <% } else { %>
+                <p class="a4-anrede">Dieser Spint ist</p>
+                <p class="a4-name frei" style="font-size: <%= s.schrift %>pt">frei</p>
+              <% } %>
+              <p class="a4-spint">
+                Spint <%= s.locker.code %><% if (s.bereich && showAreas) { %> <span>· <%= s.bereich %></span><% } %>
+              </p>
+            </div>
 
-      <aside class="a4-qr">
-        <div class="a4-qr-bild"><%- s.svg %></div>
-        <p class="a4-qr-titel">Was ist hier drin?</p>
-        <p class="a4-qr-text">
-          Mit der Handykamera scannen. Dann steht da, welche Jacke, Hose, Handschuhe,
-          Schuhe und welcher Helm zu diesem Spint gehören — mit Größe und Nummer.
-        </p>
-      </aside>
-    </div>
+            <aside class="a4-qr">
+              <div class="a4-qr-bild"><%- s.svg %></div>
+              <p class="a4-qr-titel">Was ist hier drin?</p>
+              <p class="a4-qr-text">
+                Mit der Handykamera scannen. Dann steht da, welche Jacke, Hose, Handschuhe,
+                Schuhe und welcher Helm zu diesem Spint gehören — mit Größe und Nummer.
+              </p>
+            </aside>
+          </div>
 
-    <footer class="a4-fuss">
-      <span class="a4-abteilung"><%= daten.abteilung %></span>
-      <% if (daten.slogan) { %><span class="a4-slogan"><%= daten.slogan %></span><% } %>
-    </footer>
-  </article>
-<% }); %>
+          <footer class="a4-fuss">
+            <span class="a4-abteilung"><%= daten.abteilung %></span>
+            <% if (daten.slogan) { %><span class="a4-slogan"><%= daten.slogan %></span><% } %>
+          </footer>
+        </article>
+      <% }); %>
+    </section>
+  <% }); %>
+</div>
 
 <%- include('partials/fuss') %>

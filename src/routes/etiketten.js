@@ -23,20 +23,24 @@ function wortbreite(wort) {
   }, 0);
 }
 
-// Satzspiegel des Etiketts in Millimetern. Muss zu etikett.css passen — dort
-// steht dieselbe Aufteilung (A4 quer, 297 x 210 mm).
-const SPALTE_MM = 195; // Breite der Namensspalte
-const NAME_MM = 78; //    Hoehe, die dem Namen bleibt
 const PT_JE_MM = 2.8346;
 
 // Wie viele Zeichenbreiten bei einem Schriftgrad von 1 pt in einen Millimeter
 // passen — an der Schrift gemessen.
 const EINHEITEN_JE_MM = 4.107;
 
-const GROESSTE = 96;
-const KLEINSTE = 24;
+const GROESSTE = 92;
+const KLEINSTE = 10;
 const ZEILENHOEHE = 1.02; // wie in etikett.css
 const LEERZEICHEN = 0.5;
+
+// Anteil der Kartenbreite, der dem Namen bleibt — Breite der Namensspalte und
+// die Hoehe, die im Mittelteil fuer den Namen frei ist. Die Werte spiegeln die
+// Aufteilung in etikett.css wider (Namensspalte neben dem QR-Code). Weil alle
+// Layouts dieselbe Karte in verschiedenen Groessen sind, genuegt ein Anteil:
+// die passende Schrift skaliert dann mit der Kartenbreite.
+const NAME_SPALTE = 0.62;
+const NAME_HOEHE = 0.24;
 
 /** Wie viele Zeilen der Name bei dieser Zeilenkapazitaet braucht. */
 function zeilenzahl(worte, kapazitaet) {
@@ -54,7 +58,7 @@ function zeilenzahl(worte, kapazitaet) {
 }
 
 /**
- * Schriftgroesse fuer den Namen — das Groesste auf dem Blatt.
+ * Schriftgroesse fuer den Namen — das Groesste auf der Karte.
  *
  * Statt einer Faustformel wird der Zeilenumbruch nachgestellt und der groesste
  * Grad genommen, bei dem beides stimmt: kein Wort ist breiter als eine Zeile
@@ -62,8 +66,12 @@ function zeilenzahl(worte, kapazitaet) {
  * in der Hoehe. So bekommt "Ben" die volle Groesse, waehrend
  * "Maximilian Schmidtberger" so weit heruntergeht, wie es noetig ist — aber
  * keinen Punkt weiter.
+ *
+ * spalteMm/hoeheMm sind der Platz fuer den Namen auf der jeweiligen Karte. Bei
+ * vier Etiketten je Seite ist die Karte kleiner, also faellt die Schrift
+ * kleiner aus — dieselbe Rechnung, andere Masse.
  */
-function namensgroesse(name) {
+function namensgroesse(name, spalteMm, hoeheMm) {
   const worte = String(name)
     .trim()
     .split(/\s+/)
@@ -71,8 +79,9 @@ function namensgroesse(name) {
     .map(wortbreite);
   if (!worte.length) return GROESSTE;
 
-  const jeZeile = EINHEITEN_JE_MM * SPALTE_MM; // Einheiten mal Schriftgrad
-  const platz = NAME_MM * PT_JE_MM;
+  const jeZeile = EINHEITEN_JE_MM * spalteMm; // Einheiten mal Schriftgrad
+  const platz = hoeheMm * PT_JE_MM;
+  const maxEineZeile = Math.floor(platz / ZEILENHOEHE); // Hoehe fuer genau eine Zeile
 
   let mehrzeilig = KLEINSTE;
   for (let grad = GROESSTE; grad > KLEINSTE; grad--) {
@@ -84,24 +93,38 @@ function namensgroesse(name) {
     }
   }
 
-  // Im Querformat ist die Spalte breit. "Lena Sommer" wuerde im groesstmoeglichen
-  // Grad zweizeilig gesetzt und liesse die halbe Spalte leer — einzeilig sieht
-  // das deutlich besser aus. Also einzeilig setzen, sofern das nicht mehr als ein
-  // Drittel Schriftgroesse kostet. Bei "Maximilian Schmidtberger" waere der
-  // Verlust zu gross; der bleibt zweizeilig und dafuer gross.
+  // Ist die Spalte breit, wuerde "Lena Sommer" im groesstmoeglichen Grad
+  // zweizeilig gesetzt und liesse die halbe Spalte leer — einzeilig sieht das
+  // besser aus. Also einzeilig setzen, sofern das nicht mehr als ein Drittel
+  // Schriftgroesse kostet und die eine Zeile auch in die Hoehe passt. Bei
+  // "Maximilian Schmidtberger" waere der Verlust zu gross; der bleibt
+  // zweizeilig und dafuer gross.
   const gesamt = worte.reduce((summe, wort) => summe + wort, 0) + LEERZEICHEN * (worte.length - 1);
-  const einzeilig = Math.min(GROESSTE, Math.floor(jeZeile / gesamt));
+  const einzeilig = Math.min(GROESSTE, maxEineZeile, Math.floor(jeZeile / gesamt));
   if (einzeilig >= mehrzeilig * 0.7) return einzeilig;
 
   return mehrzeilig;
+}
+
+// Die drei Druck-Layouts. kartenBreiteMm muss zu etikett.css passen (--kw je
+// data-pro-seite). quer schaltet die Seite ins Querformat.
+const LAYOUTS = {
+  1: { proSeite: 1, kartenBreiteMm: 281, quer: true },
+  2: { proSeite: 2, kartenBreiteMm: 194, quer: false },
+  4: { proSeite: 4, kartenBreiteMm: 94, quer: false },
+};
+
+function layoutWaehlen(wert, vorgabe) {
+  const n = Number(wert);
+  return LAYOUTS[n] ? LAYOUTS[n] : LAYOUTS[vorgabe];
 }
 
 function basisAdresse(req) {
   return (req.query.basis || process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
 }
 
-/** Baut die Druckdaten eines Spints zusammen. */
-async function seite(locker, basis) {
+/** Baut die Druckdaten eines Etiketts zusammen — Schrift passend zur Karte. */
+async function etikett(locker, basis, layout) {
   const member = locker.member_id ? m.q.memberById.get(locker.member_id) : null;
   const area = locker.area_id ? m.q.areaById.get(locker.area_id) : null;
   const url = `${basis}/s/${locker.token}`;
@@ -110,26 +133,40 @@ async function seite(locker, basis) {
     name: member ? member.name : null,
     bereich: area ? area.name : null,
     url,
-    schrift: namensgroesse(member ? member.name : 'frei'),
+    schrift: namensgroesse(
+      member ? member.name : 'frei',
+      layout.kartenBreiteMm * NAME_SPALTE,
+      layout.kartenBreiteMm * NAME_HOEHE
+    ),
     svg: await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'Q' }),
   };
 }
 
-// Alle Spinte, ein DIN-A4-Blatt je Spint.
+/** Etiketten in Seiten zu je proSeite Stueck aufteilen. */
+function inSeiten(etiketten, proSeite) {
+  const blaetter = [];
+  for (let i = 0; i < etiketten.length; i += proSeite) blaetter.push(etiketten.slice(i, i + proSeite));
+  return blaetter;
+}
+
+// Alle Spinte, mehrere Etiketten je DIN-A4-Blatt.
 router.get('/etiketten', auth.requireLogin, async (req, res, next) => {
   try {
     const basis = basisAdresse(req);
     const bereich = req.query.bereich || '';
     const nurBelegt = req.query.belegt === '1';
+    const layout = layoutWaehlen(req.query.pro, 2);
 
     let lockers = m.allLockers();
     if (bereich) lockers = lockers.filter((l) => String(l.area_id) === String(bereich));
     if (nurBelegt) lockers = lockers.filter((l) => l.member_id);
 
-    const seiten = await Promise.all(lockers.map((l) => seite(l, basis)));
+    const etiketten = await Promise.all(lockers.map((l) => etikett(l, basis, layout)));
     res.render('etikett', {
       title: 'Spint-Etiketten',
-      seiten,
+      etiketten,
+      blaetter: inSeiten(etiketten, layout.proSeite),
+      layout,
       basis,
       einzeln: false,
       bereich,
@@ -142,7 +179,8 @@ router.get('/etiketten', auth.requireLogin, async (req, res, next) => {
   }
 });
 
-// Ein einzelnes Blatt — der Weg von der Spint-Seite aus.
+// Ein einzelner Spint — der Weg von der Spint-Seite aus. Voreinstellung: ein
+// grosses Etikett je Seite, laesst sich mit ?pro= aber auch kleiner drucken.
 router.get('/etikett/:id(\\d+)', auth.requireLogin, async (req, res, next) => {
   try {
     const locker = m.q.lockerById.get(req.params.id);
@@ -153,9 +191,13 @@ router.get('/etikett/:id(\\d+)', auth.requireLogin, async (req, res, next) => {
       });
     }
     const basis = basisAdresse(req);
+    const layout = layoutWaehlen(req.query.pro, 1);
+    const eins = await etikett(locker, basis, layout);
     res.render('etikett', {
       title: `Etikett Spint ${locker.code}`,
-      seiten: [await seite(locker, basis)],
+      etiketten: [eins],
+      blaetter: [[eins]],
+      layout,
       basis,
       einzeln: true,
       bereich: '',
