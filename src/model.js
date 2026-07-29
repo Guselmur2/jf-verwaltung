@@ -122,8 +122,10 @@ function storageEquipment({ typeId = null, search = '', storageId = null, ohneGr
          FROM equipment e
          JOIN equipment_types t ON t.id = e.type_id
          LEFT JOIN storages st ON st.id = e.storage_id
+         ${GROESSEN_JOIN}
         WHERE ${where.join(' AND ')}
-        ORDER BY st.sort_order, st.name COLLATE NOCASE, t.sort_order, t.name COLLATE NOCASE, e.size, e.inventory_no`
+        ORDER BY st.sort_order, st.name COLLATE NOCASE, t.sort_order, t.name COLLATE NOCASE,
+                 ${GROESSEN_ORDER}, e.inventory_no`
     )
     .all(params);
 }
@@ -160,6 +162,17 @@ function setDefaultStorage(id) {
   return defaultStorageId();
 }
 
+// Groessen so sortieren, wie sie im Schema stehen — dort ist die richtige
+// Reihenfolge hinterlegt (nach 176 folgt 44, nicht davor). Bekannte Groessen
+// zuerst nach ihrer sort_order; alles Unbekannte danach, hilfsweise numerisch.
+// Nur so landen echte Etiketten wie "176/44" an der richtigen Stelle — sobald
+// sie im Schema stehen.
+const GROESSEN_JOIN =
+  'LEFT JOIN sizes sz ON sz.scheme = t.size_scheme AND sz.wert = e.size COLLATE NOCASE';
+const GROESSEN_ORDER =
+  "CASE WHEN sz.sort_order IS NULL THEN 1 ELSE 0 END, sz.sort_order, " +
+  "CASE WHEN e.size GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(e.size AS INTEGER), e.size";
+
 /** Teile eines Lagerorts, nach Art gruppiert — "10 x Jacke, 20 x Schuhe". */
 function storageContents(storageId) {
   const items = db
@@ -167,10 +180,9 @@ function storageContents(storageId) {
       `SELECT e.*, t.name AS type_name, t.has_size, t.has_inventory, t.sort_order
          FROM equipment e
          JOIN equipment_types t ON t.id = e.type_id
+         ${GROESSEN_JOIN}
         WHERE e.storage_id = @id AND e.locker_id IS NULL AND e.retired = 0
-        ORDER BY t.sort_order, t.name COLLATE NOCASE,
-                 CASE WHEN e.size GLOB '[0-9]*' THEN 0 ELSE 1 END,
-                 CAST(e.size AS INTEGER), e.size, e.inventory_no`
+        ORDER BY t.sort_order, t.name COLLATE NOCASE, ${GROESSEN_ORDER}, e.inventory_no`
     )
     .all({ id: storageId });
 

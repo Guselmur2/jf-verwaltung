@@ -22,8 +22,8 @@
 //           Jugendfeuerwehr-Bundhose (feuerwehrversand.de), lieferbar
 //           128 … 176 sowie 48 … 60.
 //
-// Handschuhgrößen nach Handumfang: 6 (ca. 19 cm) bis 12 (ca. 33 cm),
-// entspricht XS bis XXXL.
+// Handschuhgrößen nach Handumfang: 4 (Kinderhand) bis 12 (ca. 33 cm, XXXL).
+// In der Jugendfeuerwehr kommen die kleinen Größen 4 und 5 vor.
 //   Quelle: keiler.net/service/groesse-finden
 //
 // Schuhgrößen als europäische Zahlenreihe.
@@ -47,8 +47,8 @@ const SCHEMES = [
   {
     name: 'handschuh',
     label: 'Handschuhe',
-    note: 'Nach Handumfang: 6 ≈ 19 cm, 12 ≈ 33 cm (XS bis XXXL).',
-    gruppen: [{ gruppe: 'Handschuhgröße', werte: reihe(6, 12, 1) }],
+    note: 'Nach Handumfang: 4 (Kinderhand) bis 12 (ca. 33 cm).',
+    gruppen: [{ gruppe: 'Handschuhgröße', werte: reihe(4, 12, 1) }],
   },
   {
     name: 'schuh',
