@@ -152,6 +152,13 @@ weist die Software darum ab.
 Ausrüstung ohne Lagerort ist nicht verloren, sie läuft unter „ohne Ort" und lässt sich von
 dort einsortieren. Wird ein Lagerort gelöscht, wandert sein Inhalt genau dorthin.
 
+Ein Lagerort lässt sich als **Standard** markieren (Knopf „☆ als Standard" auf der
+Lagerorte-Seite). Neue Teile, die ohne gewähltes Ziel eingebucht werden, landen dann dort —
+im Formular ist er vorausgewählt und mit „(Standard)" beschriftet, und auch die
+[API](#api) legt ohne `lagerort_id`/`spint_id` dorthin ab. Höchstens ein Lagerort ist
+Standard; ein erneuter Klick hebt die Markierung auf. Wer bewusst „ohne Ort" wählt, umgeht den
+Standard — das bleibt eine eigene Entscheidung.
+
 ## Barcode scannen
 
 Auf den Etiketten der Einsatzkleidung steht die Inventarnummer meist auch als Strichcode.

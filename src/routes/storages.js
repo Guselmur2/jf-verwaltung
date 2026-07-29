@@ -67,6 +67,24 @@ router.post('/lagerorte/erfassen', login, (req, res) => {
   res.redirect('/lagerorte');
 });
 
+// Standard-Lagerort setzen oder aufheben. Neue Teile ohne gewaehltes Ziel
+// landen hier. Ist der Ort schon der Standard, hebt ein erneuter Klick es auf.
+router.post('/lagerort/:id/standard', login, (req, res) => {
+  const storage = m.q.storageById.get(req.params.id);
+  if (!storage) return res.redirect('/lagerorte');
+
+  const neu = storage.is_default ? null : storage.id;
+  m.setDefaultStorage(neu);
+  audit.log(req, 'lagerort', storage.id, 'Standard-Lagerort', neu ? storage.name : 'aufgehoben');
+  req.session.flash = {
+    type: 'ok',
+    text: neu
+      ? `„${storage.name}“ ist jetzt der Standard-Lagerort — neue Teile ohne gewähltes Ziel landen hier.`
+      : `„${storage.name}“ ist nicht mehr der Standard-Lagerort.`,
+  };
+  res.redirect('/lagerorte');
+});
+
 router.post('/lagerorte/neu', login, (req, res) => {
   const data = clean(req.body);
   if (!data.name) {

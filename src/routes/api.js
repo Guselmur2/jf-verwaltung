@@ -352,7 +352,9 @@ router.post('/ausruestung', schreiben, (req, res) => {
 
   const zustand = ['gut', 'gebraucht', 'defekt'].includes(b.zustand) ? b.zustand : 'gut';
   const spint = b.spint_id ? Number(b.spint_id) : null;
-  const lagerort = b.lagerort_id ? Number(b.lagerort_id) : null;
+  // Ohne Spint und ohne Lagerort greift der Standard-Lagerort, sofern gesetzt.
+  let lagerort = b.lagerort_id ? Number(b.lagerort_id) : null;
+  if (!spint && !lagerort) lagerort = m.defaultStorageId();
   if (spint && !m.q.lockerById.get(spint)) return res.status(400).json({ fehler: 'Spint nicht gefunden.' });
   if (lagerort && !m.q.storageById.get(lagerort)) return res.status(400).json({ fehler: 'Lagerort nicht gefunden.' });
 

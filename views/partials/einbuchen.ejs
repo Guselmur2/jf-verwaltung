@@ -31,7 +31,7 @@
         <label><span>Lagerort</span>
           <select name="ziel" aria-label="Lagerort">
             <% storages.forEach(function (s) { %>
-              <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+              <option value="lager:<%= s.id %>" <%= (ort ? String(s.id) === String(ort) : s.is_default) ? 'selected' : '' %>><%= s.name %><%= s.is_default ? ' (Standard)' : '' %></option>
             <% }); %>
             <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
           </select>
@@ -81,7 +81,7 @@
         <label><span>Lagerort</span>
           <select name="ziel" aria-label="Lagerort">
             <% storages.forEach(function (s) { %>
-              <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+              <option value="lager:<%= s.id %>" <%= (ort ? String(s.id) === String(ort) : s.is_default) ? 'selected' : '' %>><%= s.name %><%= s.is_default ? ' (Standard)' : '' %></option>
             <% }); %>
             <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
           </select>

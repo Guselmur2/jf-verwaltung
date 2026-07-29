@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS storages (
   token      TEXT,                                   -- Geheimnis fuer den QR-Link
   location   TEXT,                                   -- z.B. "Gerätehaus, Raum 2"
   note       TEXT,
+  -- Standard-Lagerort: neue Teile ohne gewaehltes Ziel landen hier. Hoechstens
+  -- einer traegt die 1 — dafuer sorgt der Code (setDefaultStorage in model.js).
+  is_default INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 100,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

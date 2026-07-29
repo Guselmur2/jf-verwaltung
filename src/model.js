@@ -137,6 +137,24 @@ function storagesAll() {
     .all();
 }
 
+/** id des Standard-Lagerorts oder null. Neue Teile ohne Ziel landen dort. */
+function defaultStorageId() {
+  const zeile = db.prepare('SELECT id FROM storages WHERE is_default = 1 LIMIT 1').get();
+  return zeile ? zeile.id : null;
+}
+
+/**
+ * Setzt den Standard-Lagerort. Hoechstens einer traegt die Markierung — beim
+ * Setzen werden die anderen zurueckgesetzt. id = null hebt sie ganz auf.
+ */
+function setDefaultStorage(id) {
+  db.transaction(() => {
+    db.prepare('UPDATE storages SET is_default = 0').run();
+    if (id) db.prepare('UPDATE storages SET is_default = 1 WHERE id = ?').run(id);
+  })();
+  return defaultStorageId();
+}
+
 /** Teile eines Lagerorts, nach Art gruppiert — "10 x Jacke, 20 x Schuhe". */
 function storageContents(storageId) {
   const items = db
@@ -631,6 +649,8 @@ module.exports = {
   openTaskOfEquipment,
   storageEquipment,
   storagesAll,
+  defaultStorageId,
+  setDefaultStorage,
   storageContents,
   findReplacement,
   replacementCandidates,

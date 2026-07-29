@@ -89,7 +89,14 @@ function zielGueltig(ziel) {
 
 router.post('/ausruestung/neu', login, (req, res) => {
   const data = clean(req.body);
-  const ziel = parseZiel(req.body);
+  let ziel = parseZiel(req.body);
+  // Wurde gar kein Ziel angegeben, greift der Standard-Lagerort — aber nur dann.
+  // "Lager ohne Ort" (ziel=lager) ist eine bewusste Wahl und bleibt bestehen.
+  const nichtsGewaehlt = !req.body.ziel && !req.body.storage_id && !req.body.locker_id;
+  if (ziel && nichtsGewaehlt && ziel.storageId == null && ziel.lockerId == null) {
+    const standard = m.defaultStorageId();
+    if (standard) ziel = { lockerId: null, storageId: standard };
+  }
   const anzahl = Math.min(Math.max(Number(req.body.anzahl) || 1, 1), MAX_ANZAHL);
 
   if (!data.type_id || !m.q.typeById.get(data.type_id)) {

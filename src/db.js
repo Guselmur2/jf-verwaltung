@@ -76,6 +76,9 @@ function migrate() {
     db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_prefix TEXT');
     db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_digits INTEGER');
   }
+  if (!hasColumn('storages', 'is_default')) {
+    db.exec('ALTER TABLE storages ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
+  }
   addTokenColumn('lockers', 'lockers_token');
   addTokenColumn('storages', 'storages_token');
   addInventoryUniqueIndex();

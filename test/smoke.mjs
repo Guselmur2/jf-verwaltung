@@ -314,6 +314,40 @@ r = await req('/lagerorte/erfassen', { method: 'POST', form: { _csrf: token, erf
 r = await req('/lager');
 check('wieder offen nach dem Einschalten', !r.text.includes('einbuchen-klapp') && r.text.includes('id="bestand"'));
 
+// Standard-Lagerort: neue Teile ohne gewähltes Ziel landen dort.
+r = await req('/lagerorte');
+check('Standard-Knopf je Lagerort', r.text.includes('/standard'));
+token = await csrf('/lagerorte');
+r = await req(`/lagerort/${schrank}/standard`, { method: 'POST', form: { _csrf: token } });
+check('Standard-Lagerort gesetzt', r.status === 302 && r.location === '/lagerorte', `${r.status} ${r.location}`);
+r = await req('/lagerorte');
+check('Standard wird markiert', r.text.includes('chip-standard') || r.text.includes('★ Standard'));
+
+// Ein Teil ganz ohne Ziel-Feld anlegen → muss im Standard-Lagerort landen.
+token = await csrf('/lager');
+r = await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', type_id: '3', note: 'Standardtest' }, // kein ziel
+});
+check('Anlage ohne Ziel angenommen', r.status === 302);
+r = await req(`/lager?ort=${schrank}`);
+check('Teil landete im Standard-Lagerort', r.text.includes('Standardtest'));
+
+// "Lager ohne Ort" bleibt aber eine bewusste Wahl — der Standard greift da nicht.
+token = await csrf('/lager');
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: 'lager', type_id: '3', note: 'BewusstOhneOrt' },
+});
+r = await req('/lager?ort=ohne');
+check('bewusst „ohne Ort“ bleibt ohne Ort', r.text.includes('BewusstOhneOrt'));
+
+// Erneuter Klick hebt den Standard wieder auf.
+token = await csrf('/lagerorte');
+await req(`/lagerort/${schrank}/standard`, { method: 'POST', form: { _csrf: token } });
+check('Standard wieder aufgehoben', !(await req('/lagerorte')).text.includes('chip-standard'));
+// Danach zurücksetzen, damit die folgenden Abschnitte ohne Standard rechnen.
+
 // 10 Jacken und 20 Paar Schuhe per Mengenangabe
 token = await csrf('/lager');
 r = await req('/ausruestung/neu', {
