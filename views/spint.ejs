@@ -31,7 +31,8 @@
         <li class="teil <%= it.condition === 'defekt' ? 'teil-defekt' : '' %>">
           <span class="teil-art"><%= it.type_name %></span>
           <span class="teil-werte">
-            <% if (it.size) { %><span class="wert"><span class="wert-label">Größe</span><%= it.size %></span><% } %>
+            <% if (it.size) { %><span class="wert"><span class="wert-label">Größe</span><%= it.size %></span>
+            <% } else if (it.has_size) { %><span class="chip chip-fehlt">Größe fehlt</span><% } %>
             <% if (it.inventory_no) { %><span class="wert"><span class="wert-label">Inv.-Nr.</span><%= it.inventory_no %></span><% } %>
             <% if (it.condition !== 'gut') { %><span class="chip chip-<%= it.condition %>"><%= it.condition %></span><% } %>
             <% if (it.task_id) { %>

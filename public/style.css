@@ -310,6 +310,8 @@ button.link { background: none; border: none; padding: 0; color: var(--rot); cur
 .aufgabe-aktionen { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .25rem; }
 .chip-bestellung { background: var(--warn); color: #fff; border-color: var(--warn); }
 .chip-standard { background: var(--ok); color: #fff; border-color: var(--ok); }
+.chip-fehlt { background: var(--warn); color: #fff; border-color: var(--warn); }
+.zeile-ohne-groesse { border-left: 4px solid var(--warn); }
 
 /* Offene Aufgabe an einem Teil: soll ins Auge fallen, damit niemand dasselbe
    ein zweites Mal bestellt. */

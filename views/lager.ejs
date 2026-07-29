@@ -72,9 +72,20 @@
     <% }); %>
     <option value="ohne" <%= ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
   </select>
+  <label class="kasten">
+    <input type="checkbox" name="groesse" value="fehlt" <%= ohneGroesse ? 'checked' : '' %> onchange="this.form.submit()">
+    nur ohne Größe
+  </label>
   <button class="btn btn-klein" type="submit">Filtern</button>
-  <% if (search || typeId || ort) { %><a class="btn btn-klein btn-still" href="/lager">zurücksetzen</a><% } %>
+  <% if (search || typeId || ort || ohneGroesse) { %><a class="btn btn-klein btn-still" href="/lager">zurücksetzen</a><% } %>
 </form>
+
+<% if (ohneGroesseAnzahl > 0 && !ohneGroesse) { %>
+  <p class="hinweis hinweis-warn">
+    <%= ohneGroesseAnzahl %> <%= ohneGroesseAnzahl === 1 ? 'Teil führt eine Größe, hat aber keine' : 'Teile führen eine Größe, haben aber keine' %> hinterlegt —
+    z.&nbsp;B. Handschuhe ohne Etikett. <a href="/lager?groesse=fehlt">Diese anzeigen</a> und nachtragen.
+  </p>
+<% } %>
 
 <% if (items.length === 0) { %>
   <p class="leer">Keine passenden Teile im Lager.</p>
@@ -83,7 +94,9 @@
       eines Teils, das im Lager liegt, gar nicht heran. %>
   <div class="teilliste">
     <% items.forEach(function (it) { %>
-      <div class="teilzeile <%= it.condition === 'defekt' ? 'zeile-defekt' : '' %>">
+      <% const groesseFehlt = it.has_size && !(it.size && it.size.trim()); %>
+      <div class="teilzeile <%= it.condition === 'defekt' ? 'zeile-defekt' : '' %> <%= groesseFehlt ? 'zeile-ohne-groesse' : '' %>">
+        <% if (groesseFehlt) { %><p class="teilhinweis"><span class="chip chip-fehlt">Größe fehlt</span> noch nachtragen</p><% } %>
         <form method="post" action="/ausruestung/<%= it.id %>/bearbeiten" class="teilform">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="zurueck" value="<%= zurueck %>">

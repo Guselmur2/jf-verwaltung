@@ -1306,6 +1306,30 @@ check('auch in der Gruppe', geprueft?.gruppen?.[0]?.gruppe === 'Körpergröße',
 
 await fetch(BASE + '/api/v1/groessen/pruef', { method: 'DELETE', headers: { 'x-api-key': schreibToken } });
 
+console.log('\n30d) Teile ohne Größe finden');
+// Handschuhe ohne Etikett: die Größe bleibt leer statt „o.E“, und das Teil
+// lässt sich gezielt wiederfinden, um die Größe nachzutragen.
+token = await csrf('/lager');
+await req('/ausruestung/neu', {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', ziel: `lager:${schrank}`, type_id: '4', note: 'ohne Etikett' }, // keine size
+});
+r = await req('/lager');
+check('Hinweis auf Teile ohne Größe', r.text.includes('ohne Größe') || r.text.includes('keine Größe'));
+check('„Größe fehlt“ wird markiert', r.text.includes('chip-fehlt'));
+r = await req('/lager?groesse=fehlt');
+check('Filter zeigt nur Teile ohne Größe', r.text.includes('ohne Etikett') && r.text.includes('chip-fehlt'));
+check('ein Teil mit Größe taucht dort nicht auf', !/152\/158/.test(r.text));
+// Größe nachtragen → verschwindet aus der Liste.
+const ohneId = Number(r.text.match(/\/ausruestung\/(\d+)\/bearbeiten/)?.[1]);
+token = await csrf('/lager');
+await req(`/ausruestung/${ohneId}/bearbeiten`, {
+  method: 'POST',
+  form: { _csrf: token, zurueck: '/lager', type_id: '4', size: '8', condition: 'gut', note: 'ohne Etikett' },
+});
+r = await req('/lager?groesse=fehlt');
+check('nach dem Nachtragen nicht mehr in der Liste', !r.text.includes('ohne Etikett'));
+
 console.log('\n31) Wiederherstellung bei der Ersteinrichtung');
 // Zweiter Server mit leerer Datenbank — dort wird die Sicherung eingespielt.
 const zweiterOrdner = mkdtempSync(path.join(tmpdir(), 'jf-restore-test-'));

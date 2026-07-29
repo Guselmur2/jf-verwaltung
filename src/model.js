@@ -94,12 +94,17 @@ function openTaskOfEquipment(equipmentId) {
  * Ausruestung im Lager, also alles ausserhalb der Spinte.
  * storageId: Zahl = nur dieser Lagerort, 'ohne' = ohne Ort, null = alles.
  */
-function storageEquipment({ typeId = null, search = '', storageId = null } = {}) {
+function storageEquipment({ typeId = null, search = '', storageId = null, ohneGroesse = false } = {}) {
   const where = ['e.locker_id IS NULL', 'e.retired = 0'];
   const params = {};
   if (typeId) {
     where.push('e.type_id = @typeId');
     params.typeId = Number(typeId);
+  }
+  // Teile, die eine Groesse fuehren, aber (noch) keine haben — z. B. Handschuhe
+  // ohne Etikett. Die will man gezielt nachtragen.
+  if (ohneGroesse) {
+    where.push("t.has_size = 1 AND (e.size IS NULL OR TRIM(e.size) = '')");
   }
   if (storageId === 'ohne') {
     where.push('e.storage_id IS NULL');

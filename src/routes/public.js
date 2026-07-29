@@ -93,9 +93,10 @@ router.get('/lager', login, (req, res) => {
   const typeId = req.query.art || '';
   const ort = req.query.ort || '';
   const search = (req.query.q || '').trim();
+  const ohneGroesse = req.query.groesse === 'fehlt';
   res.render('lager', {
     title: 'Lager',
-    items: m.storageEquipment({ typeId: typeId || null, search, storageId: ort || null }),
+    items: m.storageEquipment({ typeId: typeId || null, search, storageId: ort || null, ohneGroesse }),
     types: m.activeTypes(),
     lockers: m.allLockers(),
     storages: m.storagesAll(),
@@ -103,6 +104,9 @@ router.get('/lager', login, (req, res) => {
     typeId,
     ort,
     search,
+    ohneGroesse,
+    // Wie viele Teile im Lager warten noch auf ihre Groesse?
+    ohneGroesseAnzahl: m.storageEquipment({ ohneGroesse: true }).length,
   });
 });
 
