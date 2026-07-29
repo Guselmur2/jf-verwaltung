@@ -92,6 +92,7 @@ app.use((req, res, next) => {
   res.locals.showAreas = model.showAreas();
   res.locals.offeneAufgaben = req.session.user ? model.openTaskCount() : 0;
   res.locals.stammdaten = settings.alle();
+  res.locals.erfassen = settings.schalter('erfassen');
   next();
 });
 

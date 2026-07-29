@@ -5,6 +5,7 @@ const { db } = require('../db');
 const auth = require('../auth');
 const audit = require('../audit');
 const m = require('../model');
+const settings = require('../settings');
 const { neuerToken, istToken } = require('../tokens');
 
 const router = express.Router();
@@ -49,6 +50,21 @@ router.get('/lagerort/:id(\\d+)', login, (req, res) => {
 
 router.get('/lagerorte', login, (req, res) => {
   res.render('lagerorte', { title: 'Lagerorte', storages: m.storagesAll(), error: null });
+});
+
+// Erfassungsmodus umschalten. Solange er an ist, steht das Einbuchen im Lager
+// oben; danach hat die Bestandsliste Vorrang.
+router.post('/lagerorte/erfassen', login, (req, res) => {
+  const an = !!req.body.erfassen;
+  settings.setzeSchalter('erfassen', an);
+  audit.log(req, 'einstellung', null, 'Erfassungsmodus', an ? 'an' : 'aus');
+  req.session.flash = {
+    type: 'ok',
+    text: an
+      ? 'Erfassungsmodus an — das Einbuchen steht im Lager wieder oben.'
+      : 'Erfassungsmodus aus — im Lager steht jetzt der Bestand oben, das Einbuchen ist eingeklappt.',
+  };
+  res.redirect('/lagerorte');
 });
 
 router.post('/lagerorte/neu', login, (req, res) => {

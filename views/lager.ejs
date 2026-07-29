@@ -12,118 +12,31 @@
   <h1>Lager</h1>
   <span class="klein"><%= items.length %> Teile</span>
   <a class="btn btn-still" href="/lagerorte">Lagerorte</a>
-  <a class="btn btn-klein btn-still" href="#bestand">↓ Bestand ansehen</a>
+  <% if (erfassen) { %><a class="btn btn-klein btn-still" href="#bestand">↓ Bestand ansehen</a><% } %>
 </div>
 
 <%#
-  Einbuchen steht bewusst ganz oben: beim Einräumen ist das die Aufgabe, und
-  vorher musste man ans Seitenende scrollen — am Handy besonders lästig. Zwei
-  getrennte Wege, weil sie sich im Alltag unterscheiden:
-    · Sammelposten — viele gleiche Teile ohne eigene Nummer (Handschuhe, Schuhe)
-    · Einzelteil   — ein Stück mit Inventarnummer (Jacke, Hose, Helm)
+  Der Erfassungsmodus (Schalter auf /lagerorte) entscheidet, wie prominent das
+  Einbuchen steht. An: offen ganz oben — beim Aufnehmen des Materials ist das
+  die Aufgabe. Aus: nur eingeklappt, der Bestand hat Vorrang. Beide Fassungen
+  teilen sich dasselbe Formular-Partial.
 %>
-<section class="block">
-  <h2>Einbuchen</h2>
-  <div class="einbuchen">
-    <div class="einbuchen-teil">
-      <h3>Sammelposten <span class="klein">— mehrere gleiche, ohne Nummer</span></h3>
-      <p class="klein">Zum Beispiel 6&nbsp;Paar Handschuhe Gr.&nbsp;8. Eine Inventarnummer bekommen die nicht.</p>
-      <form method="post" action="/ausruestung/neu" class="formstapel">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="zurueck" value="<%= zurueck %>">
-        <div class="formraster">
-          <label><span>Art</span>
-            <select name="type_id" required aria-label="Art">
-              <option value="">wählen …</option>
-              <% types.forEach(function (t) { %>
-                <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
-              <% }); %>
-            </select>
-          </label>
-          <label><span>Größe</span>
-            <input name="size" placeholder="z. B. 8" aria-label="Größe" autocomplete="off">
-          </label>
-          <label><span>Anzahl</span>
-            <input type="number" name="anzahl" value="6" min="1" max="100" aria-label="Anzahl">
-          </label>
-          <label><span>Lagerort</span>
-            <select name="ziel" aria-label="Lagerort">
-              <% storages.forEach(function (s) { %>
-                <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
-              <% }); %>
-              <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
-            </select>
-          </label>
-          <label><span>Zustand</span>
-            <select name="condition" aria-label="Zustand">
-              <option value="gut">gut</option>
-              <option value="gebraucht">gebraucht</option>
-              <option value="defekt">defekt</option>
-            </select>
-          </label>
-          <label><span>Notiz</span>
-            <input name="note" placeholder="optional" aria-label="Notiz" autocomplete="off">
-          </label>
-        </div>
-        <div class="formfuss">
-          <button class="btn" type="submit">Sammelposten einbuchen</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="einbuchen-teil">
-      <h3>Einzelteil <span class="klein">— ein Stück mit Nummer</span></h3>
-      <p class="klein">Jacke, Hose oder Helm mit eigener Inventarnummer — auch scannbar.</p>
-      <form method="post" action="/ausruestung/neu" class="formstapel">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="zurueck" value="<%= zurueck %>">
-        <input type="hidden" name="anzahl" value="1">
-        <div class="formraster">
-          <label><span>Art</span>
-            <select name="type_id" required aria-label="Art">
-              <option value="">wählen …</option>
-              <% types.forEach(function (t) { %>
-                <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
-              <% }); %>
-            </select>
-          </label>
-          <label><span>Größe</span>
-            <input name="size" placeholder="z. B. 152" aria-label="Größe" autocomplete="off">
-          </label>
-          <label><span>Inventarnummer</span>
-            <span class="feldpaar">
-              <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" autocomplete="off">
-              <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
-            </span>
-          </label>
-          <label><span>Lagerort</span>
-            <select name="ziel" aria-label="Lagerort">
-              <% storages.forEach(function (s) { %>
-                <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
-              <% }); %>
-              <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
-            </select>
-          </label>
-          <label><span>Zustand</span>
-            <select name="condition" aria-label="Zustand">
-              <option value="gut">gut</option>
-              <option value="gebraucht">gebraucht</option>
-              <option value="defekt">defekt</option>
-            </select>
-          </label>
-          <label><span>Notiz</span>
-            <input name="note" placeholder="optional" aria-label="Notiz" autocomplete="off">
-          </label>
-        </div>
-        <div class="formfuss">
-          <button class="btn" type="submit">Einzelteil hinzufügen</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</section>
-
-<h2 id="bestand" class="klein" style="margin:1.5rem 0 .5rem;color:var(--gedaempft)">Bestand</h2>
+<% if (erfassen) { %>
+  <section class="block">
+    <h2>Einbuchen</h2>
+    <%- include('partials/einbuchen', { zurueck }) %>
+  </section>
+  <h2 id="bestand" class="klein" style="margin:1.5rem 0 .5rem;color:var(--gedaempft)">Bestand</h2>
+<% } else { %>
+  <details class="block einbuchen-klapp">
+    <summary>Material einbuchen</summary>
+    <div class="einbuchen-inhalt"><%- include('partials/einbuchen', { zurueck }) %></div>
+    <p class="klein">
+      Der Erfassungsmodus ist aus. Soll das Einbuchen wieder oben stehen, unter
+      <a href="/lagerorte">Lagerorte</a> „Material erfassen“ einschalten.
+    </p>
+  </details>
+<% } %>
 
 <% if (storages.length) { %>
   <div class="kacheln kacheln-schmal">

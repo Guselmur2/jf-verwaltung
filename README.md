@@ -130,10 +130,15 @@ Einzeln aufgelistet wird nur, was sich unterscheidet: Teile mit Inventarnummer, 
 einem Zustand außer „gut". Zwanzig gleiche Paar Schuhe erscheinen als eine Zeile, nicht als
 zwanzig — sonst wäre die Seite unlesbar.
 
-Das **Einbuchen** steht auf der Lager-Seite ganz oben, nicht am Ende — beim Einräumen ist das
-die Aufgabe, und vorher musste man erst nach unten scrollen (am Handy lästig). Ein Sprung
-**„↓ Bestand ansehen"** führt trotzdem schnell zur Liste. Es gibt zwei Wege, weil sie sich im
-Alltag unterscheiden:
+Das **Einbuchen** braucht man vor allem am Anfang, wenn das Material erst aufgenommen wird.
+Dafür gibt es auf der **Lagerorte-Seite** den Schalter **„Material erfassen"**:
+
+* **An** (Voreinstellung): Auf der Lager-Seite steht das Einbuchen ganz oben — beim Einräumen
+  ist das die Aufgabe. Ein Sprung „↓ Bestand ansehen" führt trotzdem schnell zur Liste.
+* **Aus**: Der Bestand steht oben, das Einbuchen ist nur noch eine eingeklappte Zeile
+  („＋ Material einbuchen") und stört den Alltag nicht.
+
+Beim Einbuchen gibt es zwei Wege, weil sie sich im Alltag unterscheiden:
 
 * **Sammelposten** — mehrere gleiche Teile ohne eigene Nummer, etwa 6 Paar Handschuhe Gr. 8.
   Ein Feld **Anzahl**, keine Inventarnummer. Es entstehen einzelne Teile (nicht ein Posten mit

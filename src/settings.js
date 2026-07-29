@@ -126,4 +126,36 @@ function logoLoeschen() {
   return q.logoLoeschen.run('logo').changes > 0;
 }
 
-module.exports = { alle, speichern, logo, logoSpeichern, logoLoeschen, bildtyp, STANDARD, FELDER, LOGO_MAX };
+// Einfache Ja/Nein-Schalter, getrennt von den Textfeldern. Fehlt der Eintrag,
+// gilt die Voreinstellung.
+const SCHALTER = {
+  // Erfassungsmodus: solange er an ist, steht das Einbuchen im Lager ganz oben.
+  // Ist das Material erfasst, schaltet man ihn aus und die Bestandsliste hat
+  // Vorrang. Neu aufgesetzt beginnt man beim Erfassen, darum Vorgabe an.
+  erfassen: true,
+};
+
+function schalter(name) {
+  const zeile = db.prepare('SELECT wert FROM settings WHERE schluessel = ?').get(name);
+  if (!zeile || zeile.wert == null) return SCHALTER[name] ?? false;
+  return zeile.wert === '1';
+}
+
+function setzeSchalter(name, an) {
+  q.setzen.run(name, an ? '1' : '0');
+  return !!an;
+}
+
+module.exports = {
+  alle,
+  speichern,
+  logo,
+  logoSpeichern,
+  logoLoeschen,
+  bildtyp,
+  schalter,
+  setzeSchalter,
+  STANDARD,
+  FELDER,
+  LOGO_MAX,
+};

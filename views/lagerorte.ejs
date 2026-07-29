@@ -11,6 +11,28 @@
   einmal scannen zeigt, was darin liegt.
 </p>
 
+<%#
+  Der Erfassungsmodus. Das Einbuchen braucht man vor allem am Anfang, wenn das
+  Material erst aufgenommen wird. Ist das erledigt, schaltet man ihn aus: im
+  Lager steht dann der Bestand oben und das Einbuchen nur noch eingeklappt.
+%>
+<section class="block">
+  <form method="post" action="/lagerorte/erfassen" class="kippschalter">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="kasten">
+      <input type="checkbox" name="erfassen" value="1" <%= erfassen ? 'checked' : '' %> onchange="this.form.submit()">
+      <strong>Material erfassen</strong>
+    </label>
+    <p class="klein">
+      An: Beim Öffnen des Lagers steht das Einbuchen ganz oben — praktisch, solange ihr Material
+      aufnehmt. Aus: Der Bestand steht oben, das Einbuchen ist eingeklappt und stört den Alltag
+      nicht.
+      <noscript> Nach dem Ändern auf „Übernehmen“ klicken.</noscript>
+    </p>
+    <noscript><button class="btn btn-klein" type="submit">Übernehmen</button></noscript>
+  </form>
+</section>
+
 <% if (storages.length === 0) { %>
   <p class="leer">Noch keine Lagerorte angelegt.</p>
 <% } else { %>

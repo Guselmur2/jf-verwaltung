@@ -1,0 +1,105 @@
+<%#
+  Die zwei Einbuch-Wege. Gemeinsam genutzt: einmal offen (Erfassungsmodus an),
+  einmal eingeklappt (aus). Erwartet im Scope: types, storages, ort, zurueck,
+  csrfToken. Siehe views/lager.ejs.
+
+    · Sammelposten — viele gleiche Teile ohne eigene Nummer (Handschuhe, Schuhe)
+    · Einzelteil   — ein Stück mit Inventarnummer (Jacke, Hose, Helm)
+%>
+<div class="einbuchen">
+  <div class="einbuchen-teil">
+    <h3>Sammelposten <span class="klein">— mehrere gleiche, ohne Nummer</span></h3>
+    <p class="klein">Zum Beispiel 6&nbsp;Paar Handschuhe Gr.&nbsp;8. Eine Inventarnummer bekommen die nicht.</p>
+    <form method="post" action="/ausruestung/neu" class="formstapel">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="zurueck" value="<%= zurueck %>">
+      <div class="formraster">
+        <label><span>Art</span>
+          <select name="type_id" required aria-label="Art">
+            <option value="">wählen …</option>
+            <% types.forEach(function (t) { %>
+              <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label><span>Größe</span>
+          <input name="size" placeholder="z. B. 8" aria-label="Größe" autocomplete="off">
+        </label>
+        <label><span>Anzahl</span>
+          <input type="number" name="anzahl" value="6" min="1" max="100" aria-label="Anzahl">
+        </label>
+        <label><span>Lagerort</span>
+          <select name="ziel" aria-label="Lagerort">
+            <% storages.forEach(function (s) { %>
+              <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+            <% }); %>
+            <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
+          </select>
+        </label>
+        <label><span>Zustand</span>
+          <select name="condition" aria-label="Zustand">
+            <option value="gut">gut</option>
+            <option value="gebraucht">gebraucht</option>
+            <option value="defekt">defekt</option>
+          </select>
+        </label>
+        <label><span>Notiz</span>
+          <input name="note" placeholder="optional" aria-label="Notiz" autocomplete="off">
+        </label>
+      </div>
+      <div class="formfuss">
+        <button class="btn" type="submit">Sammelposten einbuchen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="einbuchen-teil">
+    <h3>Einzelteil <span class="klein">— ein Stück mit Nummer</span></h3>
+    <p class="klein">Jacke, Hose oder Helm mit eigener Inventarnummer — auch scannbar.</p>
+    <form method="post" action="/ausruestung/neu" class="formstapel">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="zurueck" value="<%= zurueck %>">
+      <input type="hidden" name="anzahl" value="1">
+      <div class="formraster">
+        <label><span>Art</span>
+          <select name="type_id" required aria-label="Art">
+            <option value="">wählen …</option>
+            <% types.forEach(function (t) { %>
+              <option value="<%= t.id %>" data-size="<%= t.has_size %>" data-inv="<%= t.has_inventory %>" data-schema="<%= t.size_scheme || '' %>"><%= t.name %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label><span>Größe</span>
+          <input name="size" placeholder="z. B. 152" aria-label="Größe" autocomplete="off">
+        </label>
+        <label><span>Inventarnummer</span>
+          <span class="feldpaar">
+            <input name="inventory_no" placeholder="Inv.-Nr." aria-label="Inventarnummer" autocomplete="off">
+            <button class="btn btn-klein btn-still" type="button" data-scan="feld" title="Barcode scannen">📷</button>
+          </span>
+        </label>
+        <label><span>Lagerort</span>
+          <select name="ziel" aria-label="Lagerort">
+            <% storages.forEach(function (s) { %>
+              <option value="lager:<%= s.id %>" <%= String(s.id) === String(ort) ? 'selected' : '' %>><%= s.name %></option>
+            <% }); %>
+            <option value="lager" <%= storages.length === 0 || ort === 'ohne' ? 'selected' : '' %>>ohne Ort</option>
+          </select>
+        </label>
+        <label><span>Zustand</span>
+          <select name="condition" aria-label="Zustand">
+            <option value="gut">gut</option>
+            <option value="gebraucht">gebraucht</option>
+            <option value="defekt">defekt</option>
+          </select>
+        </label>
+        <label><span>Notiz</span>
+          <input name="note" placeholder="optional" aria-label="Notiz" autocomplete="off">
+        </label>
+      </div>
+      <div class="formfuss">
+        <button class="btn" type="submit">Einzelteil hinzufügen</button>
+      </div>
+    </form>
+  </div>
+</div>

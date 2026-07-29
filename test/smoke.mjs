@@ -280,14 +280,39 @@ token = await csrf('/lagerorte');
 r = await req('/lagerorte/neu', { method: 'POST', form: { _csrf: token, name: 'Schrank 1' } });
 check('doppelter Name wird abgelehnt', r.status === 302 && (await req('/lagerorte')).text.includes('gibt es schon'));
 
-// Einbuchen steht oben, noch vor dem Bestand — sonst muss man am Handy weit
-// scrollen. Und es gibt zwei Wege: Sammelposten (ohne Nummer) und Einzelteil.
+// Erfassungsmodus ist neu installiert an: Einbuchen steht oben, noch vor dem
+// Bestand — sonst muss man am Handy weit scrollen. Zwei Wege: Sammelposten
+// (ohne Nummer) und Einzelteil.
 r = await req('/lager');
 const einbuchenPos = r.text.indexOf('Sammelposten');
 const bestandPos = r.text.indexOf('id="bestand"');
 check('Einbuchen steht über dem Bestand', einbuchenPos > 0 && einbuchenPos < bestandPos, `${einbuchenPos} / ${bestandPos}`);
 check('Sammelposten-Weg vorhanden', r.text.includes('Sammelposten einbuchen'));
 check('Einzelteil-Weg vorhanden', r.text.includes('Einzelteil hinzufügen'));
+check('offen, nicht eingeklappt', !r.text.includes('einbuchen-klapp'));
+
+// Erfassungsmodus ausschalten: das Einbuchen klappt ein, der Bestand rückt nach oben.
+r = await req('/lagerorte');
+check('Schalter „Material erfassen“ auf der Lagerorte-Seite', r.text.includes('name="erfassen"') && r.text.includes('Material erfassen'));
+token = await csrf('/lagerorte');
+r = await req('/lagerorte/erfassen', { method: 'POST', form: { _csrf: token } }); // ohne Häkchen = aus
+check('Umschalten führt zurück', r.status === 302 && r.location === '/lagerorte', `${r.status} ${r.location}`);
+
+r = await req('/lager');
+check('Einbuchen ist jetzt eingeklappt', r.text.includes('einbuchen-klapp'));
+check('kein Sprunglink mehr nötig', !r.text.includes('↓ Bestand ansehen'));
+check('Einbuchen bleibt erreichbar', r.text.includes('Sammelposten einbuchen'));
+const bestandFrueher = r.text.indexOf('kacheln') > -1 ? r.text.indexOf('kacheln') : r.text.indexOf('teilliste');
+const klappPos = r.text.indexOf('einbuchen-klapp');
+// Das Formular selbst kommt zwar im Markup vor der Liste, aber nur als
+// zugeklappter Kasten — die eigentliche Aufgabe (Bestand) ist sofort sichtbar.
+check('Einbuchen weiter oben, aber nur eingeklappt', klappPos > 0);
+
+// Wieder einschalten und prüfen, dass es hält.
+token = await csrf('/lagerorte');
+r = await req('/lagerorte/erfassen', { method: 'POST', form: { _csrf: token, erfassen: '1' } });
+r = await req('/lager');
+check('wieder offen nach dem Einschalten', !r.text.includes('einbuchen-klapp') && r.text.includes('id="bestand"'));
 
 // 10 Jacken und 20 Paar Schuhe per Mengenangabe
 token = await csrf('/lager');

@@ -224,6 +224,15 @@ label small { display: block; font-size: .78rem; color: var(--gedaempft); margin
 .einbuchen-teil h3 { margin: 0 0 .3rem; color: var(--text); }
 .einbuchen-teil label span { display: block; font-size: .8rem; color: var(--gedaempft); margin-bottom: .15rem; }
 
+/* Eingeklappt, wenn der Erfassungsmodus aus ist. */
+.einbuchen-klapp > summary { cursor: pointer; font-weight: 600; }
+.einbuchen-klapp > summary::before { content: "＋ "; color: var(--rot); }
+.einbuchen-klapp[open] > summary::before { content: "－ "; }
+.einbuchen-inhalt { margin-top: 1rem; }
+
+.kippschalter .kasten { font-size: 1rem; }
+.kippschalter .klein { margin: .4rem 0 0; }
+
 .teilform { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .teilform .wachsend { flex: 1 1 8rem; min-width: 6rem; }
 .inline { display: inline-flex; gap: .3rem; align-items: center; }
