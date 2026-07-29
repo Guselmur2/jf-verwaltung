@@ -280,6 +280,15 @@ token = await csrf('/lagerorte');
 r = await req('/lagerorte/neu', { method: 'POST', form: { _csrf: token, name: 'Schrank 1' } });
 check('doppelter Name wird abgelehnt', r.status === 302 && (await req('/lagerorte')).text.includes('gibt es schon'));
 
+// Einbuchen steht oben, noch vor dem Bestand — sonst muss man am Handy weit
+// scrollen. Und es gibt zwei Wege: Sammelposten (ohne Nummer) und Einzelteil.
+r = await req('/lager');
+const einbuchenPos = r.text.indexOf('Sammelposten');
+const bestandPos = r.text.indexOf('id="bestand"');
+check('Einbuchen steht über dem Bestand', einbuchenPos > 0 && einbuchenPos < bestandPos, `${einbuchenPos} / ${bestandPos}`);
+check('Sammelposten-Weg vorhanden', r.text.includes('Sammelposten einbuchen'));
+check('Einzelteil-Weg vorhanden', r.text.includes('Einzelteil hinzufügen'));
+
 // 10 Jacken und 20 Paar Schuhe per Mengenangabe
 token = await csrf('/lager');
 r = await req('/ausruestung/neu', {

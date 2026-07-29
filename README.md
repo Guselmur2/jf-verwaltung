@@ -130,9 +130,19 @@ Einzeln aufgelistet wird nur, was sich unterscheidet: Teile mit Inventarnummer, 
 einem Zustand außer „gut". Zwanzig gleiche Paar Schuhe erscheinen als eine Zeile, nicht als
 zwanzig — sonst wäre die Seite unlesbar.
 
-Beim Anlegen gibt es ein Feld **Anzahl**: 20 Paar Schuhe Gr. 38 auf einen Schlag. Die
-Inventarnummer bleibt dann leer und wird später je Teil nachgetragen (mehrere Teile können
-schlecht dieselbe Nummer haben — die Software weist das ab).
+Das **Einbuchen** steht auf der Lager-Seite ganz oben, nicht am Ende — beim Einräumen ist das
+die Aufgabe, und vorher musste man erst nach unten scrollen (am Handy lästig). Ein Sprung
+**„↓ Bestand ansehen"** führt trotzdem schnell zur Liste. Es gibt zwei Wege, weil sie sich im
+Alltag unterscheiden:
+
+* **Sammelposten** — mehrere gleiche Teile ohne eigene Nummer, etwa 6 Paar Handschuhe Gr. 8.
+  Ein Feld **Anzahl**, keine Inventarnummer. Es entstehen einzelne Teile (nicht ein Posten mit
+  Stückzahl), sodass jedes später eine eigene Nummer oder einen eigenen Zustand bekommen kann.
+* **Einzelteil mit Nummer** — ein Stück mit eigener Inventarnummer (Jacke, Hose, Helm), auch
+  per Kamera scannbar.
+
+Mehrere Teile können schlecht dieselbe Inventarnummer haben; Anzahl zusammen mit einer Nummer
+weist die Software darum ab.
 
 Ausrüstung ohne Lagerort ist nicht verloren, sie läuft unter „ohne Ort" und lässt sich von
 dort einsortieren. Wird ein Lagerort gelöscht, wandert sein Inhalt genau dorthin.

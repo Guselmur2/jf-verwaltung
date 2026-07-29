@@ -213,6 +213,17 @@ label small { display: block; font-size: .78rem; color: var(--gedaempft); margin
 .breit { grid-column: 1 / -1; }
 .formfuss { display: flex; gap: .5rem; }
 
+/* Einbuchen ins Lager: zwei Wege nebeneinander (Sammelposten / Einzelteil),
+   auf schmalen Geraeten untereinander. */
+.einbuchen { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1.25rem; }
+.einbuchen-teil { min-width: 0; }
+.einbuchen-teil + .einbuchen-teil { border-left: 1px solid var(--linie); padding-left: 1.25rem; }
+@media (max-width: 640px) {
+  .einbuchen-teil + .einbuchen-teil { border-left: 0; padding-left: 0; border-top: 1px solid var(--linie); padding-top: 1rem; }
+}
+.einbuchen-teil h3 { margin: 0 0 .3rem; color: var(--text); }
+.einbuchen-teil label span { display: block; font-size: .8rem; color: var(--gedaempft); margin-bottom: .15rem; }
+
 .teilform { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .teilform .wachsend { flex: 1 1 8rem; min-width: 6rem; }
 .inline { display: inline-flex; gap: .3rem; align-items: center; }
