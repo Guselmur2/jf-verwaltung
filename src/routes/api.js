@@ -68,6 +68,7 @@ const alsLagerort = (s) => ({
   standort: s.location || null,
   notiz: s.note || null,
   teile: s.item_count,
+  standard: !!s.is_default,
   qr_pfad: s.token ? `/l/${s.token}` : null,
 });
 
