@@ -241,7 +241,11 @@ function trennenEntfernen(aId, bId) {
 // Melder und Truppmann kann jeder, Fuehrungsfunktionen nicht.
 const FUNKTIONEN = [
   { key: 'gruppenfuehrer', kurz: 'GF', label: 'Gruppenführer', eignung: 'gruppenfuehrer' },
-  { key: 'maschinist', kurz: 'MA', label: 'Maschinist', eignung: 'maschinist' },
+  // Maschinist braucht in der Jugendfeuerwehr keine Eignung: Fahren und Pumpe
+  // bedienen machen die Betreuer, die Kinder assistieren. Der Platz ist im
+  // Gegenteil der beste fuer jemanden, der erst schnuppert — hier steht ein
+  // Betreuer eins zu eins daneben. Darum "schnuppern" statt "eignung".
+  { key: 'maschinist', kurz: 'MA', label: 'Maschinist', schnuppern: true },
   { key: 'melder', kurz: 'Me', label: 'Melder' },
   { key: 'angriff_f', kurz: 'AF', label: 'Angriffstruppführer', eignung: 'truppfuehrer' },
   { key: 'angriff_m', kurz: 'AM', label: 'Angriffstruppmann' },
@@ -253,11 +257,12 @@ const FUNKTIONEN = [
 
 const FUNKTION = Object.fromEntries(FUNKTIONEN.map((f) => [f.key, f]));
 
-// Die Eignungen, die man je Kind pflegen kann.
+// Die Eignungen, die man je Kind pflegen kann. Nur die Fuehrungsfunktionen —
+// alles andere kann jeder, und was man nicht pflegen muss, pflegt man auch nicht
+// falsch.
 const EIGNUNGEN = [
   { key: 'gruppenfuehrer', label: 'Gruppenführer' },
   { key: 'truppfuehrer', label: 'Truppführer' },
-  { key: 'maschinist', label: 'Maschinist' },
 ];
 
 // Die Plaetze stehen in der Reihenfolge, in der sie besetzt werden — und damit
@@ -320,8 +325,13 @@ const E_UEBT = 30; // soll es lernen, kommt dran wenn die Routinierten pausieren
 // Gruppenfuehrer-Eignung auf dem Maschinisten, waehrend ein anderes ohne jede
 // Eignung den Gruppenfuehrer machte — beide Fehlbesetzungen kosteten dasselbe,
 // also war die Wahl willkuerlich.
-const E_FEHLT_GEWICHT = { gruppenfuehrer: 1000, truppfuehrer: 400, maschinist: 250 };
+const E_FEHLT_GEWICHT = { gruppenfuehrer: 1000, truppfuehrer: 400 };
 const E_FEHLT = 500; // Vorgabe, falls eine neue Funktion dazukommt
+
+// Schnupperplaetze (Maschinist) gehen eher an die mit wenig Erfahrung — dort
+// steht ein Betreuer eins zu eins daneben. Je hoeher die Erfahrung, desto
+// teurer der Platz, damit die Routinierten woanders gebraucht werden.
+const W_SCHNUPPER = 10;
 const R_JE_MAL = 8; //   je frueheres Mal auf diesem Platz, mal Frische
 const R_NEU = -5; //     kleiner Anreiz fuer eine Funktion, die das Kind noch nie hatte
 const ROTATION_TERMINE = 5;
@@ -369,6 +379,9 @@ function platzKosten(mitglied, funktionKey, eignungMap, verlauf) {
     else if (stufe === 'uebt') k += E_UEBT;
     else k += E_FEHLT_GEWICHT[f.eignung] || E_FEHLT;
   }
+
+  // Schnupperplatz: wer noch wenig kann, ist hier am besten aufgehoben.
+  if (f && f.schnuppern) k += (mitglied.erfahrung - 1) * W_SCHNUPPER;
 
   const bisher = verlauf.get(`${mitglied.id}:${funktionKey}`) || 0;
   k += bisher;
@@ -458,7 +471,7 @@ const W_MERKMAL = 10;
 // ist die Einheit nicht einsatzfaehig — das muss schon beim Bilden der Einheiten
 // zaehlen, nicht erst beim Verteilen der Plaetze. Sonst steht am Ende ein Kind
 // auf dem Gruppenfuehrer, das die Funktion gar nicht kann.
-const BEDARF_GEWICHT = { gruppenfuehrer: 400, truppfuehrer: 120, maschinist: 80 };
+const BEDARF_GEWICHT = { gruppenfuehrer: 400, truppfuehrer: 120 };
 
 /**
  * Wie oft waren zwei Kinder in den letzten Terminen zusammen im Team?

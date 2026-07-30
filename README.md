@@ -91,7 +91,8 @@ Einheit ohne Führung ist keine Einheit.
 | Zupacken | körperlich, praktisch, Schlauch und Leiter |
 | Anleiten | übernimmt, hilft anderen, bleibt ruhig |
 
-Je 1–5, Voreinstellung überall 3. Bewusst **keine Gesamtnote**: eine einzelne Zahl wäre eine
+Je 1–5, Voreinstellung überall 3. **Ein Klick auf die Zahl setzt sie** — kein Auswahlfeld,
+kein Speichern-Knopf. Bewusst **keine Gesamtnote**: eine einzelne Zahl wäre eine
 Rangliste. Ein Kind mit 5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar.
 
 **Die Werte sind nicht offen sichtbar.** Sie erscheinen erst nach einem Klick auf
@@ -107,8 +108,9 @@ Anmeldung erreichbar sind, tauchen sie nie auf, und die API gibt sie nicht herau
 
 ### Eignung: „kann" und „übt"
 
-Gruppenführer kann nicht jeder — man kann nicht jeden ins Tor stellen. Darum je Kind und
-Führungsfunktion eine von zwei Stufen:
+Gruppenführer kann nicht jeder — man kann nicht jeden ins Tor stellen. Gepflegt werden
+deshalb nur die beiden **Führungsfunktionen** (Gruppenführer, Truppführer), je Kind in einer
+von zwei Stufen:
 
 * **kann** — macht das selbstständig
 * **übt** — soll das lernen, braucht dabei ein Auge
@@ -119,8 +121,13 @@ Routinierten die Funktion zuletzt schon hatten — in der Ansicht sind sie mit *
 damit klar ist, wo man hinschauen muss. Reicht es nicht, steht dort **ohne Eignung**: dann
 macht es jemand, der es noch nicht kann, und das soll man sehen.
 
+**Der Maschinist braucht keine Eignung.** Fahren und Pumpe bedienen machen in der
+Jugendfeuerwehr die Betreuer, die Kinder assistieren. Im Gegenteil: der Platz ist der beste für
+jemanden, der erst schnuppert — dort steht ein Betreuer eins zu eins daneben. Die Einteilung
+schickt darum bevorzugt Kinder mit wenig Erfahrung auf den Maschinisten.
+
 Gewichte dazu stehen als Konstanten in `src/dienst.js` (`E_UEBT`, `E_FEHLT_GEWICHT`,
-`BEDARF_GEWICHT`, `R_JE_MAL`) — dort lässt sich nachstellen, wie stark Rotation gegen
+`BEDARF_GEWICHT`, `R_JE_MAL`, `W_SCHNUPPER`) — dort lässt sich nachstellen, wie stark Rotation gegen
 Routine zieht.
 
 ## Wer was sehen darf

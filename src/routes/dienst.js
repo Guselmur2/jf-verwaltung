@@ -131,8 +131,9 @@ router.post('/einschaetzung/:member(\\d+)', login, (req, res) => {
     // und soll die Einschaetzung nicht nebenbei ausplaudern.
     audit.log(req, 'einschaetzung', Number(req.params.member), 'geändert', geaendert.join(', '));
   }
-  req.session.flash = { type: 'ok', text: 'Einschätzung gespeichert.' };
-  res.redirect('/einschaetzung?zeigen=1');
+  // Kein Hinweis-Balken: bei einem Klick je Wert wuerde er nur stoeren. Der
+  // Sprung zum Kind zeigt, dass es gesessen hat.
+  res.redirect(`/einschaetzung?zeigen=1#kind-${req.params.member}`);
 });
 
 router.post('/einschaetzung/:member(\\d+)/eignung', login, (req, res) => {

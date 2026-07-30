@@ -1380,9 +1380,18 @@ const alphabetisch = [...namenAufSeite].sort((x, y) => x.localeCompare(y, 'de'))
 check('alphabetisch statt nach Werten', namenAufSeite.length > 1 && namenAufSeite.join('|') === alphabetisch.join('|'),
   namenAufSeite.join(', '));
 
+// Ein Klick je Wert: es kommt nur das eine Feld mit, die anderen bleiben stehen.
 token = await csrf('/einschaetzung?zeigen=1');
-r = await req(`/einschaetzung/${maxId}`, { method: 'POST', form: { _csrf: token, erfahrung: '5', zupacken: '2', anleiten: '4' } });
-check('Einschätzung gespeichert', r.status === 302);
+r = await req(`/einschaetzung/${maxId}`, { method: 'POST', form: { _csrf: token, erfahrung: '5' } });
+check('ein Klick setzt den Wert', r.status === 302 && (r.location || '').includes(`#kind-${maxId}`), r.location);
+r = await req('/einschaetzung?zeigen=1');
+check('Wert ist gesetzt und markiert', new RegExp(`name="erfahrung" value="5"[^>]*class="stufe stufe-an"`).test(r.text));
+check('kein Speichern-Knopf mehr', !/>Speichern</.test(r.text.split('id="eignung"')[0]));
+
+token = await csrf('/einschaetzung?zeigen=1');
+await req(`/einschaetzung/${maxId}`, { method: 'POST', form: { _csrf: token, anleiten: '4' } });
+r = await req('/einschaetzung?zeigen=1');
+check('die anderen Merkmale bleiben stehen', new RegExp(`name="erfahrung" value="5"[^>]*class="stufe stufe-an"`).test(r.text));
 r = await req('/verlauf');
 check('Verlauf nennt die Änderung', r.text.includes('Einschätzung') || r.text.includes('einschaetzung'));
 check('aber nicht die Werte', !/erfahrung.*5.*zupacken/i.test(r.text));
@@ -1392,7 +1401,9 @@ token = await csrf('/einschaetzung?zeigen=1');
 r = await req(`/einschaetzung/${maxId}/eignung`, { method: 'POST', form: { _csrf: token, funktion: 'gruppenfuehrer', stufe: 'kann' } });
 check('Eignung gesetzt', r.status === 302);
 r = await req('/einschaetzung?zeigen=1');
-check('Eignung wird angezeigt', /value="kann"[^>]*selected/.test(r.text));
+check('Eignung wird angezeigt', /value="kann"[^>]*class="stufe stufe-an"/.test(r.text));
+// Maschinist braucht in der JFW keine Eignung — der Platz ist der Schnupperplatz.
+check('kein Maschinist bei den Eignungen', !/name="funktion" value="maschinist"/.test(r.text));
 
 console.log('\n30g) Einteilung mit Funktionen');
 token = await csrf('/einschaetzung?zeigen=1');

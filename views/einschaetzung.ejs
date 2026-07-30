@@ -40,24 +40,31 @@
       <% }); %>
     </div>
 
+    <%#
+      Ein Klick setzt den Wert — kein Auswahlfeld öffnen, kein Speichern.
+      Jede Stufe ist ein eigener Absende-Knopf; die Route ändert nur das Feld,
+      das mitkommt, die anderen beiden bleiben stehen. Funktioniert damit auch
+      ohne JavaScript.
+    %>
     <div class="teilliste">
       <% liste.forEach(function (m) { %>
-        <div class="teilzeile">
-          <form method="post" action="/einschaetzung/<%= m.id %>" class="teilform">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <span class="einschaetzung-name"><%= m.name %><% if (!m.erfasst) { %> <span class="chip">neutral</span><% } %></span>
+        <div class="teilzeile" id="kind-<%= m.id %>">
+          <span class="einschaetzung-name"><%= m.name %><% if (!m.erfasst) { %> <span class="chip">neutral</span><% } %></span>
+          <div class="stufenblock">
             <% merkmale.forEach(function (mk) { %>
-              <label class="kasten">
-                <%= mk.label %>
-                <select name="<%= mk.feld %>" aria-label="<%= mk.label %> für <%= m.name %>">
+              <form method="post" action="/einschaetzung/<%= m.id %>" class="stufen">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <span class="stufen-label" title="<%= mk.hilfe %>"><%= mk.label %></span>
+                <span class="stufen-knoepfe" role="group" aria-label="<%= mk.label %> für <%= m.name %>">
                   <% [1,2,3,4,5].forEach(function (n) { %>
-                    <option value="<%= n %>" <%= m[mk.feld] === n ? 'selected' : '' %>><%= n %></option>
+                    <button type="submit" name="<%= mk.feld %>" value="<%= n %>"
+                            class="stufe <%= m[mk.feld] === n ? 'stufe-an' : '' %>"
+                            aria-pressed="<%= m[mk.feld] === n ? 'true' : 'false' %>"><%= n %></button>
                   <% }); %>
-                </select>
-              </label>
+                </span>
+              </form>
             <% }); %>
-            <button class="btn btn-klein" type="submit">Speichern</button>
-          </form>
+          </div>
         </div>
       <% }); %>
     </div>
@@ -86,11 +93,13 @@
                   <form method="post" action="/einschaetzung/<%= m.id %>/eignung" class="inline">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="funktion" value="<%= e.key %>">
-                    <select name="stufe" onchange="this.form.submit()" aria-label="<%= e.label %> für <%= m.name %>">
-                      <option value="" <%= !m.eignung[e.key] ? 'selected' : '' %>>—</option>
-                      <option value="uebt" <%= m.eignung[e.key] === 'uebt' ? 'selected' : '' %>>übt</option>
-                      <option value="kann" <%= m.eignung[e.key] === 'kann' ? 'selected' : '' %>>kann</option>
-                    </select>
+                    <span class="stufen-knoepfe" role="group" aria-label="<%= e.label %> für <%= m.name %>">
+                      <% [['', '—'], ['uebt', 'übt'], ['kann', 'kann']].forEach(function ([wert, text]) { %>
+                        <button type="submit" name="stufe" value="<%= wert %>"
+                                class="stufe <%= (m.eignung[e.key] || '') === wert ? 'stufe-an' : '' %>"
+                                aria-pressed="<%= (m.eignung[e.key] || '') === wert ? 'true' : 'false' %>"><%= text %></button>
+                      <% }); %>
+                    </span>
                   </form>
                 </td>
               <% }); %>
