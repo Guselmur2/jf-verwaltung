@@ -192,6 +192,91 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   last_used  TEXT
 );
 
+-- Uebungsabende. Ein Termin je Datum, daran haengt die Anwesenheit.
+CREATE TABLE IF NOT EXISTS termine (
+  id         INTEGER PRIMARY KEY,
+  datum      TEXT NOT NULL,                          -- ISO yyyy-mm-dd
+  thema      TEXT,
+  note       TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_by TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS termine_datum ON termine(datum);
+
+-- Anwesenheit je Termin und Kind. Fehlt ein Eintrag, wurde noch nichts
+-- angetippt — das ist etwas anderes als "fehlt".
+CREATE TABLE IF NOT EXISTS anwesenheit (
+  termin_id INTEGER NOT NULL REFERENCES termine(id) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  status    TEXT NOT NULL CHECK (status IN ('da', 'entschuldigt', 'fehlt')),
+  geaendert TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (termin_id, member_id)
+);
+
+-- Einschaetzung je Kind, Grundlage fuer ausgeglichene Teams.
+--
+-- Bewusst drei Achsen und keine Gesamtnote: eine einzelne Zahl waere eine
+-- Rangliste, und genau die soll hier nicht entstehen. Ein Kind mit 5/2/4 ist
+-- nicht "besser" als eines mit 2/5/3 — es ist anders einsetzbar.
+--
+-- Eigene Tabelle statt Spalten an members, damit sich die Werte leicht von
+-- allem fernhalten lassen, was nach draussen geht (API, QR-Seiten).
+CREATE TABLE IF NOT EXISTS einschaetzung (
+  member_id     INTEGER PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,
+  erfahrung     INTEGER NOT NULL DEFAULT 3 CHECK (erfahrung BETWEEN 1 AND 5),
+  zupacken      INTEGER NOT NULL DEFAULT 3 CHECK (zupacken BETWEEN 1 AND 5),
+  anleiten      INTEGER NOT NULL DEFAULT 3 CHECK (anleiten BETWEEN 1 AND 5),
+  geaendert     TEXT NOT NULL DEFAULT (datetime('now')),
+  geaendert_von TEXT
+);
+
+-- Paare, die nicht ins selbe Team sollen. a_id ist immer die kleinere id,
+-- damit ein Paar nur einmal vorkommt (siehe trennenSetzen in model.js).
+CREATE TABLE IF NOT EXISTS trennen (
+  a_id  INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  b_id  INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  grund TEXT,
+  PRIMARY KEY (a_id, b_id)
+);
+
+-- Gebildete Teams je Termin. Aufbewahrt, damit sich Wiederholungen vermeiden
+-- lassen ("nicht jede Woche dieselbe Paarung") und man nachsehen kann, wer
+-- wann mit wem war.
+CREATE TABLE IF NOT EXISTS teams (
+  id        INTEGER PRIMARY KEY,
+  termin_id INTEGER NOT NULL REFERENCES termine(id) ON DELETE CASCADE,
+  nummer    INTEGER NOT NULL,
+  name      TEXT
+);
+
+-- funktion: der Platz in der Gruppe (Gruppenfuehrer, Angriffstrupp-Fuehrer ...)
+-- oder NULL bei freier Einteilung ohne Funktionen. Der Verlauf steckt damit
+-- schon hier — daraus ergibt sich, wer welche Funktion zuletzt hatte.
+CREATE TABLE IF NOT EXISTS team_mitglieder (
+  team_id   INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  funktion  TEXT,
+  PRIMARY KEY (team_id, member_id)
+);
+
+CREATE INDEX IF NOT EXISTS teams_termin_idx ON teams(termin_id);
+
+-- Wer kann welche Funktion? Fuehrungsfunktionen koennen nur wenige, und das
+-- laesst sich nicht wegrechnen — man kann nicht jeden ins Tor stellen.
+--
+-- stufe unterscheidet zwei Faelle, und darin steckt der eigentliche Zweck:
+--   'kann' — macht das selbstaendig
+--   'uebt' — soll das lernen, braucht dabei ein Auge
+-- Ohne 'uebt' bekaemen immer dieselben zwei Kinder den Gruppenfuehrer, und
+-- niemand sonst lernte es je.
+CREATE TABLE IF NOT EXISTS funktion_eignung (
+  member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  funktion  TEXT NOT NULL,
+  stufe     TEXT NOT NULL DEFAULT 'kann' CHECK (stufe IN ('kann', 'uebt')),
+  PRIMARY KEY (member_id, funktion)
+);
+
 -- Stammdaten der Wehr: Name, Untertitel und aehnliches.
 CREATE TABLE IF NOT EXISTS settings (
   schluessel TEXT PRIMARY KEY,

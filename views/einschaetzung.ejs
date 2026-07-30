@@ -1,0 +1,146 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Einschätzung</h1>
+  <% if (offen) { %>
+    <a class="btn btn-still" href="/einschaetzung">Verbergen</a>
+  <% } else { %>
+    <a class="btn" href="/einschaetzung?zeigen=1">Einschätzungen anzeigen</a>
+  <% } %>
+</div>
+
+<p class="klein">
+  Grundlage für ausgeglichene <a href="/einteilung">Einteilungen</a>. Drei Achsen statt einer
+  Note — ein Kind mit 5/2/4 ist nicht „besser“ als eines mit 2/5/3, es ist anders einsetzbar.
+  Voreinstellung ist überall <strong>3</strong>; was du nicht anfasst, bleibt neutral.
+</p>
+
+<p class="hinweis hinweis-warn">
+  <strong>Nicht vor den Kindern öffnen.</strong> Die Werte sind deshalb erst nach einem Klick
+  sichtbar, es gibt keine Rangliste und keine Gesamtnote, und auf den QR-Seiten am Spint
+  tauchen sie nie auf. Halte die Merkmale bei <em>Fähigkeiten</em> — „Anleiten 2“ ist eine
+  Beobachtung, ein Urteil über den Charakter hätte hier nichts zu suchen.
+</p>
+
+<% if (!offen) { %>
+  <section class="block">
+    <h2><%= liste.length %> Kinder erfasst</h2>
+    <p class="klein">
+      <% liste.forEach(function (m, i) { %><%= i ? ' · ' : '' %><%= m.name %><% }); %>
+    </p>
+    <p><a class="btn" href="/einschaetzung?zeigen=1">Einschätzungen anzeigen</a></p>
+  </section>
+<% } else { %>
+
+  <section class="block">
+    <h2>Merkmale</h2>
+    <div class="merkmal-legende">
+      <% merkmale.forEach(function (mk) { %>
+        <span><strong><%= mk.label %></strong> — <%= mk.hilfe %></span>
+      <% }); %>
+    </div>
+
+    <div class="teilliste">
+      <% liste.forEach(function (m) { %>
+        <div class="teilzeile">
+          <form method="post" action="/einschaetzung/<%= m.id %>" class="teilform">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <span class="einschaetzung-name"><%= m.name %><% if (!m.erfasst) { %> <span class="chip">neutral</span><% } %></span>
+            <% merkmale.forEach(function (mk) { %>
+              <label class="kasten">
+                <%= mk.label %>
+                <select name="<%= mk.feld %>" aria-label="<%= mk.label %> für <%= m.name %>">
+                  <% [1,2,3,4,5].forEach(function (n) { %>
+                    <option value="<%= n %>" <%= m[mk.feld] === n ? 'selected' : '' %>><%= n %></option>
+                  <% }); %>
+                </select>
+              </label>
+            <% }); %>
+            <button class="btn btn-klein" type="submit">Speichern</button>
+          </form>
+        </div>
+      <% }); %>
+    </div>
+  </section>
+
+  <section class="block" id="eignung">
+    <h2>Wer kann welche Funktion?</h2>
+    <p class="klein">
+      Gruppenführer kann nicht jeder — das lässt sich nicht wegrechnen. Wichtig ist die zweite
+      Stufe: <strong>übt</strong> heißt „soll das lernen, schau hin“. Ohne sie bekämen immer
+      dieselben zwei Kinder den Gruppenführer, und niemand sonst lernte es je. Die Einteilung
+      zieht Übende heran, sobald die Routinierten die Funktion zuletzt schon hatten.
+    </p>
+
+    <div class="tabellenrahmen">
+      <table class="tabelle">
+        <thead>
+          <tr><th>Name</th><% eignungen.forEach(function (e) { %><th><%= e.label %></th><% }); %></tr>
+        </thead>
+        <tbody>
+          <% eignungsListe.forEach(function (m) { %>
+            <tr>
+              <td data-label="Name"><%= m.name %></td>
+              <% eignungen.forEach(function (e) { %>
+                <td data-label="<%= e.label %>">
+                  <form method="post" action="/einschaetzung/<%= m.id %>/eignung" class="inline">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="funktion" value="<%= e.key %>">
+                    <select name="stufe" onchange="this.form.submit()" aria-label="<%= e.label %> für <%= m.name %>">
+                      <option value="" <%= !m.eignung[e.key] ? 'selected' : '' %>>—</option>
+                      <option value="uebt" <%= m.eignung[e.key] === 'uebt' ? 'selected' : '' %>>übt</option>
+                      <option value="kann" <%= m.eignung[e.key] === 'kann' ? 'selected' : '' %>>kann</option>
+                    </select>
+                  </form>
+                </td>
+              <% }); %>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" id="trennen">
+    <h2>Nicht zusammen</h2>
+    <p class="klein">
+      Zwei Namen, die nicht in dieselbe Einheit sollen. Die Einteilung hält sie auseinander,
+      solange es rechnerisch geht — und sagt es, wenn nicht.
+    </p>
+
+    <% if (trennPaare.length) { %>
+      <ul class="paarliste">
+        <% trennPaare.forEach(function (p) { %>
+          <li>
+            <strong><%= p.a_name %></strong> und <strong><%= p.b_name %></strong>
+            <% if (p.grund) { %><span class="klein">— <%= p.grund %></span><% } %>
+            <form method="post" action="/einschaetzung/trennen/loeschen" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="a_id" value="<%= p.a_id %>">
+              <input type="hidden" name="b_id" value="<%= p.b_id %>">
+              <button class="btn btn-klein btn-still" type="submit">aufheben</button>
+            </form>
+          </li>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <p class="klein">Nichts eingetragen.</p>
+    <% } %>
+
+    <form method="post" action="/einschaetzung/trennen" class="teilform">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <select name="a_id" required aria-label="Erstes Kind">
+        <option value="">Kind wählen …</option>
+        <% liste.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name %></option><% }); %>
+      </select>
+      <select name="b_id" required aria-label="Zweites Kind">
+        <option value="">Kind wählen …</option>
+        <% liste.forEach(function (m) { %><option value="<%= m.id %>"><%= m.name %></option><% }); %>
+      </select>
+      <input name="grund" placeholder="Grund (optional, nur für euch)" aria-label="Grund" class="wachsend">
+      <button class="btn btn-klein" type="submit">Trennen</button>
+    </form>
+  </section>
+<% } %>
+
+<%- include('partials/fuss') %>

@@ -1,4 +1,6 @@
-# Spintverwaltung Jugendfeuerwehr
+# JF-Verwaltung
+
+Spinte und Ausrüstung, Anwesenheit und Einteilung für eine Jugendfeuerwehr.
 
 Lokale Verwaltung von Spinten, Mitgliedern und Einsatzkleidung. An jedem Spint hängt ein
 QR-Code, der auf die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf
@@ -9,6 +11,10 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | Seite | Adresse | Wer |
 |---|---|---|
 | Spint-Detail (Ziel des QR-Codes) | `/s/<token>` | **jeder, der diesen QR-Code scannt** |
+| Anwesenheit | `/anwesenheit` | Betreuer |
+| Anwesenheit über die Zeit | `/anwesenheit/quoten` | Betreuer |
+| Einteilung &amp; Teams | `/einteilung` | Betreuer |
+| Einschätzung der Kinder | `/einschaetzung` | Betreuer |
 | Lagerort-Detail (Ziel des QR-Codes) | `/l/<token>` | **jeder, der diesen QR-Code scannt** |
 | Übersicht aller Spinte | `/` | Betreuer |
 | Lager (Ausrüstung ohne Spint) | `/lager` | Betreuer |
@@ -33,6 +39,89 @@ einem Raspberry Pi, ohne Internet und ohne Cloud.
 | API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
 | System, Pi herunterfahren | `/system` | **nur Jugendwart** |
 | API für andere Systeme | `/api/v1/…` | **Token** |
+
+## Anwesenheit
+
+Ein Termin je Übungsabend (Datum, optional Thema), darunter alle aktiven Mitglieder. Ein
+Antippen wechselt durch **da → entschuldigt → fehlt → offen**; jeder Tipp sitzt sofort, es gibt
+nichts zu speichern. Am schnellsten geht es meist so: erst **„alle da"**, dann die wenigen
+antippen, die fehlen.
+
+„Kein Eintrag" ist bewusst etwas anderes als „fehlt" — sonst wüsste man nicht, ob jemand
+wirklich gefehlt hat oder nur noch niemand hingeschaut hat.
+
+Unter **Anwesenheit über die Zeit** steht die Quote je Kind. Bezugsgröße ist, wie oft für das
+Kind überhaupt etwas erfasst wurde — wer erst seit Herbst dabei ist, wird nicht an den
+Terminen davor gemessen. Für Jugendflamme und Leistungsspange ist das die Zahl, nach der
+gefragt wird.
+
+## Einteilung: ausgeglichene Einheiten mit Funktionen
+
+Eingeteilt wird immer nur, **wer da ist** — die Einteilung zieht sich die Anwesenheit des
+Termins. Vier Aufstellungen:
+
+| Aufstellung | Plätze |
+|---|---|
+| Freie Teams | ohne Funktionen — für Spiele und Wettkämpfe |
+| Gruppe (9) | GF · MA · AF · AM · WF · WM · SF · SM · Me |
+| Staffel (6) | GF · MA · AF · AM · WF · WM |
+| Trupp (3) | AF · AM · WM |
+
+Das läuft in zwei Schritten, weil es zwei verschiedene Fragen sind: **wer mit wem** und
+**wer macht was**.
+
+**Wer mit wem.** Die drei Achsen aus der Einschätzung werden *einzeln* ausgeglichen, nicht die
+Summe — sonst könnte eine Einheit aus drei Kräftigen ohne Erfahrung bestehen und die nächste
+umgekehrt. Dazu zählt: jede Einheit braucht jemanden, der die Führungsfunktionen kann,
+„nicht zusammen"-Paare werden getrennt, und Paarungen der letzten Termine werden gemieden,
+damit sich die Gruppe von Woche zu Woche mischt.
+
+**Wer macht was.** Innerhalb der Einheit werden die Plätze besetzt. Führungsfunktionen gehen
+nur an Kinder mit Eignung, und wer eine Funktion lange nicht hatte, bekommt sie eher.
+
+Ist eine Einheit kleiner als die Aufstellung, fallen die **hinteren** Plätze weg (erst Melder,
+dann der Schlauchtrupp) — der Gruppenführer steht zuerst in der Liste und bleibt besetzt. Eine
+Einheit ohne Führung ist keine Einheit.
+
+### Einschätzung — drei Achsen statt einer Note
+
+| Merkmal | gemeint ist |
+|---|---|
+| Erfahrung | wie viel kann er/sie schon |
+| Zupacken | körperlich, praktisch, Schlauch und Leiter |
+| Anleiten | übernimmt, hilft anderen, bleibt ruhig |
+
+Je 1–5, Voreinstellung überall 3. Bewusst **keine Gesamtnote**: eine einzelne Zahl wäre eine
+Rangliste. Ein Kind mit 5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar.
+
+**Die Werte sind nicht offen sichtbar.** Sie erscheinen erst nach einem Klick auf
+„Einschätzungen anzeigen" — blickt ein Kind auf das Handy, stehen dort nur Namen. Die Liste ist
+immer alphabetisch und nicht nach Werten sortierbar. Auf den QR-Seiten am Spint, die ohne
+Anmeldung erreichbar sind, tauchen sie nie auf, und die API gibt sie nicht heraus. Im
+Änderungsverlauf steht, *dass* jemand eine Einschätzung geändert hat, nicht *welche Werte*.
+
+> Einschätzungen von Minderjährigen zu speichern ist etwas anderes als eine Kleidergröße. Sie
+> landen in den (verschlüsselten) Sicherungen. Sag im Zweifel der Wehrführung, dass ihr das so
+> führt, und halte die Merkmale bei **Fähigkeiten**: „Anleiten 2" ist eine Beobachtung, ein
+> Urteil über den Charakter hätte hier nichts zu suchen.
+
+### Eignung: „kann" und „übt"
+
+Gruppenführer kann nicht jeder — man kann nicht jeden ins Tor stellen. Darum je Kind und
+Führungsfunktion eine von zwei Stufen:
+
+* **kann** — macht das selbstständig
+* **übt** — soll das lernen, braucht dabei ein Auge
+
+Die zweite Stufe ist der eigentliche Zweck. Ohne sie bekämen immer dieselben zwei Kinder den
+Gruppenführer, und niemand sonst lernte es je. Die Einteilung zieht Übende heran, sobald die
+Routinierten die Funktion zuletzt schon hatten — in der Ansicht sind sie mit **übt** markiert,
+damit klar ist, wo man hinschauen muss. Reicht es nicht, steht dort **ohne Eignung**: dann
+macht es jemand, der es noch nicht kann, und das soll man sehen.
+
+Gewichte dazu stehen als Konstanten in `src/dienst.js` (`E_UEBT`, `E_FEHLT_GEWICHT`,
+`BEDARF_GEWICHT`, `R_JE_MAL`) — dort lässt sich nachstellen, wie stark Rotation gegen
+Routine zieht.
 
 ## Wer was sehen darf
 
@@ -1007,6 +1096,7 @@ src/backup.js          Sicherung erzeugen und verschlüsseln
 src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
 src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
+src/dienst.js          Anwesenheit, Einschätzung, Einteilung mit Funktionen
 src/upload.js          Dateiannahme für Sicherung und Logo
 scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
 deploy/                Dienst-Datei und polkit-Regel als Vorlage (siehe install-pi.sh)

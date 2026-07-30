@@ -1330,6 +1330,100 @@ await req(`/ausruestung/${ohneId}/bearbeiten`, {
 r = await req('/lager?groesse=fehlt');
 check('nach dem Nachtragen nicht mehr in der Liste', !r.text.includes('ohne Etikett'));
 
+console.log('\n30e) Anwesenheit');
+token = await csrf('/anwesenheit');
+r = await req('/anwesenheit/neu', { method: 'POST', form: { _csrf: token, datum: '2026-08-04', thema: 'Löschangriff' } });
+const terminId = Number((r.location || '').match(/\/anwesenheit\/(\d+)/)?.[1]);
+check('Termin angelegt', r.status === 302 && !!terminId, `${r.status} ${r.location}`);
+
+r = await req(`/anwesenheit/${terminId}`);
+check('Liste zeigt die Mitglieder', r.text.includes('Max Muster') && r.text.includes('anwesend-offen'));
+check('Thema steht dabei', r.text.includes('Löschangriff'));
+
+// Alle auf "da", dann einen durchtippen.
+token = await csrf(`/anwesenheit/${terminId}`);
+r = await req(`/anwesenheit/${terminId}/alle`, { method: 'POST', form: { _csrf: token, status: 'da' } });
+check('alle auf „da“ gesetzt', r.status === 302);
+r = await req(`/anwesenheit/${terminId}`);
+check('Status ist da', r.text.includes('anwesend-da'));
+
+const maxId = Number((await req('/mitglieder')).text.match(/\/mitglieder\/(\d+)\/bearbeiten/)?.[1]);
+token = await csrf(`/anwesenheit/${terminId}`);
+r = await req(`/anwesenheit/${terminId}/tippen/${maxId}`, { method: 'POST', form: { _csrf: token } });
+check('Antippen wechselt den Status', r.status === 302);
+r = await req(`/anwesenheit/${terminId}`);
+check('jetzt entschuldigt', r.text.includes('anwesend-entschuldigt'));
+
+r = await req('/anwesenheit/quoten');
+check('Quoten-Seite', r.status === 200 && r.text.includes('quote-balken'), String(r.status));
+
+// Steht schon ein Termin, führt /anwesenheit direkt dorthin.
+r = await req('/anwesenheit');
+check('Anwesenheit springt zum letzten Termin', r.status === 302 && r.location === `/anwesenheit/${terminId}`, r.location);
+
+// Dasselbe Datum zweimal ergibt keinen zweiten Termin.
+token = await csrf(`/anwesenheit/${terminId}`);
+r = await req('/anwesenheit/neu', { method: 'POST', form: { _csrf: token, datum: '2026-08-04' } });
+check('kein doppelter Termin je Datum', r.location === `/anwesenheit/${terminId}`, r.location);
+
+console.log('\n30f) Einschätzung — verdeckt und ohne Rangliste');
+r = await req('/einschaetzung');
+check('Werte sind zunächst verdeckt', r.status === 200 && !r.text.includes('name="erfahrung"'), String(r.status));
+check('Warnung, nicht vor den Kindern zu öffnen', r.text.includes('Nicht vor den Kindern'));
+r = await req('/einschaetzung?zeigen=1');
+check('nach Klick sichtbar', r.text.includes('name="erfahrung"') && r.text.includes('name="anleiten"'));
+check('kein Summenfeld je Kind', !/>Gesamt</.test(r.text) && !/>Summe</.test(r.text));
+// Das eigentliche Mittel gegen die Rangliste: die Liste ist alphabetisch und
+// nicht nach Werten sortierbar.
+const namenAufSeite = [...r.text.matchAll(/class="einschaetzung-name">([^<]+)/g)].map((x) => x[1].trim());
+const alphabetisch = [...namenAufSeite].sort((x, y) => x.localeCompare(y, 'de'));
+check('alphabetisch statt nach Werten', namenAufSeite.length > 1 && namenAufSeite.join('|') === alphabetisch.join('|'),
+  namenAufSeite.join(', '));
+
+token = await csrf('/einschaetzung?zeigen=1');
+r = await req(`/einschaetzung/${maxId}`, { method: 'POST', form: { _csrf: token, erfahrung: '5', zupacken: '2', anleiten: '4' } });
+check('Einschätzung gespeichert', r.status === 302);
+r = await req('/verlauf');
+check('Verlauf nennt die Änderung', r.text.includes('Einschätzung') || r.text.includes('einschaetzung'));
+check('aber nicht die Werte', !/erfahrung.*5.*zupacken/i.test(r.text));
+
+// Eignung und Trennwunsch
+token = await csrf('/einschaetzung?zeigen=1');
+r = await req(`/einschaetzung/${maxId}/eignung`, { method: 'POST', form: { _csrf: token, funktion: 'gruppenfuehrer', stufe: 'kann' } });
+check('Eignung gesetzt', r.status === 302);
+r = await req('/einschaetzung?zeigen=1');
+check('Eignung wird angezeigt', /value="kann"[^>]*selected/.test(r.text));
+
+console.log('\n30g) Einteilung mit Funktionen');
+token = await csrf('/einschaetzung?zeigen=1');
+await req(`/anwesenheit/${terminId}/alle`, { method: 'POST', form: { _csrf: await csrf(`/anwesenheit/${terminId}`) , status: 'da' } });
+r = await req(`/einteilung?termin=${terminId}&bilden=1&aufstellung=trupp&anzahl=2`);
+check('Einteilung wird gebildet', r.status === 200 && r.text.includes('funktion'), String(r.status));
+check('Funktionskürzel stehen dabei', />AF<|>AM<|>WM</.test(r.text));
+check('Erklärung, was mitspielt', r.text.includes('einzeln') && r.text.includes('Führungsfunktionen'));
+
+// Ohne "bilden" wird nichts gewürfelt — sonst ändert sich die Einteilung
+// bei jedem Neuladen unter den Händen.
+r = await req(`/einteilung?termin=${terminId}`);
+check('ohne Knopfdruck keine neue Einteilung', !r.text.includes('Diese Einteilung übernehmen'));
+
+console.log('\n30h) Einschätzungen bleiben unter Verschluss');
+merkeCookie = cookie;
+cookie = '';
+for (const pfad of ['/einschaetzung', '/einteilung', '/anwesenheit', '/anwesenheit/quoten']) {
+  r = await req(pfad);
+  check(`${pfad} ohne Anmeldung gesperrt`, r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+}
+// Der Weg, der Kindern offensteht: die Spint-Seite per QR-Code.
+r = await req('/s/' + spintToken);
+check('QR-Seite nennt keine Einschätzung', r.status === 200 && !/erfahrung|zupacken|anleiten|Einschätzung/i.test(r.text));
+check('QR-Seite nennt keine Anwesenheit', !/anwesend|Anwesenheit/i.test(r.text));
+cookie = merkeCookie;
+
+// Auch die API gibt nichts davon her.
+a = await apiGet('/api/v1/mitglieder');
+check('API nennt keine Einschätzung', !/erfahrung|zupacken|anleiten/i.test(JSON.stringify(a.json)));
+
 console.log('\n31) Wiederherstellung bei der Ersteinrichtung');
 // Zweiter Server mit leerer Datenbank — dort wird die Sicherung eingespielt.
 const zweiterOrdner = mkdtempSync(path.join(tmpdir(), 'jf-restore-test-'));

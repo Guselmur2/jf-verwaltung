@@ -1,0 +1,48 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Anwesenheit über die Zeit</h1>
+  <span class="klein"><%= termine %> <%= termine === 1 ? 'Termin' : 'Termine' %> erfasst</span>
+  <a class="btn btn-still" href="/anwesenheit">Zurück zur Liste</a>
+</div>
+
+<% if (!termine) { %>
+  <p class="leer">Noch keine Termine erfasst.</p>
+<% } else { %>
+  <p class="klein">
+    Bezugsgröße ist, wie oft für das Kind überhaupt etwas erfasst wurde — wer erst seit
+    Herbst dabei ist, wird nicht an den Terminen davor gemessen. Für Jugendflamme und
+    Leistungsspange ist das die Zahl, nach der gefragt wird.
+  </p>
+
+  <div class="tabellenrahmen">
+    <table class="tabelle">
+      <thead>
+        <tr><th>Name</th><th>da</th><th>entschuldigt</th><th>fehlt</th><th>erfasst</th><th>Quote</th></tr>
+      </thead>
+      <tbody>
+        <% zeilen.forEach(function (z) { %>
+          <tr>
+            <td data-label="Name"><%= z.name %></td>
+            <td data-label="da"><%= z.da %></td>
+            <td data-label="entschuldigt"><%= z.entschuldigt %></td>
+            <td data-label="fehlt"><%= z.fehlt %></td>
+            <td data-label="erfasst"><%= z.erfasst %></td>
+            <td data-label="Quote">
+              <% if (z.quote === null) { %>
+                <span class="klein">—</span>
+              <% } else { %>
+                <span class="quote">
+                  <span class="quote-balken"><span style="width: <%= z.quote %>%"></span></span>
+                  <strong><%= z.quote %> %</strong>
+                </span>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<%- include('partials/fuss') %>

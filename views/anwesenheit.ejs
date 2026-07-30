@@ -1,0 +1,126 @@
+<%- include('partials/kopf') %>
+<%
+  const BESCHRIFTUNG = { da: 'da', entschuldigt: 'entschuldigt', fehlt: 'fehlt' };
+  const gezaehlt = (s) => liste.filter((m) => m.status === s).length;
+%>
+
+<div class="seitenkopf">
+  <h1>Anwesenheit</h1>
+  <% if (termin) { %>
+    <span class="klein"><%= datum(termin.datum) %><% if (termin.thema) { %> · <%= termin.thema %><% } %></span>
+  <% } %>
+  <a class="btn btn-still" href="/anwesenheit/quoten">Über die Zeit</a>
+  <% if (termin) { %><a class="btn btn-still" href="/einteilung?termin=<%= termin.id %>">Einteilung</a><% } %>
+</div>
+
+<% if (!termin) { %>
+  <p class="leer">Noch kein Übungsabend erfasst.</p>
+<% } %>
+
+<%#
+  Steht schon ein Termin, kommt zuerst die Liste — beim Übungsabend will man
+  sofort tippen und nicht an einem Datumsfeld vorbeiscrollen. Fehlt der Termin,
+  ist das Anlegen die erste Aufgabe und steht oben.
+%>
+<% if (!termin) { %>
+  <section class="block">
+    <h2>Ersten Termin anlegen</h2>
+    <form method="post" action="/anwesenheit/neu" class="teilform">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label class="kasten">Datum
+        <input type="date" name="datum" value="<%= heute %>" required>
+      </label>
+      <input name="thema" placeholder="Thema, z. B. Löschangriff" aria-label="Thema" class="wachsend">
+      <button class="btn btn-klein" type="submit">Termin öffnen</button>
+    </form>
+  </section>
+<% } %>
+
+<% if (termin) { %>
+  <section class="block">
+    <div class="seitenkopf">
+      <h2>Wer ist da?</h2>
+      <span class="klein">
+        <strong><%= gezaehlt('da') %></strong> da ·
+        <%= gezaehlt('entschuldigt') %> entschuldigt ·
+        <%= gezaehlt('fehlt') %> fehlt ·
+        <%= liste.filter((m) => !m.status).length %> offen
+      </span>
+    </div>
+
+    <p class="klein">
+      Antippen wechselt durch: <strong>da → entschuldigt → fehlt → offen</strong>.
+      Jeder Tipp sitzt sofort, es gibt nichts zu speichern.
+    </p>
+
+    <div class="anwesenheitsliste">
+      <% liste.forEach(function (m) { %>
+        <form method="post" action="/anwesenheit/<%= termin.id %>/tippen/<%= m.id %>" id="kind-<%= m.id %>">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="anwesend anwesend-<%= m.status || 'offen' %>">
+            <span class="anwesend-name"><%= m.name %></span>
+            <span class="anwesend-status"><%= m.status ? BESCHRIFTUNG[m.status] : '—' %></span>
+          </button>
+        </form>
+      <% }); %>
+    </div>
+
+    <div class="formfuss" style="margin-top:1rem">
+      <% ['da', 'entschuldigt', 'fehlt'].forEach(function (s) { %>
+        <form method="post" action="/anwesenheit/<%= termin.id %>/alle" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="status" value="<%= s %>">
+          <button class="btn btn-klein btn-still" type="submit">alle <%= BESCHRIFTUNG[s] %></button>
+        </form>
+      <% }); %>
+    </div>
+    <p class="klein">
+      Am schnellsten geht es meist so: erst „alle da“, dann die wenigen antippen, die fehlen.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Zu diesem Termin</h2>
+    <form method="post" action="/anwesenheit/<%= termin.id %>/bearbeiten" class="formstapel">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="formraster">
+        <label><span>Thema</span><input name="thema" value="<%= termin.thema || '' %>" autocomplete="off"></label>
+        <label><span>Notiz</span><input name="note" value="<%= termin.note || '' %>" autocomplete="off"></label>
+      </div>
+      <div class="formfuss">
+        <button class="btn btn-klein" type="submit">Speichern</button>
+      </div>
+    </form>
+
+    <% if (isJugendwart) { %>
+      <form method="post" action="/anwesenheit/<%= termin.id %>/loeschen" class="inline"
+            onsubmit="return confirm('Termin <%= datum(termin.datum) %> samt Anwesenheit und Einteilung löschen?');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-klein btn-gefahr" type="submit">Termin löschen</button>
+      </form>
+    <% } %>
+  </section>
+
+  <section class="block">
+    <h2>Anderer Termin</h2>
+    <form method="post" action="/anwesenheit/neu" class="teilform">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label class="kasten">Datum
+        <input type="date" name="datum" value="<%= heute %>" required>
+      </label>
+      <input name="thema" placeholder="Thema, z. B. Löschangriff" aria-label="Thema" class="wachsend">
+      <button class="btn btn-klein" type="submit">Termin öffnen</button>
+    </form>
+    <% if (termine.length > 1) { %>
+      <p class="klein">
+        Zuletzt:
+        <% termine.slice(0, 8).forEach(function (t, i) { %>
+          <% if (i) { %> · <% } %>
+          <a href="/anwesenheit/<%= t.id %>"><%= datum(t.datum) %></a><span class="klein"> (<%= t.da %>)</span>
+        <% }); %>
+      </p>
+    <% } %>
+  </section>
+<% } %>
+
+<%- include('partials/fuss') %>

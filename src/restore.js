@@ -29,6 +29,13 @@ const TABELLEN = [
   'audit_log',
   'settings',
   'assets',
+  'termine',
+  'anwesenheit',
+  'einschaetzung',
+  'trennen',
+  'funktion_eignung',
+  'teams',
+  'team_mitglieder',
 ];
 
 const ITERATIONEN = 10000;

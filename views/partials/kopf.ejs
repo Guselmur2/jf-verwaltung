@@ -20,37 +20,62 @@
       ? `<img class="brand-logo" src="/logo?v=${stammdaten.logoStand}" alt="">`
       : '<span class="brand-mark">JF</span>';
   %>
+  <%#
+    Die Marke ist der Name der Wehr, kein Produktname. Ihr seid eine Wehr —
+    ihr braucht keine Marke, sondern euren Namen.
+  %>
+  <% const markeInhalt = `${marke}
+      <span class="brand-text">
+        <span>${stammdaten.organisation}</span>
+        <small>${stammdaten.abteilung}</small>
+      </span>`; %>
   <% if (user) { %>
-    <a class="brand" href="/">
-      <%- marke %>
-      <span class="brand-text">
-        <span>Spintverwaltung</span>
-        <small><%= stammdaten.organisation %></small>
-      </span>
-    </a>
+    <a class="brand" href="/"><%- markeInhalt %></a>
   <% } else { %>
-    <span class="brand">
-      <%- marke %>
-      <span class="brand-text">
-        <span>Spintverwaltung</span>
-        <small><%= stammdaten.organisation %></small>
-      </span>
-    </span>
+    <span class="brand"><%- markeInhalt %></span>
   <% } %>
   <%# Ohne Anmeldung gibt es keine Navigation — die Seite zeigt dann nur den
       einen Spint bzw. Lagerort, dessen QR-Code gescannt wurde. %>
   <% if (user) { %>
+    <%#
+      Zwei Bereiche mit Untermenü statt zehn Punkten nebeneinander — sonst
+      bricht die Leiste am Handy über drei Zeilen um. "Dienst" ist alles, was
+      man am Übungsabend braucht, "Ausrüstung" die Verwaltung der Sachen.
+    %>
+    <%
+      const imDienst = ['/anwesenheit', '/einteilung', '/einschaetzung'].some((p) => path.startsWith(p));
+      const inAusruestung = ['/lager', '/ausruestungsarten', '/groessen', '/aufgaben', '/qr', '/etikett', '/ausgemustert', '/spint'].some((p) => path.startsWith(p)) || path === '/';
+    %>
     <nav class="mainnav">
-      <a href="/" class="<%= path === '/' ? 'aktiv' : '' %>">Spinte</a>
-      <a href="/lager" class="<%= path.startsWith('/lager') ? 'aktiv' : '' %>">Lager</a>
+      <details class="menu navmenu <%= imDienst ? 'aktiv' : '' %>">
+        <summary>Dienst</summary>
+        <div class="menu-inhalt">
+          <a href="/anwesenheit">Anwesenheit</a>
+          <a href="/anwesenheit/quoten">Anwesenheit über die Zeit</a>
+          <a href="/einteilung">Einteilung &amp; Teams</a>
+          <a href="/einschaetzung">Einschätzung</a>
+        </div>
+      </details>
+
       <a href="/mitglieder" class="<%= path.startsWith('/mitglieder') ? 'aktiv' : '' %>">Mitglieder</a>
-      <a href="/ausruestungsarten" class="<%= path.startsWith('/ausruestungsarten') || path.startsWith('/groessen') ? 'aktiv' : '' %>">Arten &amp; Größen</a>
+
+      <details class="menu navmenu <%= inAusruestung ? 'aktiv' : '' %>">
+        <summary>
+          Ausrüstung<% if (offeneAufgaben) { %> <span class="zaehler"><%= offeneAufgaben %></span><% } %>
+        </summary>
+        <div class="menu-inhalt">
+          <a href="/">Spinte</a>
+          <a href="/lager">Lager</a>
+          <a href="/aufgaben">Aufgaben<% if (offeneAufgaben) { %> (<%= offeneAufgaben %>)<% } %></a>
+          <a href="/ausruestungsarten">Arten &amp; Größen</a>
+          <a href="/etiketten">Spint-Etiketten</a>
+          <a href="/qr">QR-Aufkleber</a>
+          <a href="/lagerorte">Lagerorte</a>
+          <a href="/ausgemustert">Ausgemustert</a>
+        </div>
+      </details>
+
       <a href="/suche" class="<%= path.startsWith('/suche') ? 'aktiv' : '' %>">Suche</a>
-      <a href="/aufgaben" class="<%= path.startsWith('/aufgaben') ? 'aktiv' : '' %>">
-        Aufgaben<% if (offeneAufgaben) { %> <span class="zaehler"><%= offeneAufgaben %></span><% } %>
-      </a>
-      <a href="/qr" class="<%= path.startsWith('/qr') ? 'aktiv' : '' %>">QR</a>
-      <a href="/verlauf" class="<%= path.startsWith('/verlauf') ? 'aktiv' : '' %>">Verlauf</a>
     </nav>
     <button class="scanknopf" type="button" data-scan="suche" title="Barcode scannen" aria-label="Barcode scannen">📷</button>
   <% } else { %>
@@ -64,7 +89,7 @@
           <a href="/lagerorte">Lagerorte</a>
           <a href="/ausruestungsarten">Ausrüstungsarten</a>
           <a href="/ausgemustert">Ausgemustert</a>
-          <a href="/etiketten">Spint-Etiketten</a>
+          <a href="/verlauf">Änderungsverlauf</a>
           <% if (isJugendwart) { %>
             <a href="/bereiche">Umkleidebereiche</a>
             <a href="/betreuer">Betreuer verwalten</a>

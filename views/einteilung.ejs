@@ -1,0 +1,152 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Einteilung</h1>
+  <% if (termin) { %>
+    <span class="klein"><%= datum(termin.datum) %><% if (termin.thema) { %> · <%= termin.thema %><% } %></span>
+    <a class="btn btn-still" href="/anwesenheit/<%= termin.id %>">Anwesenheit</a>
+  <% } %>
+</div>
+
+<% if (!termin) { %>
+  <p class="leer">
+    Noch kein Übungsabend erfasst. Zuerst unter <a href="/anwesenheit">Anwesenheit</a> einen
+    Termin anlegen — eingeteilt wird immer nur, wer da ist.
+  </p>
+<% } else { %>
+
+  <section class="block nichtdrucken">
+    <h2>Wie soll eingeteilt werden?</h2>
+    <form method="get" action="/einteilung" class="teilform">
+      <input type="hidden" name="termin" value="<%= termin.id %>">
+      <input type="hidden" name="bilden" value="1">
+      <label class="kasten">Aufstellung
+        <select name="aufstellung">
+          <% Object.entries(aufstellungen).forEach(function ([key, a]) { %>
+            <option value="<%= key %>" <%= aufstellung === key ? 'selected' : '' %>><%= a.label %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label class="kasten">Einheiten
+        <input type="number" name="anzahl" value="<%= anzahl || vorschlag %>" min="1" max="12" style="width:4.5rem">
+      </label>
+      <button class="btn" type="submit"><%= ergebnis ? 'Neu mischen' : 'Einteilen' %></button>
+    </form>
+    <p class="klein">
+      <strong><%= anwesendAnzahl %></strong> anwesend.
+      <% if (aufstellungen[aufstellung].plaetze) { %>
+        Eine <%= aufstellungen[aufstellung].label %> hat
+        <%= aufstellungen[aufstellung].plaetze.length %> Plätze — <%= vorschlag %>
+        <%= vorschlag === 1 ? 'Einheit passt' : 'Einheiten passen' %>.
+      <% } else { %>
+        Freie Teams ohne Funktionen — für Spiele und Wettkämpfe.
+      <% } %>
+      „Neu mischen“ ergibt eine andere Aufteilung; gewürfelt wird nur auf Knopfdruck.
+    </p>
+  </section>
+
+  <% if (ergebnis && !ergebnis.anwesend.length) { %>
+    <p class="hinweis hinweis-warn">
+      Für <%= datum(termin.datum) %> ist noch niemand als „da“ eingetragen.
+      <a href="/anwesenheit/<%= termin.id %>">Anwesenheit erfassen</a>
+    </p>
+  <% } %>
+
+  <% if (ergebnis && ergebnis.konflikte.length) { %>
+    <p class="hinweis hinweis-warn">
+      Nicht auseinanderzuhalten:
+      <% ergebnis.konflikte.forEach(function (k, i) { %>
+        <%= i ? ', ' : '' %><strong><%= k.a %></strong> und <strong><%= k.b %></strong> (Einheit <%= k.team %>)
+      <% }); %>.
+      Mehr Einheiten oder ein Trennwunsch weniger würde helfen.
+    </p>
+  <% } %>
+
+  <% if (ergebnis && ergebnis.teams.length) { %>
+    <div class="einteilung">
+      <% ergebnis.teams.forEach(function (team, index) { %>
+        <section class="einheit">
+          <h3><%= aufstellungen[ergebnis.aufstellung].plaetze ? aufstellungen[ergebnis.aufstellung].label.replace(/ \(\d+\)/, '') : 'Team' %> <%= index + 1 %></h3>
+          <ol class="einheit-liste">
+            <% team.forEach(function (m) { %>
+              <li>
+                <span class="funktion" title="<%= m.funktion_label || '' %>"><%= m.funktion_kurz || '·' %></span>
+                <span class="einheit-koerper">
+                  <span class="einheit-name"><%= m.name %></span>
+                  <% if (m.uebt) { %><span class="chip chip-uebt" title="Soll das lernen — schau hin">übt</span><% } %>
+                  <% if (m.ohne_eignung) { %><span class="chip chip-fehlt" title="Für diese Funktion ist keine Eignung hinterlegt">ohne Eignung</span><% } %>
+                  <% if (m.neu_fuer_kind && m.funktion_kurz) { %><span class="chip chip-neu" title="Diese Funktion hatte das Kind noch nie">neu</span><% } %>
+                </span>
+              </li>
+            <% }); %>
+          </ol>
+        </section>
+      <% }); %>
+    </div>
+
+    <% if (ergebnis.ohneFunktion.length) { %>
+      <p class="hinweis hinweis-info">
+        Ohne Funktion, weil die Plätze belegt sind:
+        <% ergebnis.ohneFunktion.forEach(function (m, i) { %><%= i ? ', ' : '' %><strong><%= m.name %></strong><% }); %>.
+        Springer, zweite Runde oder eine Einheit mehr.
+      </p>
+    <% } %>
+
+    <form method="post" action="/einteilung/<%= termin.id %>/speichern" class="nichtdrucken">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="teams" value="<%= JSON.stringify(ergebnis.teams.map((t) => t.map((m) => ({ id: m.id, funktion: m.funktion || null })))) %>">
+      <button class="btn" type="submit">Diese Einteilung übernehmen</button>
+      <span class="klein">
+        Gespeichert wird genau das, was hier steht. Erst dann zählt sie für die Rotation beim
+        nächsten Mal.
+      </span>
+    </form>
+  <% } %>
+
+  <% if (gespeichert.length) { %>
+    <section class="block">
+      <div class="seitenkopf">
+        <h2>Gespeicherte Einteilung</h2>
+        <button class="btn btn-klein btn-still nichtdrucken" type="button" onclick="window.print()">Drucken</button>
+      </div>
+      <p class="klein nichtdrucken">
+        Nur Namen und Funktionen — diese Ansicht kannst du vorzeigen oder aushängen.
+      </p>
+      <div class="einteilung">
+        <% gespeichert.forEach(function (t) { %>
+          <section class="einheit">
+            <h3><%= t.name || 'Einheit ' + t.nummer %></h3>
+            <ol class="einheit-liste">
+              <% t.mitglieder.forEach(function (m) { %>
+                <li>
+                  <span class="funktion" title="<%= m.funktion_label || '' %>"><%= m.funktion_kurz || '·' %></span>
+                  <span class="einheit-koerper"><span class="einheit-name"><%= m.name %></span></span>
+                </li>
+              <% }); %>
+            </ol>
+          </section>
+        <% }); %>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="block nichtdrucken">
+    <h2>Was hier mitspielt</h2>
+    <ul class="klein">
+      <li>Die drei Achsen aus der <a href="/einschaetzung">Einschätzung</a> werden <strong>einzeln</strong> ausgeglichen — nicht die Summe. Sonst könnte eine Einheit aus drei Kräftigen ohne Erfahrung bestehen.</li>
+      <li>Führungsfunktionen gehen nur an Kinder mit Eignung. Wer <strong>übt</strong>, kommt dran, sobald die Routinierten die Funktion zuletzt schon hatten.</li>
+      <li>Wer eine Funktion lange nicht hatte, bekommt sie eher — <strong>neu</strong> markiert, was ein Kind noch nie gemacht hat.</li>
+      <li>„Nicht zusammen“-Paare werden getrennt, solange es rechnerisch möglich ist.</li>
+    </ul>
+    <% if (termine.length > 1) { %>
+      <p class="klein">
+        Anderer Termin:
+        <% termine.slice(0, 8).forEach(function (t, i) { %>
+          <%= i ? ' · ' : '' %><a href="/einteilung?termin=<%= t.id %>"><%= datum(t.datum) %></a>
+        <% }); %>
+      </p>
+    <% } %>
+  </section>
+<% } %>
+
+<%- include('partials/fuss') %>
