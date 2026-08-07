@@ -50,6 +50,13 @@ antippen, die fehlen.
 „Kein Eintrag" ist bewusst etwas anderes als „fehlt" — sonst wüsste man nicht, ob jemand
 wirklich gefehlt hat oder nur noch niemand hingeschaut hat.
 
+**Mehrere Betreuer gleichzeitig** ist vorgesehen. Die Daten liegen in einer Datenbank, jeder
+Tipp gilt sofort für alle; die offenen Seiten gleichen sich alle 15 Sekunden von selbst ab
+(und sofort, wenn man zur App zurückwechselt). Damit dabei nichts durcheinandergerät, schickt
+der Knopf den **Zielzustand** mit statt „einen weiter" — sonst könnte ein Tipp auf einer
+veralteten Seite aus einem fremden „da" ein „entschuldigt" machen. So ist derselbe Tipp von
+zwei Seiten einfach wirkungslos.
+
 Unter **Anwesenheit über die Zeit** steht die Quote je Kind. Bezugsgröße ist, wie oft für das
 Kind überhaupt etwas erfasst wurde — wer erst seit Herbst dabei ist, wird nicht an den
 Terminen davor gemessen. Für Jugendflamme und Leistungsspange ist das die Zahl, nach der

@@ -79,4 +79,51 @@
     });
     updateBereich();
   }
+
+  // Anwesenheit: die Liste im Hintergrund abgleichen.
+  //
+  // Mehrere Betreuer koennen gleichzeitig tippen — die Daten liegen ohnehin in
+  // einer Datenbank, aber ohne das hier saehe jedes Handy nur seinen Stand vom
+  // letzten Laden. Alle 15 Sekunden wird die Seite neu geholt und nur die Liste
+  // ausgetauscht; die Bildlaufposition bleibt damit erhalten.
+  //
+  // Ohne JavaScript passiert nichts weiter — die Seite funktioniert dann wie
+  // vorher, nur eben mit dem Stand vom Laden.
+  var liste = document.querySelector('[data-anwesenheit]');
+  if (liste && window.fetch && window.DOMParser) {
+    var laeuft = false;
+    var abgleichen = function () {
+      if (laeuft || document.hidden) return;
+      laeuft = true;
+      fetch(location.pathname, { credentials: 'same-origin' })
+        .then(function (antwort) {
+          return antwort.ok ? antwort.text() : null;
+        })
+        .then(function (html) {
+          if (!html) return;
+          var neu = new DOMParser().parseFromString(html, 'text/html');
+          var neueListe = neu.querySelector('[data-anwesenheit]');
+          // Nur anfassen, wenn sich wirklich etwas geaendert hat — sonst
+          // koennte ein Tipp genau im Austausch verloren gehen.
+          if (neueListe && neueListe.innerHTML !== liste.innerHTML) {
+            liste.innerHTML = neueListe.innerHTML;
+          }
+          ['[data-zaehler]', '[data-stand]'].forEach(function (wahl) {
+            var hier = document.querySelector(wahl);
+            var dort = neu.querySelector(wahl);
+            if (hier && dort) hier.innerHTML = dort.innerHTML;
+          });
+        })
+        .catch(function () {
+          /* Netz kurz weg — beim naechsten Mal wieder */
+        })
+        .then(function () {
+          laeuft = false;
+        });
+    };
+    setInterval(abgleichen, 15000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) abgleichen();
+    });
+  }
 })();

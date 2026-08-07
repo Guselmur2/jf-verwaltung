@@ -40,7 +40,7 @@
   <section class="block">
     <div class="seitenkopf">
       <h2>Wer ist da?</h2>
-      <span class="klein">
+      <span class="klein" data-zaehler>
         <strong><%= gezaehlt('da') %></strong> da ·
         <%= gezaehlt('entschuldigt') %> entschuldigt ·
         <%= gezaehlt('fehlt') %> fehlt ·
@@ -51,12 +51,21 @@
     <p class="klein">
       Antippen wechselt durch: <strong>da → entschuldigt → fehlt → offen</strong>.
       Jeder Tipp sitzt sofort, es gibt nichts zu speichern.
+      <span data-stand>Stand <%= stand %></span> — tippt jemand anderes gleichzeitig mit,
+      erscheint es hier von selbst.
+      <a href="/anwesenheit/<%= termin.id %>">Jetzt aktualisieren</a>
     </p>
 
-    <div class="anwesenheitsliste">
+    <%#
+      Der Knopf schickt den Zielzustand mit, nicht nur "einen weiter". Haben zwei
+      Betreuer die Liste offen, ist derselbe Tipp dann wirkungslos statt
+      überraschend — siehe die Route in src/routes/dienst.js.
+    %>
+    <div class="anwesenheitsliste" data-anwesenheit>
       <% liste.forEach(function (m) { %>
         <form method="post" action="/anwesenheit/<%= termin.id %>/tippen/<%= m.id %>" id="kind-<%= m.id %>">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="ziel" value="<%= m.ziel || '' %>">
           <button type="submit" class="anwesend anwesend-<%= m.status || 'offen' %>">
             <span class="anwesend-name"><%= m.name %></span>
             <span class="anwesend-status"><%= m.status ? BESCHRIFTUNG[m.status] : '—' %></span>

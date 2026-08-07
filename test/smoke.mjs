@@ -1354,6 +1354,28 @@ check('Antippen wechselt den Status', r.status === 302);
 r = await req(`/anwesenheit/${terminId}`);
 check('jetzt entschuldigt', r.text.includes('anwesend-entschuldigt'));
 
+// Zwei Betreuer gleichzeitig: B sieht noch den alten Stand und tippt dasselbe,
+// was A schon gesetzt hat. Weil der Knopf den Zielzustand mitschickt, ist das
+// wirkungslos — und macht nicht versehentlich "entschuldigt" daraus.
+const zweitesKind = Number((await req('/mitglieder')).text.match(/\/mitglieder\/(\d+)\/bearbeiten/g)?.[1]?.match(/(\d+)/)?.[1]);
+token = await csrf(`/anwesenheit/${terminId}`);
+await req(`/anwesenheit/${terminId}/tippen/${zweitesKind}`, { method: 'POST', form: { _csrf: token, ziel: 'da' } });
+await req(`/anwesenheit/${terminId}/tippen/${zweitesKind}`, { method: 'POST', form: { _csrf: token, ziel: 'da' } });
+r = await req(`/anwesenheit/${terminId}`);
+const zeileZwei = r.text.split(`kind-${zweitesKind}`)[1]?.slice(0, 400) || '';
+check('gleicher Tipp von zwei Seiten bleibt „da“', /anwesend-da/.test(zeileZwei), zeileZwei.slice(0, 120));
+
+// Ohne Zielzustand (alte Seite aus dem Zwischenspeicher) wird weitergeschaltet.
+token = await csrf(`/anwesenheit/${terminId}`);
+await req(`/anwesenheit/${terminId}/tippen/${zweitesKind}`, { method: 'POST', form: { _csrf: token } });
+r = await req(`/anwesenheit/${terminId}`);
+check('ohne Ziel schaltet es weiter', /anwesend-entschuldigt/.test(r.text.split(`kind-${zweitesKind}`)[1]?.slice(0, 400) || ''));
+
+// Der Knopf trägt den Zielzustand, und die Seite nennt ihren Stand.
+r = await req(`/anwesenheit/${terminId}`);
+check('Knopf trägt den Zielzustand', /name="ziel" value="(da|entschuldigt|fehlt|)"/.test(r.text));
+check('Stand wird genannt', r.text.includes('data-stand'));
+
 r = await req('/anwesenheit/quoten');
 check('Quoten-Seite', r.status === 200 && r.text.includes('quote-balken'), String(r.status));
 

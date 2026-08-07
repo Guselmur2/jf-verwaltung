@@ -36,9 +36,12 @@ router.get('/anwesenheit/:id(\\d+)', login, (req, res) => {
   res.render('anwesenheit', {
     title: `Anwesenheit ${termin.datum}`,
     termin,
-    liste: d.anwesenheit(termin.id),
+    // Der Zielzustand wird hier berechnet und wandert in den Knopf — siehe
+    // die Route zum Antippen.
+    liste: d.anwesenheit(termin.id).map((m) => ({ ...m, ziel: d.naechsterStatus(m.status) })),
     termine: d.termine(20),
     heute: d.heute(),
+    stand: new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
   });
 });
 
@@ -70,6 +73,12 @@ router.post('/anwesenheit/:id(\\d+)/bearbeiten', login, (req, res) => {
 /**
  * Ein Antippen wechselt den Status: da → entschuldigt → fehlt → nichts.
  * Ohne Zwischenseite, damit man im Gerätehaus die Liste durchtippen kann.
+ *
+ * Der Knopf schickt den gewuenschten Zielzustand mit, statt den Server "einen
+ * weiter" rechnen zu lassen. Das ist wichtig, sobald zwei Betreuer die Liste
+ * offen haben: sonst sieht B noch "offen", waehrend A schon "da" gesetzt hat —
+ * Bs Tipp wuerde daraus "entschuldigt" machen, obwohl B nur "da" wollte. Mit
+ * Zielzustand ist derselbe Tipp einfach wirkungslos, und beide meinen dasselbe.
  */
 router.post('/anwesenheit/:id(\\d+)/tippen/:member(\\d+)', login, (req, res) => {
   const termin = d.terminById(req.params.id);
@@ -80,7 +89,15 @@ router.post('/anwesenheit/:id(\\d+)/tippen/:member(\\d+)', login, (req, res) => 
     .find((m) => String(m.id) === String(req.params.member));
   if (!aktuell) return res.redirect(`/anwesenheit/${termin.id}`);
 
-  d.statusSetzen(termin.id, aktuell.id, d.naechsterStatus(aktuell.status));
+  // "ziel" fehlt nur bei einer alten, aus dem Zwischenspeicher geladenen Seite —
+  // dann bleibt es beim Weiterschalten.
+  const gewuenscht = req.body.ziel;
+  const ziel =
+    gewuenscht === '' || d.STATUS_REIHE.includes(gewuenscht)
+      ? gewuenscht || null
+      : d.naechsterStatus(aktuell.status);
+
+  d.statusSetzen(termin.id, aktuell.id, ziel);
   res.redirect(`/anwesenheit/${termin.id}#kind-${aktuell.id}`);
 });
 
