@@ -12,9 +12,10 @@ Spinte und Ausrüstung, Anwesenheit und Einteilung für eine Jugendfeuerwehr.
 > Ratenbegrenzung an der Anmeldung. Sie enthält Namen, Geburtsdaten und Einschätzungen von
 > Kindern. Auf einem öffentlich erreichbaren Server hat sie nichts verloren.
 
-Lokale Verwaltung von Spinten, Mitgliedern und Einsatzkleidung. An jedem Spint hängt ein
-QR-Code, der auf die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf
-einem Raspberry Pi, ohne Internet und ohne Cloud.
+Lokale Verwaltung von Spinten, Mitgliedern und Einsatzkleidung — dazu Anwesenheitslisten
+und die Einteilung in Gruppen, Staffeln und Trupps. An jedem Spint hängt ein QR-Code, der auf
+die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf einem Raspberry Pi,
+ohne Internet und ohne Cloud.
 
 ## Was die Seiten können
 
@@ -319,13 +320,13 @@ vollständig zu vertrauen.
 nicht durch, diesen Befehl **als Administrator** in PowerShell ausführen:
 
 ```powershell
-New-NetFirewallRule -DisplayName "JF Spintverwaltung Test 8443" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Private
+New-NetFirewallRule -DisplayName "JF-Verwaltung Test 8443" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Private
 ```
 
 Nach dem Testen wieder entfernen:
 
 ```powershell
-Remove-NetFirewallRule -DisplayName "JF Spintverwaltung Test 8443"
+Remove-NetFirewallRule -DisplayName "JF-Verwaltung Test 8443"
 ```
 
 Zum Ausprobieren liegt in den Testdaten die Inventarnummer **112000172** (Hose Gr. 170 in
@@ -335,31 +336,17 @@ tatsächlichen Kleidungsstück prüfen lässt.
 ### Wichtig: die Kamera braucht HTTPS
 
 Browser geben `getUserMedia` nur in einem **sicheren Kontext** frei — also über HTTPS oder
-auf `localhost`. Ruft man die Seite im WLAN über `http://192.168.1.50:3000` auf, bleibt die
-Kamera gesperrt. Das ist eine Browser-Regel, keine Einstellung der Software; der Scan-Dialog
-sagt das dann auch klar und bietet die Eingabe per Tastatur an.
+auf `localhost`. Über `http://192.168.1.50:3000` im WLAN bleibt die Kamera gesperrt. Das ist
+eine Browser-Regel, keine Einstellung der Software; der Scan-Dialog sagt das dann auch und
+bietet die Eingabe per Tastatur an.
 
-Wer am Handy scannen will, braucht also ein Zertifikat. Selbstsigniert genügt:
+**Auf dem Pi ist das erledigt:** `install-pi.sh` stellt beim Einrichten ein selbstsigniertes
+Zertifikat auf den Hostnamen aus und trägt `TLS_KEY`/`TLS_CERT` in die Dienst-Datei ein. Beim
+ersten Aufruf warnt das Handy einmal vor dem unbekannten Zertifikat — bestätigen, danach ist
+die Seite ein sicherer Kontext und die Kamera funktioniert.
 
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-  -keyout /opt/jf-spinte/tls.key -out /opt/jf-spinte/tls.crt \
-  -subj "/CN=192.168.1.50" -addext "subjectAltName=IP:192.168.1.50"
-```
-
-Dann in der Service-Datei ergänzen:
-
-```ini
-Environment=TLS_KEY=/opt/jf-spinte/tls.key
-Environment=TLS_CERT=/opt/jf-spinte/tls.crt
-Environment=BASE_URL=https://192.168.1.50:3000
-```
-
-Beim ersten Aufruf warnt das Handy vor dem unbekannten Zertifikat — einmal bestätigen, dann
-ist die Seite ein sicherer Kontext und die Kamera funktioniert. **Nach dem Umstieg auf HTTPS
-müssen die QR-Codes neu gedruckt werden**, weil `http://` darin steht.
-
-Fehlt `TLS_KEY`/`TLS_CERT`, läuft alles unverändert über HTTP — nur eben ohne Kamera.
+Wird ein bestehender Pi nachträglich auf HTTPS umgestellt, **müssen die QR-Codes neu gedruckt
+werden**, weil `http://` darin steht.
 
 Eine Alternative ohne Zertifikat: ein USB- oder Bluetooth-Handscanner. Der verhält sich wie
 eine Tastatur, tippt die Nummer ins fokussierte Feld und braucht keinen Kamerazugriff.
@@ -472,23 +459,21 @@ journalctl -u jf-spinte -n 50 --no-pager
 
 ### Neue Version aufspielen
 
-```bash
-sh scripts/deploy-pi.sh
-```
-
-Überträgt den **letzten Commit**, installiert fehlende Abhängigkeiten, startet den Dienst neu
-und prüft, ob er antwortet. Datenbank, Zertifikat und Einstellungen bleiben unberührt.
+Zwei Wege, ausführlich unter „Updates und was dabei zu beachten ist": `deploy-pi.sh` vom
+Projektordner aus, oder — nach einmaligem `auf-git-umstellen.sh` — `update-pi.sh` direkt auf
+dem Pi. Datenbank, Zertifikat und Einstellungen bleiben in beiden Fällen unberührt.
 
 ### Datensicherung
 
-```bash
-ssh -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box \
-  "sqlite3 /opt/jf-spinte/data/spinte.db \".backup '/tmp/spinte-\$(date +%F).db'\"" \
-  && scp -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box:/tmp/spinte-*.db .
-```
+Drei Wege, alle **verschlüsselt** — Einzelheiten weiter unten unter „Datensicherung":
 
-`sqlite3` muss dafür auf dem Pi installiert sein (`sudo apt install sqlite3`). Alternativ den
-Dienst kurz stoppen und die Datei mit `scp` kopieren.
+* in der Oberfläche unter **Datensicherung** (nur Jugendwart),
+* nachts von selbst auf den USB-Stick (`jf-sicherung.timer`),
+* per Doppelklick vom Windows-Rechner (`Sicherung holen.cmd`).
+
+Von Hand mit `sqlite3` oder `cp` ginge es auch — dabei entstünde aber eine
+**unverschlüsselte** Kopie mit Namen, Geburtsdaten und Einschätzungen von Kindern.
+Besser nicht.
 
 ## Installation auf einem anderen Raspberry Pi
 
@@ -724,19 +709,25 @@ prüft die Software am Dateiinhalt, nicht am Namen oder am gemeldeten Typ.
 ## Sicherheit — was diese Software leistet und was nicht
 
 Passwörter liegen als bcrypt-Hash in der Datenbank, Formulare sind CSRF-geschützt, die
-Sitzungs-ID wechselt beim Anmelden. Das reicht für ein abgeschottetes Vereins-WLAN.
+Sitzungs-ID wechselt beim Anmelden. Die Verbindung läuft über **HTTPS** — `install-pi.sh`
+stellt beim Einrichten ein Zertifikat auf den Hostnamen aus. Passwörter und QR-Token gehen
+damit nicht im Klartext durchs WLAN.
 
-Was **nicht** enthalten ist: Die Verbindung läuft über HTTP, nicht HTTPS. Wer im selben
-Netz mitliest, sieht Passwörter im Klartext. Deshalb gehört der Pi ins Heim-/Vereinsnetz
-und **nicht** ins Internet — kein Portfreigeben am Router. Wer die Seite von außen braucht,
-setzt ein VPN davor.
+Was **nicht** enthalten ist:
+
+* **Das Zertifikat ist selbstsigniert.** Jedes Gerät bestätigt es einmal. Gegen jemanden,
+  der bereits im Netz sitzt und sich dazwischenschaltet, hilft das nicht.
+* **Die Datenbank ist im Betrieb unverschlüsselt.** Wer die Speicherkarte in die Hand
+  bekommt, liest sie. Verschlüsselt sind nur die Sicherungen.
+* **Keine Ratenbegrenzung an der Anmeldung**, keine Angriffserkennung, keine Sperre nach
+  Fehlversuchen.
+
+Deshalb gehört der Pi ins Vereinsnetz und **nicht** ins Internet — kein Portfreigeben am
+Router. Wer die Seite von außen braucht, setzt ein VPN davor.
 
 Das Lesen **einer** Spint-Seite ist bewusst ohne Anmeldung möglich, damit ein QR-Scan sofort
 etwas anzeigt — aber nur die Seite, deren Token man gescannt hat (siehe „Wer was sehen
 darf"). Alles andere verlangt eine Anmeldung.
-
-Wer im Netz mitliest, sieht über HTTP allerdings auch die Token im Klartext. Für den
-Praxisbetrieb ist HTTPS deshalb doppelt sinnvoll: für die Kamera und für die Token.
 
 ## Datensicherung
 
@@ -812,33 +803,6 @@ Gerät — bei einem Defekt der SD-Karte wäre sie sonst mit weg.
   Listen, bleiben aber unter `/ausgemustert` auffindbar und lassen sich zurückholen.
 - **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
   werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
-
-## Datensicherung
-
-Alles steckt in einer einzigen SQLite-Datei. Der Jugendwart findet die Sicherung im Menü
-hinter dem eigenen Namen unter **Datensicherung** — ein Klick erzeugt einen frischen Abzug
-und lädt ihn als `spinte-2026-07-27-2241.db` herunter.
-
-Die Sicherung entsteht über die **Sicherungsfunktion von SQLite**, nicht durch Kopieren der
-Datei. Das ist wichtig: die Datenbank läuft im WAL-Modus, ein Teil der Änderungen steht in
-`spinte.db-wal` und noch nicht in `spinte.db`. Ein einfaches `cp` liefert deshalb einen
-unvollständigen Stand. Die Software darf während der Sicherung weiterlaufen.
-
-**Zurückspielen** — Dienst anhalten, Datei ersetzen, die WAL-Reste entfernen, starten:
-
-```bash
-sudo systemctl stop jf-spinte
-cp spinte-2026-07-27-2241.db /opt/jf-spinte/data/spinte.db
-rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
-sudo systemctl start jf-spinte
-```
-
-Die beiden Dateien `-wal` und `-shm` müssen weg, sonst mischt SQLite alte Änderungen in den
-zurückgespielten Stand.
-
-**Automatisch sichern** geht über die API (siehe unten) — die Datei gehört auf ein anderes
-Gerät, bei einem Defekt der SD-Karte wäre sie sonst mit weg. Sie enthält Namen und
-Geburtsdaten der Jugendlichen und gehört damit nicht in eine offene Cloud.
 
 ## API
 
