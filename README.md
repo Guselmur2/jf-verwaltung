@@ -1188,6 +1188,30 @@ ohne Passwort alles. Ein bösartiges Installationsskript hätte damit den ganzen
 Dienst selbst ist dagegen abgesichert (`NoNewPrivileges=true`) — die Lücke ist der
 Update-Vorgang, nicht der Betrieb.
 
+## Lizenzen der Abhängigkeiten
+
+Aus 8 direkten Abhängigkeiten werden über 150 Pakete. `npm run lizenzen` zählt sie durch und
+meldet alles, was Aufmerksamkeit braucht — insbesondere Copyleft (GPL, AGPL, SSPL), das sich
+mit der MIT-Lizenz dieses Projekts nicht ohne Weiteres verträgt.
+
+Stand heute: **alles freizügig** — MIT, ISC, Apache-2.0, BSD. Kein Copyleft, keine Lücke.
+
+Wichtig für die Pflichten daraus: `node_modules` ist von der Versionsverwaltung
+ausgeschlossen. Das Repo gibt die fremden Pakete also gar nicht weiter — sie holt sich `npm`
+beim Installieren direkt von der Quelle. Damit entstehen die üblichen Weitergabe-Pflichten
+(Lizenztext und Urhebervermerk mitliefern) hier nicht. Anders wäre es, wenn irgendwann ein
+fertiges SD-Karten-Abbild verteilt würde: dann gehört eine Auflistung der enthaltenen
+Lizenzen dazu.
+
+Die einzige Bibliothek, die tatsächlich an Browser ausgeliefert wird, ist `html5-qrcode`
+(Apache-2.0) unter `/vendor`. Sie wird unverändert weitergereicht und trägt ihren
+Lizenzhinweis selbst im Dateikopf.
+
+> **Nicht ins Repo gehört das Logo eurer Wehr.** Das Emblem der Jugendfeuerwehr ist
+> geschützt — ihr dürft es führen, ein beliebiger Dritter, der euer Repo klont, nicht. Es
+> liegt in der Datenbank und damit unter `data/`, das ausgeschlossen ist. Bitte dabei belassen
+> und nicht „zur Bequemlichkeit" als Datei dazulegen.
+
 ## Lizenz
 
 [MIT](LICENSE) — benutzen, ändern und weitergeben ausdrücklich erwünscht. Ohne Gewähr; wer
