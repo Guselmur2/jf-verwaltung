@@ -2,6 +2,16 @@
 
 Spinte und Ausrüstung, Anwesenheit und Einteilung für eine Jugendfeuerwehr.
 
+> **Für andere Wehren:** Das hier ist für *eine* Jugendfeuerwehr gebaut und läuft dort im
+> Alltag. Wer es übernehmen will, klont das Repo und folgt „Installation auf einem Raspberry
+> Pi". Alles Wehr-Spezifische — Name, Logo, Ausrüstungsarten, Größenreihen, Barcode-Präfixe —
+> steht in der Oberfläche und nicht im Code. Rückfragen und Verbesserungen gern als Issue.
+>
+> **Nicht ins Internet stellen.** Die Software ist für ein abgeschottetes Vereins-WLAN
+> gedacht: keine Verschlüsselung der Datenbank im Betrieb, keine Angriffserkennung, keine
+> Ratenbegrenzung an der Anmeldung. Sie enthält Namen, Geburtsdaten und Einschätzungen von
+> Kindern. Auf einem öffentlich erreichbaren Server hat sie nichts verloren.
+
 Lokale Verwaltung von Spinten, Mitgliedern und Einsatzkleidung. An jedem Spint hängt ein
 QR-Code, der auf die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf
 einem Raspberry Pi, ohne Internet und ohne Cloud.
@@ -1134,3 +1144,8 @@ Auch das Herunterfahren wird geprüft: der Abschaltbefehl lässt sich über `ABS
 austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner abzuschalten.
 So läuft der ganze Weg durch — Rechte, Token, Protokolleintrag und Fehlerfall —, ohne dass
 ein Testlauf den Rechner mitnimmt.
+
+## Lizenz
+
+[MIT](LICENSE) — benutzen, ändern und weitergeben ausdrücklich erwünscht. Ohne Gewähr; wer
+sie einsetzt, ist für seine Daten selbst verantwortlich.
