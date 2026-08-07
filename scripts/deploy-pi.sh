@@ -29,7 +29,14 @@ echo "-> Dateien uebertragen"
 git archive --format=tar HEAD | $SSH "tar -x -C $PI_DIR"
 
 echo "-> Abhaengigkeiten pruefen"
-$SSH "cd $PI_DIR && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -2"
+# "npm ci" statt "npm install": installiert genau das, was in package-lock.json
+# steht — Version UND Pruefsumme je Paket. "npm install" duerfte stattdessen
+# stillschweigend neuere Fassungen holen, und ueber eine davon kaeme
+# Schadcode auf den Pi, ohne dass hier jemand etwas geaendert haette.
+#
+# Passen package.json und package-lock.json nicht zusammen, bricht npm ci ab.
+# Das ist gewollt: dann hat jemand am Lockfile vorbei etwas veraendert.
+$SSH "cd $PI_DIR && npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -2"
 
 echo "-> Dienst neu starten"
 $SSH "sudo systemctl restart jf-spinte && sleep 3 && systemctl is-active jf-spinte"

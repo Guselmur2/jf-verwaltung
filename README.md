@@ -1145,6 +1145,49 @@ austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner a
 So läuft der ganze Weg durch — Rechte, Token, Protokolleintrag und Fehlerfall —, ohne dass
 ein Testlauf den Rechner mitnimmt.
 
+## Updates und was dabei zu beachten ist
+
+Liegt der Code auf GitHub, geht ein Update auf dem Pi ohne diesen Rechner:
+
+```bash
+ssh sam@jfwpi.fritz.box
+```
+```bash
+cd /opt/jf-spinte && git fetch && git log --oneline HEAD..origin/main
+```
+
+Der zweite Befehl zeigt, **was** kommen würde. Erst danach:
+
+```bash
+git pull && npm ci --omit=dev && sudo systemctl restart jf-spinte
+```
+
+### Warum `npm ci` und nicht `npm install`
+
+`npm install` darf stillschweigend neuere Fassungen der Abhängigkeiten holen. `npm ci`
+installiert genau das, was in `package-lock.json` steht — mit **Prüfsumme je Paket**. Aus
+8 direkten Abhängigkeiten werden 154 Pakete; würde eines davon gekapert und neu
+veröffentlicht, fiele es beim Prüfsummenvergleich auf.
+
+Passen `package.json` und `package-lock.json` nicht zusammen, bricht `npm ci` ab. Das ist
+gewollt — dann hat jemand am Lockfile vorbei etwas verändert.
+
+### Wo das eigentliche Risiko liegt
+
+Nicht darin, dass Fremde ins Repo schreiben könnten — das können sie nicht. Sondern:
+
+| Risiko | Gegenmittel |
+|---|---|
+| GitHub-Konto übernommen | Zwei-Faktor-Anmeldung, am besten Passkey |
+| Pull Request ungelesen zusammengeführt | Diff lesen. Bei Fremdbeiträgen immer. |
+| Gekapertes npm-Paket | `npm ci` (Prüfsummen), nicht blind `npm update` |
+| Update ungeprüft eingespielt | `git log HEAD..origin/main` vor dem `git pull` |
+
+Zur Einordnung der Tragweite: `npm ci` läuft als Dienstbenutzer, und der darf per `sudo`
+ohne Passwort alles. Ein bösartiges Installationsskript hätte damit den ganzen Pi. Der
+Dienst selbst ist dagegen abgesichert (`NoNewPrivileges=true`) — die Lücke ist der
+Update-Vorgang, nicht der Betrieb.
+
 ## Lizenz
 
 [MIT](LICENSE) — benutzen, ändern und weitergeben ausdrücklich erwünscht. Ohne Gewähr; wer
