@@ -70,17 +70,58 @@ $ALS git -C "$ORDNER" reset -q --mixed FETCH_HEAD
 $ALS git -C "$ORDNER" branch -q --set-upstream-to=origin/"$ZWEIG" "$ZWEIG" 2>/dev/null || true
 
 UNTERSCHIED="$($ALS git -C "$ORDNER" status --porcelain --untracked-files=no)"
+GEAENDERT=""
 if [ -n "$UNTERSCHIED" ]; then
   sagen "   Diese Dateien weichen ab:"
   printf '%s\n' "$UNTERSCHIED" | sed 's/^/     /'
+
+  # Vor dem Angleichen sichern — die Installation ist womoeglich aelter als das
+  # Repository, und dann aendert sich hier gerade eine ganze Menge.
+  if systemctl list-unit-files jf-sicherung.service >/dev/null 2>&1; then
+    schritt "Sicherung vorher"
+    systemctl start jf-sicherung.service 2>/dev/null && sagen "   erledigt" || sagen "   uebersprungen"
+  fi
+
   schritt "Auf den Stand des Repositories bringen"
   $ALS git -C "$ORDNER" checkout -q -- .
+  GEAENDERT=1
   sagen "   angeglichen"
 else
   sagen "   identisch — nichts anzugleichen"
 fi
 
+# Waren die Dateien aelter, laeuft der Dienst noch mit dem alten Code im
+# Speicher. Ohne das hier waere die Umstellung scheinbar fertig, in Wahrheit
+# aber wirkungslos — und update-pi.sh wuerde danach "alles aktuell" melden,
+# weil der Git-Stand ja passt.
+if [ -n "$GEAENDERT" ]; then
+  schritt "Abhaengigkeiten"
+  $ALS sh -c "cd '$ORDNER' && npm ci --omit=dev --no-audit --no-fund" >/dev/null 2>&1 ||
+    { sagen "   FEHLER bei npm ci"; exit 1; }
+  sagen "   fertig"
+
+  schritt "Dienst neu starten"
+  systemctl restart jf-spinte
+  sleep 3
+  if [ "$(systemctl is-active jf-spinte)" != "active" ]; then
+    sagen "   FEHLER: der Dienst laeuft nicht. Protokoll:"
+    journalctl -u jf-spinte -n 20 --no-pager
+    exit 1
+  fi
+  sagen "   laeuft"
+
+  schritt "Probe"
+  if curl -sk -o /dev/null -w '%{http_code}' "https://localhost/" | grep -qE '^(200|302)$'; then
+    sagen "   Weboberflaeche antwortet"
+  else
+    sagen "   FEHLER: keine Antwort von https://localhost/"
+    exit 1
+  fi
+fi
+
 schritt "Fertig"
+sagen "   Stand: $($ALS git -C "$ORDNER" log --oneline -1)"
+sagen ""
 sagen "   Ab jetzt genuegt fuer ein Update:"
 sagen ""
 sagen "     sudo sh $ORDNER/scripts/update-pi.sh"

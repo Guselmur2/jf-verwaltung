@@ -64,7 +64,7 @@ sagen "   jetzt auf $($ALS git -C "$ORDNER" log --oneline -1)"
 # npm ci statt npm install: genau die Fassungen aus package-lock.json, mit
 # Pruefsumme je Paket. Siehe README, Abschnitt Updates.
 schritt "Abhaengigkeiten"
-$ALS env -C "$ORDNER" npm ci --omit=dev --no-audit --no-fund >/dev/null 2>&1 ||
+$ALS sh -c "cd '$ORDNER' && npm ci --omit=dev --no-audit --no-fund" >/dev/null 2>&1 ||
   { sagen "   FEHLER bei npm ci"; exit 1; }
 sagen "   fertig"
 
