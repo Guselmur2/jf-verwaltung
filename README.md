@@ -1162,20 +1162,40 @@ Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY` steht).
 
 ## Updates und was dabei zu beachten ist
 
-Liegt der Code auf GitHub, geht ein Update auf dem Pi ohne diesen Rechner:
+Es gibt zwei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
+
+### Vom Projektordner aus (funktioniert sofort)
 
 ```bash
-ssh pi@jfw-pi.fritz.box
-```
-```bash
-cd /opt/jf-spinte && git fetch && git log --oneline HEAD..origin/main
+bash scripts/deploy-pi.sh
 ```
 
-Der zweite Befehl zeigt, **was** kommen würde. Erst danach:
+Überträgt den letzten Commit per SSH und startet den Dienst neu. Voraussetzung: dieser
+Rechner ist im selben Netz wie der Pi. Steht der Pi im Gerätehaus, geht das nur dort.
+
+### Vom Pi aus (einmal einrichten, dann von überall)
+
+Die Installation auf dem Pi enthält kein `.git` — `deploy-pi.sh` überträgt die Dateien mit
+`git archive`, also ohne Versionsverwaltung. Einmalig umstellen:
 
 ```bash
-git pull && npm ci --omit=dev && sudo systemctl restart jf-spinte
+sudo sh /opt/jf-spinte/scripts/auf-git-umstellen.sh https://github.com/NAME/REPO.git
 ```
+
+Das legt ein Arbeitsverzeichnis an und gleicht es mit dem Repository ab. Datenbank,
+Zertifikat, `node_modules` und `deploy.config` bleiben unberührt — sie stehen in
+`.gitignore`. Danach genügt für jedes Update:
+
+```bash
+sudo sh /opt/jf-spinte/scripts/update-pi.sh
+```
+
+Das Skript zeigt erst, **was** dazukäme, fragt nach, zieht vorher eine Sicherung, spielt ein,
+installiert mit `npm ci` und prüft am Ende, ob die Oberfläche wieder antwortet. Mit `-j`
+läuft es ohne Rückfrage durch.
+
+Der Vorteil: du brauchst weder diesen Rechner noch den Projektordner — eine SSH-Sitzung
+genügt, notfalls vom Handy aus. Im selben Netz wie der Pi musst du trotzdem sein.
 
 ### Warum `npm ci` und nicht `npm install`
 
@@ -1196,7 +1216,7 @@ Nicht darin, dass Fremde ins Repo schreiben könnten — das können sie nicht. 
 | GitHub-Konto übernommen | Zwei-Faktor-Anmeldung, am besten Passkey |
 | Pull Request ungelesen zusammengeführt | Diff lesen. Bei Fremdbeiträgen immer. |
 | Gekapertes npm-Paket | `npm ci` (Prüfsummen), nicht blind `npm update` |
-| Update ungeprüft eingespielt | `git log HEAD..origin/main` vor dem `git pull` |
+| Update ungeprüft eingespielt | `update-pi.sh` zeigt die Änderungen und fragt nach |
 
 Zur Einordnung der Tragweite: `npm ci` läuft als Dienstbenutzer, und der darf per `sudo`
 ohne Passwort alles. Ein bösartiges Installationsskript hätte damit den ganzen Pi. Der
