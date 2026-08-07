@@ -94,7 +94,7 @@ sudo systemctl start jf-spinte</pre>
   <pre class="befehl">curl -k -H "X-API-Key: jfw_…" \
   -H "X-Sicherung-Passwort: DeinPasswort" \
   -o spinte-$(date +%F).db.enc \
-  <%= (typeof basis !== 'undefined' && basis) || 'https://jfwpi.fritz.box' %>/api/v1/sicherung</pre>
+  <%= (typeof basis !== 'undefined' && basis) || 'https://jfw-pi.fritz.box' %>/api/v1/sicherung</pre>
   <p class="klein">Auch hier ist das Passwort Pflicht — unverschlüsselt gibt es die Datei nicht.</p>
 </section>
 

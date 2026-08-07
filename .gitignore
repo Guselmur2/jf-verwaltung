@@ -11,6 +11,7 @@ tls/
 api.txt
 *.secret
 sicherung.config.json
+deploy.config
 
 # Heruntergeladene Sicherungen (enthalten personenbezogene Daten)
 sicherungen/

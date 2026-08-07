@@ -1,0 +1,18 @@
+# Vorlage für die eigenen Angaben. Kopieren nach deploy.config und anpassen:
+#
+#   cp deploy.config.beispiel deploy.config
+#
+# deploy.config ist von der Versionsverwaltung ausgeschlossen — der Hostname
+# des eigenen Pi und der Benutzername gehören niemanden etwas an.
+
+# Unter welchem Namen der Pi im Netz erreichbar ist
+PI_HOST=jfw-pi.fritz.box
+
+# Benutzerkonto auf dem Pi, unter dem der Dienst läuft
+PI_USER=pi
+
+# Privater SSH-Schlüssel für den Zugang
+PI_KEY=$HOME/.ssh/jfw-pi_key
+
+# Wohin die Software auf dem Pi gehört (selten zu ändern)
+# PI_DIR=/opt/jf-spinte

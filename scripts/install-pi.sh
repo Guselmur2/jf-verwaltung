@@ -9,9 +9,9 @@
 # Sitzungsgeheimnis bleiben erhalten. Was schon passt, wird uebersprungen.
 #
 # Optionen (als Umgebungsvariablen):
-#   BENUTZER=sam            unter welchem Konto der Dienst laeuft
+#   BENUTZER=pi            unter welchem Konto der Dienst laeuft
 #   ORDNER=/opt/jf-spinte   wohin die Software gehoert
-#   ADRESSE=jfwpi.fritz.box unter welchem Namen die Handys sie erreichen
+#   ADRESSE=jfw-pi.fritz.box unter welchem Namen die Handys sie erreichen
 #   ZERTIFIKAT_NEU=1        Zertifikat neu ausstellen (z. B. nach einem Umzug)
 
 set -e

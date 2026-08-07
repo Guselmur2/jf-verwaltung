@@ -17,7 +17,7 @@ set -eu
 ORDNER="${ORDNER:-/opt/jf-spinte}"
 ZIEL="${ZIEL:-/mnt/jf-sicherung}"
 ERSATZZIEL="${ERSATZZIEL:-$ORDNER/data/sicherungen}"
-BENUTZER="${BENUTZER:-sam}"
+BENUTZER="${BENUTZER:-pi}"
 PASSWORTDATEI="${PASSWORTDATEI:-/etc/jf-spinte/sicherung.passwort}"
 STAENDE="${STAENDE:-30}"
 STATUS="$ORDNER/data/sicherung-status.json"

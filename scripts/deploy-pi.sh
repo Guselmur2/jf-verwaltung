@@ -8,10 +8,16 @@
 
 set -e
 
-PI_HOST="${PI_HOST:-jfwpi.fritz.box}"
-PI_USER="${PI_USER:-sam}"
+# Die eigenen Angaben gehoeren nicht ins Repo — sie stehen in deploy.config
+# daneben (von der Versionsverwaltung ausgeschlossen). Vorlage: deploy.config.beispiel
+EIGENE="$(dirname "$0")/../deploy.config"
+# shellcheck disable=SC1090
+[ -f "$EIGENE" ] && . "$EIGENE"
+
+PI_HOST="${PI_HOST:-jfw-pi.fritz.box}"
+PI_USER="${PI_USER:-pi}"
 PI_DIR="${PI_DIR:-/opt/jf-spinte}"
-PI_KEY="${PI_KEY:-$HOME/.ssh/jfwpi_key}"
+PI_KEY="${PI_KEY:-$HOME/.ssh/jfw-pi_key}"
 
 SSH="ssh -i $PI_KEY -o IdentitiesOnly=yes -o BatchMode=yes $PI_USER@$PI_HOST"
 

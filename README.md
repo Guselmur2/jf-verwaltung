@@ -433,24 +433,24 @@ alle Betreuer, weil in der Praxis oft der die Lieferung annimmt, der gerade da i
 
 | | |
 |---|---|
-| Adresse | **https://jfwpi.fritz.box** |
+| Adresse | **https://jfw-pi.fritz.box** |
 | Gerät | Raspberry Pi, Debian 13 (arm64), Node 20 |
 | Verzeichnis | `/opt/jf-spinte` |
 | Datenbank | `/opt/jf-spinte/data/spinte.db` |
 | Zertifikat | `/opt/jf-spinte/tls/pi.crt`, gültig bis Juli 2036 |
 | Dienst | `jf-spinte.service`, Autostart aktiv, `Restart=always` |
-| Benutzer | `sam` |
+| Benutzer | `pi` |
 
 ### Warum der Hostname statt der IP
 
-Das Zertifikat ist auf **`jfwpi.fritz.box`** ausgestellt, nicht auf eine IP-Adresse. Es bleibt
+Das Zertifikat ist auf **`jfw-pi.fritz.box`** ausgestellt, nicht auf eine IP-Adresse. Es bleibt
 damit gültig, wenn der Pi eine neue IP bekommt — auch beim Umzug in ein anderes Netz, solange
-dort ebenfalls eine FRITZ!Box steht und der Pi seinen Hostnamen `JfwPi` behält. Die
+dort ebenfalls eine FRITZ!Box steht und der Pi seinen Hostnamen `jfw-pi` behält. Die
 Einträge im Zertifikat:
 
 ```
-DNS:jfwpi.fritz.box, DNS:JfwPi.fritz.box, DNS:jfwpi, DNS:JfwPi,
-DNS:localhost, IP:192.168.188.120, IP:127.0.0.1
+DNS:jfw-pi.fritz.box, DNS:jfw-pi, DNS:jfw-pi.local,
+DNS:localhost, IP:192.168.1.50, IP:127.0.0.1
 ```
 
 Die IP steht zusätzlich drin, damit der Zugriff auch dann klappt, wenn der Name gerade nicht
@@ -458,13 +458,13 @@ auflöst. Ändert sich die IP, verliert nur dieser eine Eintrag seine Bedeutung 
 Namen läuft weiterhin alles.
 
 **Wann der Name doch nicht auflöst:** Wenn ein Handy „Privates DNS" (DNS-über-HTTPS/TLS)
-aktiviert hat, fragt es nicht mehr die FRITZ!Box und findet `jfwpi.fritz.box` nicht. Dann
+aktiviert hat, fragt es nicht mehr die FRITZ!Box und findet `jfw-pi.fritz.box` nicht. Dann
 hilft, privates DNS im WLAN abzuschalten — oder die IP zu verwenden.
 
 ### Dienst bedienen
 
 ```bash
-ssh -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box
+ssh -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box
 sudo systemctl status jf-spinte
 sudo systemctl restart jf-spinte
 journalctl -u jf-spinte -n 50 --no-pager
@@ -482,9 +482,9 @@ und prüft, ob er antwortet. Datenbank, Zertifikat und Einstellungen bleiben unb
 ### Datensicherung
 
 ```bash
-ssh -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box \
+ssh -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box \
   "sqlite3 /opt/jf-spinte/data/spinte.db \".backup '/tmp/spinte-\$(date +%F).db'\"" \
-  && scp -i ~/.ssh/jfwpi_key sam@jfwpi.fritz.box:/tmp/spinte-*.db .
+  && scp -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box:/tmp/spinte-*.db .
 ```
 
 `sqlite3` muss dafür auf dem Pi installiert sein (`sudo apt install sqlite3`). Alternativ den
@@ -547,7 +547,7 @@ Ohne diese Regel läuft die Software normal weiter, nur der Knopf **Pi herunterf
 dann „Interactive authentication required". Von Hand nachrüsten:
 
 ```bash
-sudo sed 's/@BENUTZER@/sam/' /opt/jf-spinte/deploy/49-jf-spinte-poweroff.rules \
+sudo sed 's/@BENUTZER@/pi/' /opt/jf-spinte/deploy/49-jf-spinte-poweroff.rules \
   | sudo tee /etc/polkit-1/rules.d/49-jf-spinte-poweroff.rules
 sudo systemctl reload polkit
 ```
@@ -659,9 +659,9 @@ Es gibt zwei Formate für dieselbe Sache:
 | Wofür | Lagerorte, Kisten, kleine Beschriftungen | die Spinttür |
 
 Bei beiden zuerst im Feld „Adresse" die feste Pi-Adresse eintragen (z. B.
-`https://jfwpi.fritz.box`), **Übernehmen**, einen Code am Handy testen, dann drucken.
+`https://jfw-pi.fritz.box`), **Übernehmen**, einen Code am Handy testen, dann drucken.
 
-Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=https://jfwpi.fritz.box`
+Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=https://jfw-pi.fritz.box`
 in die Service-Datei eintragen. Dann stimmen die QR-Codes unabhängig davon, über welchen
 Namen man die Seite gerade aufruft.
 
@@ -849,8 +849,8 @@ Prüfsumme. Jeder Zugang darf entweder `nur lesen` oder `lesen und schreiben`.
 Der Schlüssel gehört in die Kopfzeile — beide Schreibweisen funktionieren:
 
 ```bash
-curl -k -H "X-API-Key: jfw_…"           https://jfwpi.fritz.box/api/v1/
-curl -k -H "Authorization: Bearer jfw_…" https://jfwpi.fritz.box/api/v1/
+curl -k -H "X-API-Key: jfw_…"           https://jfw-pi.fritz.box/api/v1/
+curl -k -H "Authorization: Bearer jfw_…" https://jfw-pi.fritz.box/api/v1/
 ```
 
 `GET /api/v1/` listet alle Endpunkte auf. Die Felder heißen deutsch wie die Oberfläche.
@@ -897,7 +897,7 @@ Größen ersetzen — die Reihenfolge in der Liste bestimmt, was „eine Nummer 
 curl -k -X PUT -H "X-API-Key: jfw_…" -H "content-type: application/json" \
   -d '{"gruppen":[{"gruppe":"Körpergröße","groessen":["116","122","128"]},
                   {"gruppe":"Konfektion","groessen":["44","46"]}]}' \
-  https://jfwpi.fritz.box/api/v1/groessen/bekleidung
+  https://jfw-pi.fritz.box/api/v1/groessen/bekleidung
 ```
 
 ### Umlaute
@@ -915,7 +915,7 @@ Wer sich nicht sicher ist, welche Kodierung sein Werkzeug verwendet, schreibt Um
 curl -k -X POST -H "X-API-Key: jfw_…" -H "content-type: application/json" \
   -d '{"schema":"jacke","bezeichnung":"Jacke (Doppelgrößen)",
        "gruppen":[{"gruppe":"Körpergröße","groessen":["146/152"]}]}' \
-  https://jfwpi.fritz.box/api/v1/groessen
+  https://jfw-pi.fritz.box/api/v1/groessen
 ```
 
 Die Prüfungen der Oberfläche gelten auch hier: doppelte Inventarnummern werden mit `409`
@@ -936,7 +936,7 @@ verschlüsselt in einem Ordner auf diesem Rechner.
 
 Beim **ersten** Start richtet sich das Skript ein und fragt drei Dinge:
 
-1. Adresse des Pi (Vorgabe `jfwpi.fritz.box`)
+1. Adresse des Pi (Vorgabe `jfw-pi.fritz.box`)
 2. Passwort für die Sicherung — **das wählst du hier, und ohne dieses Passwort ist die
    Sicherung später nicht zu öffnen**
 3. Zielordner und wie viele Sicherungen aufgehoben werden (Vorgabe 14)
@@ -972,7 +972,7 @@ Rückgabewert 0 = geklappt, 1 = Fehler, 2 = Zertifikat hat sich geändert.
 curl -k -H "X-API-Key: jfw_…" \
   -H "X-Sicherung-Passwort: DeinSicherungsPasswort" \
   -o "spinte-$(date +%F).db.enc" \
-  https://jfwpi.fritz.box/api/v1/sicherung
+  https://jfw-pi.fritz.box/api/v1/sicherung
 ```
 
 Dafür genügt ein Zugang mit `nur lesen`. Das Passwort steht bewusst in einer Kopfzeile und
@@ -1145,12 +1145,27 @@ austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner a
 So läuft der ganze Weg durch — Rechte, Token, Protokolleintrag und Fehlerfall —, ohne dass
 ein Testlauf den Rechner mitnimmt.
 
+## Eigene Angaben: `deploy.config`
+
+Hostname, Benutzername und Schlüsselpfad des eigenen Pi stehen **nicht** im Repo. Im
+Auslieferungsskript sind neutrale Beispiele hinterlegt (`jfw-pi.fritz.box`, `pi`); die
+eigenen Werte kommen in eine Datei daneben:
+
+```bash
+cp deploy.config.beispiel deploy.config
+```
+
+Dann anpassen. `deploy.config` ist von der Versionsverwaltung ausgeschlossen — der Name des
+eigenen Pi und das Benutzerkonto gehen niemanden etwas an. `scripts/deploy-pi.sh` liest die
+Datei automatisch, sofern sie da ist; sonst gelten die Beispielwerte (oder was in den
+Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY` steht).
+
 ## Updates und was dabei zu beachten ist
 
 Liegt der Code auf GitHub, geht ein Update auf dem Pi ohne diesen Rechner:
 
 ```bash
-ssh sam@jfwpi.fritz.box
+ssh pi@jfw-pi.fritz.box
 ```
 ```bash
 cd /opt/jf-spinte && git fetch && git log --oneline HEAD..origin/main

@@ -111,7 +111,7 @@ function Einrichtung {
     Schreibe '  ------------------------------' 'Cyan'
     Schreibe ''
 
-    $host_ = if ($Rechner) { $Rechner } else { FrageStill '  Adresse des Pi' 'jfwpi.fritz.box' }
+    $host_ = if ($Rechner) { $Rechner } else { FrageStill '  Adresse des Pi' 'jfw-pi.fritz.box' }
 
     $key = $ApiKey
     if (-not $key) { $key = LiesSchluesselAusProjekt }
