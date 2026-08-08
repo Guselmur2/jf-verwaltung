@@ -21,6 +21,9 @@ ohne Internet und ohne Cloud.
 erklärt Einrichtung und Technik, das Handbuch die Bedienung. Beide liegen auch **in der
 laufenden Installation** unter `/handbuch` und wandern damit bei jedem Update mit.
 
+Entstanden ist das Projekt in Zusammenarbeit mit einer KI — Näheres unter
+[Mit KI entwickelt](#mit-ki-entwickelt).
+
 ## Was die Seiten können
 
 | Seite | Adresse | Wer |
@@ -1324,6 +1327,26 @@ Lizenzhinweis selbst im Dateikopf.
 > geschützt — ihr dürft es führen, ein beliebiger Dritter, der euer Repo klont, nicht. Es
 > liegt in der Datenbank und damit unter `data/`, das ausgeschlossen ist. Bitte dabei belassen
 > und nicht „zur Bequemlichkeit" als Datei dazulegen.
+
+## Mit KI entwickelt
+
+Diese Software ist in Zusammenarbeit mit einer KI entstanden (Claude von Anthropic). Der
+Code, die Tests und der größte Teil dieser Dokumentation wurden im Dialog geschrieben:
+Anforderungen, Entscheidungen und die Erfahrungen aus dem Betrieb kamen aus der
+Jugendfeuerwehr, die Umsetzung von der KI.
+
+Das gehört hierher, weil es zwei praktische Fragen berührt:
+
+* **Prüft, was ihr einsetzt.** Das Repo ist öffentlich, der Code lesbar, und es gibt
+  automatische Tests (`npm test`). Wer die Software auf einen eigenen Pi mit den Daten
+  eigener Kinder stellt, sollte trotzdem selbst hineinsehen — das gilt für KI-Code genauso
+  wie für fremden Code von Menschen.
+* **Fehler sind trotzdem Fehler.** Was hier läuft, läuft im echten Betrieb einer Wehr und
+  ist dort gewachsen: mehrere Sachen in dieser Software gibt es nur, weil im Gerätehaus
+  etwas nicht funktioniert hat. Für die Richtigkeit gibt es keine Garantie, weder durch die
+  Herkunft des Codes noch durch die Tests.
+
+Die Verantwortung für den Einsatz liegt bei dem, der ihn betreibt — siehe Lizenz.
 
 ## Lizenz
 
