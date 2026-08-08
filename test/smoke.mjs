@@ -1,6 +1,6 @@
 // Durchlauf durch die wichtigsten Abläufe gegen einen frisch gestarteten Server
 // mit leerer Datenbank. Aufruf: npm test
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,6 +33,7 @@ writeFileSync(
 const gitOrdner = path.join(datenordner, 'installation');
 const updateMarke = path.join(datenordner, 'update-anfordern');
 const updateStatus = path.join(datenordner, 'update-status.json');
+const updateAbgleich = path.join(datenordner, 'update-abgleich.json');
 mkdirSync(gitOrdner, { recursive: true });
 
 const server = spawn(process.execPath, ['server.js'], {
@@ -46,6 +47,7 @@ const server = spawn(process.execPath, ['server.js'], {
     GIT_ORDNER: gitOrdner,
     UPDATE_MARKE: updateMarke,
     UPDATE_STATUS: updateStatus,
+    UPDATE_ABGLEICH: updateAbgleich,
   },
   stdio: ['ignore', 'ignore', 'inherit'],
 });
@@ -1766,7 +1768,6 @@ check('mit Grund auf der Seite', r.text.includes('kein Git-Arbeitsverzeichnis'))
 
 // Ein Repository nachstellen: ein "ferner" Stand mit einem Commit mehr als die
 // Installation. Damit läuft dieselbe Prüfung wie auf dem Pi, nur ohne Netz.
-const { execFileSync } = await import('node:child_process');
 const fern = path.join(datenordner, 'fern.git');
 const g = (args, cwd) => execFileSync('git', args, { cwd, stdio: 'pipe' });
 let gitDa = true;
@@ -1798,10 +1799,39 @@ if (gitDa) {
   r = await req('/system');
   check('mit Git verschwindet der Umstell-Hinweis', !r.text.includes('auf-git-umstellen.sh'));
 
+  // Die Anwendung holt NICHT selbst vom Server — sie darf im Betrieb nicht in
+  // .git schreiben. Vor dem Abgleich weiß sie deshalb nichts von der zweiten
+  // Änderung, obwohl es sie im Repository längst gibt.
+  r = await req('/system/update');
+  check('ohne Abgleich meldet die Seite alles aktuell', r.text.includes('Alles aktuell'));
+  check('und kennt die neue Änderung noch nicht', !r.text.includes('Etiketten schmaler gesetzt'));
+  check('bietet aber das Nachfragen an', r.text.includes('Nach Neuem sehen'));
+
+  token = await csrf('/system/update');
+  r = await req('/system/update/abgleichen', { method: 'POST', form: { _csrf: token } });
+  check('Abgleich wird angefordert', r.status === 302 && r.location === '/system/update', `${r.status} ${r.location}`);
+  check('die Markierung liegt bereit', existsSync(updateMarke));
+  check(
+    'und sagt in Zeile 1, dass nur nachgesehen werden soll',
+    readFileSync(updateMarke, 'utf8').split('\n')[0].trim() === 'pruefen',
+    readFileSync(updateMarke, 'utf8').split('\n')[0]
+  );
+  r = await req('/system/update');
+  check('solange steht „Sehe nach" auf der Seite', r.text.includes('Sehe nach'));
+
+  // Ab hier den Helfer nachstellen: er holt vom Server und meldet das Ergebnis.
+  unlinkSync(updateMarke);
+  execFileSync('git', ['-C', gitOrdner, 'fetch', '--quiet', 'origin', 'main'], { stdio: 'pipe' });
+  writeFileSync(
+    updateAbgleich,
+    JSON.stringify({ zeitpunkt: new Date().toISOString(), schritt: 'abgleich', ergebnis: 'ok', meldung: 'Nachgesehen.' })
+  );
+
   // Jetzt ist Übungszeit: die Seite soll vom Neustart abraten.
   await stammSpeichern({ dienst_beginn: uhrzeitIn(5), dienst_ende: uhrzeitIn(30) });
   r = await req('/system/update');
-  check('die Änderung wird aufgelistet', r.text.includes('Etiketten schmaler gesetzt'), r.status + '');
+  check('nach dem Abgleich wird die Änderung aufgelistet', r.text.includes('Etiketten schmaler gesetzt'), r.status + '');
+  check('mit dem Zeitpunkt des Abgleichs', r.text.includes('Zuletzt nachgesehen'));
   check('als eine einzige Änderung gezählt', r.text.includes('<h2>1 Änderung</h2>'));
   check('mit Knopf zum Einspielen', r.text.includes('Jetzt aktualisieren'));
   check('warnt während der Übungszeit', r.text.includes('Gerade ist ein schlechter Zeitpunkt'));

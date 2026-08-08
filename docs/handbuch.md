@@ -356,11 +356,17 @@ woran man erkennt, dass er fertig ist (ruhig rote Leuchte).
 
 ### Aktualisieren
 
-Die Seite zeigt erst, **was** dazukäme, mit Kurztext je Änderung.
+Ein Klick auf **Nach Neuem sehen** fragt beim Repository nach — dabei ändert sich an der
+Installation nichts. Danach steht da, **was** dazukäme, mit Kurztext je Änderung.
 
 ![Aktualisierung](bilder/update.png)
 
-Ein Klick erledigt den Rest: Sicherung ziehen, neuen Stand holen, Abhängigkeiten
+Dass das Nachfragen ein eigener Knopf ist und nicht beim Aufruf der Seite passiert, hat einen
+Grund: die Weboberfläche darf am Programmordner nichts verändern, nicht einmal an der
+Versionsverwaltung. Sonst könnte eine Lücke in ihr dem Update fremden Code unterschieben.
+Gefragt wird deshalb vom selben Helfer, der später auch einspielt.
+
+**Jetzt aktualisieren** erledigt den Rest: Sicherung ziehen, neuen Stand holen, Abhängigkeiten
 installieren, Dienst neu starten, prüfen, ob die Seite antwortet. **Geht etwas schief, setzt
 sich das von allein zurück** — nach zwei erfolglosen Versuchen läuft der vorherige Stand
 wieder.

@@ -1190,11 +1190,12 @@ Es gibt drei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
 
 ### Über die Oberfläche (der bequemste Weg)
 
-Unter **System, Update & Herunterfahren** → *Nach Aktualisierung sehen* steht, was ein Update
-brächte: die Liste der Änderungen, jede mit ihrem Kurztext. Ein Klick auf *Jetzt
-aktualisieren* erledigt den Rest — Sicherung ziehen, neuen Stand holen, `npm ci`, Dienst neu
-starten, prüfen, ob die Seite wieder antwortet. Der Ablauf dauert eine Minute; die Anzeige
-meldet sich von selbst zurück, sobald der Dienst wieder da ist.
+Unter **System, Update & Herunterfahren** → *Nach Aktualisierung sehen*. Ein Klick auf
+*Nach Neuem sehen* fragt beim Repository nach, danach steht die Liste der Änderungen da,
+jede mit ihrem Kurztext. *Jetzt aktualisieren* erledigt den Rest — Sicherung ziehen, neuen
+Stand holen, `npm ci`, Dienst neu starten, prüfen, ob die Seite wieder antwortet. Der Ablauf
+dauert eine Minute; die Anzeige meldet sich von selbst zurück, sobald der Dienst wieder da
+ist.
 
 **Geht etwas schief, setzt sich das von allein zurück.** Nach zwei erfolglosen Versuchen
 springt der Helfer per `git reset --hard` auf den Stand von vorher, installiert dessen
@@ -1213,6 +1214,14 @@ dafür keinerlei Sonderrechte; `NoNewPrivileges=true` bleibt bestehen.
 Dass die Markierung unter `/run` liegt, ist Absicht: das ist eine RAM-Platte. Nach einem
 Stromausfall mitten im Vorgang ist die Anforderung weg und löst beim nächsten Start nicht
 versehentlich noch ein Update aus.
+
+Aus demselben Grund fragt auch **das blosse Nachsehen** über den Helfer. `git fetch` will
+`.git/FETCH_HEAD` schreiben, und der Dienst darf ausser `data/` nirgends schreiben
+(`ProtectSystem=strict`). Die naheliegende Abhilfe wäre, `.git` in `ReadWritePaths`
+aufzunehmen — und genau die wäre falsch: wer in `.git` schreiben kann, ändert die
+Herkunftsadresse oder schiebt Objekte unter, und der Helfer spielt sie anschliessend **als
+root** ein und lässt dabei `npm ci` laufen. Aus einer Lücke in der Weboberfläche würde so
+Rootzugriff. Der Helfer holt, die Seite liest nur das Ergebnis.
 
 ### Vom Projektordner aus (funktioniert sofort)
 

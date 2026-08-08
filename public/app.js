@@ -149,8 +149,10 @@
             location.reload();
             return;
           }
-          if (meldung && daten.status) {
-            meldung.textContent = (daten.status.schritt || '') + ': ' + (daten.status.meldung || '…');
+          // Beim blossen Nachsehen meldet der Helfer in eine eigene Datei.
+          var stand = daten.art === 'abgleich' ? daten.abgleich : daten.status;
+          if (meldung && stand) {
+            meldung.textContent = (stand.schritt || '') + ': ' + (stand.meldung || '…');
           }
         })
         .catch(function () {

@@ -84,6 +84,10 @@ sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git</pre>
       geht etwas schief, setzt die Software von selbst auf den vorherigen Stand zurück.
     </p>
     <p><a class="btn" href="/system/update">Nach Aktualisierung sehen</a></p>
+    <p class="klein">
+      Dort erst <em>Nach Neuem sehen</em> — gefragt wird beim Repository, verändert wird dabei
+      nichts.
+    </p>
     <% if (aktualisierung.status) { %>
       <p class="klein">
         Zuletzt: <%= aktualisierung.status.ergebnis === 'ok' ? 'erfolgreich' : aktualisierung.status.ergebnis %>

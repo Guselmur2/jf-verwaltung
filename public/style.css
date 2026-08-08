@@ -623,3 +623,6 @@ details.block[open] summary { margin-bottom: .5rem; }
 .doku table { border-collapse: collapse; width: 100%; font-size: .92rem; }
 .doku th, .doku td { border: 1px solid var(--linie); padding: .4rem .6rem; text-align: left; vertical-align: top; }
 .doku th { background: var(--hintergrund); }
+
+/* Ein Wort im Fliesstext, das nicht untergehen darf. */
+.warnwort { color: var(--rot); font-weight: 600; }

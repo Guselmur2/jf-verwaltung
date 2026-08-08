@@ -116,10 +116,12 @@ router.get('/system/update', auth.requireJugendwart, async (req, res, next) => {
     const laeuft = update.inArbeit();
     res.render('update', {
       title: 'Aktualisierung',
-      // Waehrend eine Aktualisierung laeuft, wird nicht noch einmal geholt.
+      // Waehrend etwas laeuft, wird nicht nebenher noch nachgesehen.
       pruefung: laeuft ? null : await update.pruefen(),
       status: update.status(),
+      abgleich: update.abgleichStand(),
       laeuft,
+      art: update.artInArbeit(),
       fenster: d.dienstfenster(),
       // Ist heute schon Anwesenheit erfasst, laeuft der Uebungsabend gerade
       // oder war eben — dann besser nicht neu starten.
@@ -132,7 +134,29 @@ router.get('/system/update', auth.requireJugendwart, async (req, res, next) => {
 
 /** Nur der Stand, fuer die Anzeige waehrend des Neustarts. */
 router.get('/system/update/status.json', auth.requireJugendwart, (req, res) => {
-  res.json({ laeuft: update.inArbeit(), status: update.status() });
+  res.json({
+    laeuft: update.inArbeit(),
+    art: update.artInArbeit(),
+    status: update.status(),
+    abgleich: update.abgleichStand(),
+  });
+});
+
+/**
+ * Beim Repository nachfragen. Der Dienst kann das nicht selbst — er darf nicht
+ * in .git schreiben (siehe src/update.js). Also fragt er den Helfer.
+ */
+router.post('/system/update/abgleichen', auth.requireJugendwart, (req, res) => {
+  if (update.inArbeit()) {
+    req.session.flash = { type: 'info', text: 'Es läuft schon etwas.' };
+    return res.redirect('/system/update');
+  }
+  if (!update.istGit()) {
+    req.session.flash = { type: 'warn', text: 'Diese Installation ist kein Git-Arbeitsverzeichnis.' };
+    return res.redirect('/system/update');
+  }
+  update.abgleichAnfordern(req.session.user.name);
+  res.redirect('/system/update');
 });
 
 router.post('/system/update/starten', auth.requireJugendwart, (req, res) => {

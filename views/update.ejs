@@ -21,22 +21,30 @@
     sobald es wieder antwortet. %>
 <% if (laeuft) { %>
   <section class="block" data-update-laeuft>
-    <h2>Läuft gerade</h2>
+    <h2><%= art === 'abgleich' ? 'Sehe nach' : 'Läuft gerade' %></h2>
     <p class="hinweis hinweis-info" data-update-meldung>
-      <% if (status) { %>
-        <strong><%= SCHRITTE[status.schritt] || status.schritt %>:</strong> <%= status.meldung || '…' %>
+      <% const jetzt = art === 'abgleich' ? abgleich : status; %>
+      <% if (jetzt) { %>
+        <strong><%= SCHRITTE[jetzt.schritt] || jetzt.schritt %>:</strong> <%= jetzt.meldung || '…' %>
       <% } else { %>
         Angefordert — der Helfer legt gleich los.
       <% } %>
     </p>
-    <p class="klein">
-      Der Dienst startet dabei neu, die Seite ist dann kurz nicht erreichbar. Das ist normal —
-      diese Anzeige meldet sich von selbst zurück. <strong>Bitte nicht den Strom trennen.</strong>
-    </p>
-    <p class="klein">
-      Geht etwas schief, setzt der Helfer nach zwei Versuchen von selbst auf den vorherigen
-      Stand zurück. Dafür musst du nichts tun.
-    </p>
+    <% if (art === 'abgleich') { %>
+      <p class="klein">
+        Dauert ein paar Sekunden. Es wird nur nachgefragt — an der Installation ändert sich
+        dabei nichts.
+      </p>
+    <% } else { %>
+      <p class="klein">
+        Der Dienst startet dabei neu, die Seite ist dann kurz nicht erreichbar. Das ist normal —
+        diese Anzeige meldet sich von selbst zurück. <strong>Bitte nicht den Strom trennen.</strong>
+      </p>
+      <p class="klein">
+        Geht etwas schief, setzt der Helfer nach zwei Versuchen von selbst auf den vorherigen
+        Stand zurück. Dafür musst du nichts tun.
+      </p>
+    <% } %>
   </section>
 <% } %>
 
@@ -70,7 +78,46 @@
   <p class="hinweis hinweis-warn"><%= pruefung.grund %></p>
 <% } %>
 
+<%#
+  Nachgefragt wird nicht beim Aufruf der Seite, sondern auf Knopfdruck — und
+  nicht von der Anwendung selbst. Sie darf nicht in .git schreiben, und das
+  soll auch so bleiben: wer dort schreiben kann, kann dem Helfer beim nächsten
+  Update fremden Code unterschieben. Also fragt der Helfer, die Seite liest nur
+  das Ergebnis. Siehe src/update.js.
+%>
 <% if (!laeuft && pruefung && pruefung.moeglich) { %>
+  <section class="block">
+    <h2>Beim Repository nachfragen</h2>
+    <p class="klein">
+      <% if (pruefung.abgeglichen) { %>
+        Zuletzt nachgesehen: <%= pruefung.abgeglichen.toLocaleString('de-DE') %>.
+        <% if (pruefung.letzter && pruefung.letzter.ergebnis === 'fehler') { %>
+          <span class="warnwort">Dabei ging etwas schief: <%= pruefung.letzter.meldung %></span>
+        <% } %>
+      <% } else { %>
+        Es wurde noch nie nachgesehen.
+      <% } %>
+      Die Liste unten stammt von diesem Zeitpunkt.
+    </p>
+    <form method="post" action="/system/update/abgleichen" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn btn-still" type="submit">Nach Neuem sehen</button>
+    </form>
+  </section>
+<% } %>
+
+<% if (!laeuft && pruefung && pruefung.moeglich && pruefung.unbekannt) { %>
+  <section class="block">
+    <h2>Noch nichts abgeglichen</h2>
+    <p>
+      Diese Installation hat noch nie beim Repository nachgefragt. Ein Klick auf
+      <strong>Nach Neuem sehen</strong> holt den Stand — eingespielt wird dabei nichts.
+    </p>
+    <p class="klein">Läuft gerade auf: <code><%= pruefung.stand %></code></p>
+  </section>
+<% } %>
+
+<% if (!laeuft && pruefung && pruefung.moeglich && !pruefung.unbekannt) { %>
   <% if (pruefung.aktuell) { %>
     <section class="block">
       <h2>Alles aktuell</h2>

@@ -22,10 +22,20 @@ ZWEIG="${ZWEIG:-main}"
 DIENST="${DIENST:-jf-spinte}"
 MARKE="${MARKE:-/run/jf-spinte/update-anfordern}"
 STATUS="${STATUS:-$ORDNER/data/update-status.json}"
+ABGLEICH="${ABGLEICH:-$ORDNER/data/update-abgleich.json}"
 VERSUCHE="${VERSUCHE:-2}"
 
 BENUTZER="$(stat -c '%U' "$ORDNER/server.js" 2>/dev/null || echo root)"
 ALS="runuser -u $BENUTZER --"
+
+# Zeile 1 der Markierung sagt, was gewuenscht ist: nur nachsehen ("pruefen")
+# oder wirklich einspielen ("update"). Nachsehen muss der Helfer erledigen, weil
+# der Dienst selbst nicht in .git schreiben darf — siehe src/update.js.
+MODUS="$(head -n 1 "$MARKE" 2>/dev/null | tr -d '\r')"
+case "$MODUS" in
+  pruefen | update) ;;
+  *) MODUS=update ;;
+esac
 
 # Die Markierung sofort wegnehmen. Sonst startet der Waechter gleich noch
 # einmal, und beim naechsten Systemstart gleich wieder.
@@ -33,7 +43,11 @@ rm -f "$MARKE"
 
 melden() {
   # melden <schritt> <ergebnis> <meldung>
-  cat > "$STATUS" <<ENDE
+  # Ein blosser Abgleich schreibt in eine eigene Datei — sonst ginge das
+  # Ergebnis der letzten echten Aktualisierung verloren, und genau das will man
+  # nachlesen, wenn etwas schiefging.
+  if [ "$MODUS" = pruefen ]; then ZIEL="$ABGLEICH"; else ZIEL="$STATUS"; fi
+  cat > "$ZIEL" <<ENDE
 {
   "zeitpunkt": "$(date '+%Y-%m-%dT%H:%M:%S%z')",
   "schritt": "$1",
@@ -43,8 +57,8 @@ melden() {
   "nachher": "${NACHHER_KURZ:-}"
 }
 ENDE
-  chown "$BENUTZER:$BENUTZER" "$STATUS" 2>/dev/null || true
-  chmod 644 "$STATUS" 2>/dev/null || true
+  chown "$BENUTZER:$BENUTZER" "$ZIEL" 2>/dev/null || true
+  chmod 644 "$ZIEL" 2>/dev/null || true
   echo "[$1/$2] $3"
 }
 
@@ -79,6 +93,16 @@ melden pruefen laeuft "Sehe nach, ob es etwas Neues gibt"
 if ! $ALS git -C "$ORDNER" fetch --quiet origin "$ZWEIG" 2>/dev/null; then
   melden pruefen fehler "Das Repository ist nicht erreichbar."
   exit 1
+fi
+
+if [ "$MODUS" = pruefen ]; then
+  NEUES="$($ALS git -C "$ORDNER" log --oneline "HEAD..origin/$ZWEIG" | wc -l | tr -d ' ')"
+  if [ "$NEUES" = 0 ]; then
+    melden abgleich ok "Nachgesehen — es gibt nichts Neues."
+  else
+    melden abgleich ok "Nachgesehen — $NEUES Aenderungen liegen bereit."
+  fi
+  exit 0
 fi
 
 VORHER="$($ALS git -C "$ORDNER" rev-parse HEAD)"
