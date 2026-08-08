@@ -17,6 +17,9 @@ und die Einteilung in Gruppen, Staffeln und Trupps. An jedem Spint hängt ein QR
 die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf einem Raspberry Pi,
 ohne Internet und ohne Cloud.
 
+**➜ [Handbuch mit Bildern](docs/handbuch.md)** — ein Rundgang durch alle Seiten. Dieses README
+erklärt Einrichtung und Technik, das Handbuch die Bedienung.
+
 ## Was die Seiten können
 
 | Seite | Adresse | Wer |
@@ -1123,6 +1126,9 @@ src/dienst.js          Anwesenheit, Einschätzung, Einteilung mit Funktionen
 src/update.js          nach Neuem sehen und die Aktualisierung anfordern (nur die Markierung)
 src/upload.js          Dateiannahme für Sicherung, Logo und Wiederherstellung
 scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
+scripts/doku-daten.js  Demo-Bestand fuer das Handbuch (erfundene Namen)
+scripts/doku-bilder.js nimmt die Bilder auf: Chrome kopflos ueber das DevTools-Protokoll
+docs/                  Handbuch mit Bildern
 scripts/update-helfer.sh  läuft als root ausserhalb des Dienstes: sichern, einspielen,
                        neu starten, prüfen — und bei Misserfolg zurücksetzen
 deploy/                Dienst, polkit-Regel, Sicherungs- und Update-Einheiten als Vorlage

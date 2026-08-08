@@ -10,7 +10,9 @@
     "https": "node scripts/start-https.js",
     "testdaten": "node scripts/testdaten.js",
     "test": "node test/smoke.mjs",
-    "lizenzen": "node scripts/lizenzen.js"
+    "lizenzen": "node scripts/lizenzen.js",
+    "doku-daten": "node scripts/doku-daten.js --force",
+    "doku-bilder": "node scripts/doku-bilder.js"
   },
   "engines": {
     "node": ">=18"
