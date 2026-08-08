@@ -19,3 +19,6 @@ sicherungen/
 data-test/
 # Demo-Bestand fuer die Doku — erzeugt scripts/doku-daten.js, gehoert nicht ins Repo
 data-doku/
+# Persoenliche Startdatei fuer diesen Rechner (Doppelklick)
+Server starten.cmd
+Server starten.ps1
