@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
+const migrationen = require('./migrationen');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const DB_FILE = path.join(DATA_DIR, 'spinte.db');
@@ -12,6 +13,11 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Database(DB_FILE);
 db.pragma('foreign_keys = ON');
 
+// Steht die Datenbank auf einer Fassung, die diese Software noch nicht kennt?
+// Wird beim Start gesetzt und in der Oberflaeche als Warnung angezeigt — die
+// Software laeuft trotzdem weiter, siehe migrationen.js.
+let zuNeu = false;
+
 function init() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
@@ -19,6 +25,24 @@ function init() {
   // Erst die Arten, dann die Schemata — die Zuordnung braucht die Arten.
   seedEquipmentTypes();
   seedSizeSchemes();
+}
+
+/**
+ * Bringt die Datenbank auf den Stand, den diese Software erwartet.
+ *
+ * Wird auch nach dem Einspielen einer Sicherung gebraucht: dort steht
+ * womoeglich ein aelterer Bestand, dem Spalten fehlen. Welche Schritte es gibt
+ * und welche Regeln fuer neue gelten, steht in migrationen.js.
+ */
+function migrate(ab = null) {
+  const ergebnis = migrationen.anwenden(db, ab);
+  zuNeu = ergebnis.zuNeu;
+  return ergebnis;
+}
+
+/** Auf welcher Schema-Fassung steht die laufende Datenbank? */
+function schemaStand() {
+  return { fassung: migrationen.stand(db), erwartet: migrationen.NEUESTE, zuNeu };
 }
 
 // Groessenschemata einmalig anlegen. Spaeter geaenderte oder geloeschte Groessen
@@ -48,146 +72,6 @@ function seedSizeSchemes() {
   })();
 }
 
-function hasColumn(table, column) {
-  // Tabellenname ist intern und fest, daher keine Injektionsgefahr.
-  return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
-}
-
-// Bringt aeltere Datenbanken auf den aktuellen Stand. Fuer frisch angelegte
-// Datenbanken sind alle Schritte No-ops, weil das Schema schon passt.
-function migrate() {
-  if (!hasColumn('members', 'gender')) {
-    db.exec("ALTER TABLE members ADD COLUMN gender TEXT");
-  }
-  if (!hasColumn('lockers', 'area_id')) {
-    db.exec('ALTER TABLE lockers ADD COLUMN area_id INTEGER REFERENCES areas(id)');
-  }
-  if (!hasColumn('equipment', 'storage_id')) {
-    db.exec('ALTER TABLE equipment ADD COLUMN storage_id INTEGER REFERENCES storages(id)');
-    db.exec('CREATE INDEX IF NOT EXISTS equipment_storage_idx ON equipment(storage_id)');
-  }
-  dropGlobalCodeUniqueIfPresent();
-  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS lockers_area_code ON lockers(area_id, code)');
-
-  if (!hasColumn('equipment_types', 'size_scheme')) {
-    db.exec('ALTER TABLE equipment_types ADD COLUMN size_scheme TEXT');
-  }
-  if (!hasColumn('equipment_types', 'barcode_prefix')) {
-    db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_prefix TEXT');
-    db.exec('ALTER TABLE equipment_types ADD COLUMN barcode_digits INTEGER');
-  }
-  if (!hasColumn('storages', 'is_default')) {
-    db.exec('ALTER TABLE storages ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
-  }
-  addTokenColumn('lockers', 'lockers_token');
-  addTokenColumn('storages', 'storages_token');
-  addInventoryUniqueIndex();
-}
-
-/**
- * Eine Inventarnummer gehoert zu genau einem Teil. Teile ohne Nummer
- * (Sammelposten) bleiben ausgenommen, davon gibt es beliebig viele.
- *
- * Steht in einer aelteren Datenbank dieselbe Nummer mehrfach, laesst sich der
- * Index nicht anlegen. Dann startet die Software trotzdem, meldet die Faelle
- * und verlaesst sich auf die Pruefung im Programm — sonst kaeme man an die
- * Daten gar nicht mehr heran, um sie zu berichtigen.
- */
-function addInventoryUniqueIndex() {
-  const doppelte = db
-    .prepare(
-      `SELECT TRIM(inventory_no) AS nr, COUNT(*) AS anzahl
-         FROM equipment
-        WHERE inventory_no IS NOT NULL AND TRIM(inventory_no) <> ''
-        GROUP BY LOWER(TRIM(inventory_no))
-       HAVING COUNT(*) > 1
-        ORDER BY anzahl DESC, nr`
-    )
-    .all();
-
-  if (doppelte.length) {
-    console.warn('WARNUNG: Diese Inventarnummern sind mehrfach vergeben:');
-    for (const d of doppelte) console.warn(`  ${d.nr} — ${d.anzahl} Teile`);
-    console.warn('Bitte über die Suche berichtigen. Nach einem Neustart wird die');
-    console.warn('Eindeutigkeit dann auch von der Datenbank erzwungen.');
-    return;
-  }
-
-  db.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS equipment_inv_unique
-       ON equipment(inventory_no COLLATE NOCASE)
-     WHERE inventory_no IS NOT NULL AND inventory_no <> ''`
-  );
-}
-
-// Geheimnis fuer die QR-Links. Bestehende Zeilen bekommen eines nachgetragen,
-// damit ohne Anmeldung niemand fremde Spinte durchprobieren kann.
-function addTokenColumn(table, indexName) {
-  const { neuerToken } = require('./tokens');
-
-  if (!hasColumn(table, 'token')) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN token TEXT`);
-  }
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ${indexName} ON ${table}(token) WHERE token IS NOT NULL`);
-
-  const offen = db.prepare(`SELECT id FROM ${table} WHERE token IS NULL`).all();
-  if (!offen.length) return;
-
-  const setzen = db.prepare(`UPDATE ${table} SET token = ? WHERE id = ?`);
-  db.transaction(() => {
-    for (const row of offen) {
-      // Bei einer Kollision (praktisch unmoeglich) einfach neu wuerfeln.
-      for (let versuch = 0; versuch < 10; versuch++) {
-        try {
-          setzen.run(neuerToken(), row.id);
-          break;
-        } catch (err) {
-          if (!/UNIQUE/i.test(err.message)) throw err;
-        }
-      }
-    }
-  })();
-  console.log(`${offen.length} ${table}: QR-Token nachgetragen — Etiketten müssen neu gedruckt werden.`);
-}
-
-// Frueher war lockers.code global eindeutig (inline UNIQUE -> Auto-Index nur auf
-// code). Damit die Nummerierung je Bereich neu beginnen darf, muss dieser Index
-// weg. Er laesst sich nicht einzeln droppen, also wird die Tabelle einmalig neu
-// aufgebaut.
-function dropGlobalCodeUniqueIfPresent() {
-  const globalCodeIndex = db
-    .prepare("PRAGMA index_list('lockers')")
-    .all()
-    .filter((idx) => idx.unique)
-    .find((idx) => {
-      const cols = db.prepare(`PRAGMA index_info(${JSON.stringify(idx.name)})`).all();
-      return cols.length === 1 && cols[0].name === 'code';
-    });
-  if (!globalCodeIndex) return;
-
-  db.pragma('foreign_keys = OFF');
-  db.transaction(() => {
-    db.exec(`
-      CREATE TABLE lockers_neu (
-        id        INTEGER PRIMARY KEY,
-        code      TEXT NOT NULL COLLATE NOCASE,
-        label     TEXT,
-        location  TEXT,
-        area_id   INTEGER REFERENCES areas(id),
-        member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
-        note      TEXT
-      );
-      INSERT INTO lockers_neu (id, code, label, location, area_id, member_id, note)
-        SELECT id, code, label, location, area_id, member_id, note FROM lockers;
-      DROP TABLE lockers;
-      ALTER TABLE lockers_neu RENAME TO lockers;
-      CREATE UNIQUE INDEX IF NOT EXISTS lockers_member_unique
-        ON lockers(member_id) WHERE member_id IS NOT NULL;
-    `);
-  })();
-  db.pragma('foreign_keys = ON');
-}
-
 // Die fuenf Standardteile nur beim allerersten Start anlegen. Spaeter geloeschte
 // oder umbenannte Arten kommen dadurch nicht wieder zurueck.
 function seedEquipmentTypes() {
@@ -207,6 +91,4 @@ function seedEquipmentTypes() {
   db.transaction(() => defaults.forEach((d) => insert.run(...d)))();
 }
 
-// migrate wird auch nach dem Einspielen einer Sicherung gebraucht, damit ein
-// aelterer Bestand die inzwischen dazugekommenen Spalten erhaelt.
-module.exports = { db, init, migrate, DB_FILE, DATA_DIR };
+module.exports = { db, init, migrate, schemaStand, DB_FILE, DATA_DIR };

@@ -4,7 +4,7 @@
 #
 # Gesichert wird zweierlei, beides mit demselben Passwort verschluesselt:
 #
-#   spinte-JJJJ-MM-TT-hhmm.db.enc   die Datenbank
+#   spinte-JJJJ-MM-TT-hhmm-sN.db.enc   die Datenbank (sN = Fassung des Schemas)
 #   wlan-JJJJ-MM-TT-hhmm.tar.gz.enc die WLAN-Zugangsdaten
 #
 # Beide im Format von "openssl enc", also auch ohne diese Software zu oeffnen:

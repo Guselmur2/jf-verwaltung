@@ -1,0 +1,36 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1><%= title %></h1>
+  <p class="klein nowrap">
+    <% if (stand) { %>Stand <code><%= stand %></code> · <% } %>
+    Schema <%= schema.fassung %>
+  </p>
+</div>
+
+<nav class="dokuwahl">
+  <a class="btn btn-klein <%= seite === 'handbuch' ? '' : 'btn-still' %>" href="/handbuch">Handbuch</a>
+  <a class="btn btn-klein <%= seite === 'readme' ? '' : 'btn-still' %>" href="/handbuch/readme">Technik</a>
+  <a class="btn btn-klein <%= seite === 'datenbank' ? '' : 'btn-still' %>" href="/handbuch/datenbank">Datenbank</a>
+</nav>
+
+<div class="dokulayout">
+  <%# Inhaltsverzeichnis aus den Überschriften. Auf dem Handy klappt es zu —
+      sonst müsste man an dreißig Zeilen vorbeiscrollen, bevor der Text anfängt. %>
+  <% if (gliederung.length > 2) { %>
+    <details class="dokunav" open>
+      <summary>Inhalt</summary>
+      <ul>
+        <%# Die Überschrift "Inhalt" im Text selbst gehört nicht noch einmal
+            in dieses Verzeichnis. %>
+        <% gliederung.filter((g) => g.id !== 'inhalt').forEach(function (g) { %>
+          <li class="stufe-<%= g.stufe %>"><a href="#<%= g.id %>"><%= g.text %></a></li>
+        <% }); %>
+      </ul>
+    </details>
+  <% } %>
+
+  <article class="doku"><%- html %></article>
+</div>
+
+<%- include('partials/fuss') %>

@@ -61,7 +61,7 @@ router.post('/einrichtung/sicherung', async (req, res) => {
   try {
     bericht = await restore.ausSicherung(req.file.buffer, req.body.passwort);
   } catch (err) {
-    if (err.code === 'PASSWORT' || err.code === 'FORMAT') return fail(err.message);
+    if (err.code === 'PASSWORT' || err.code === 'FORMAT' || err.code === 'VERSION') return fail(err.message);
     console.error('Wiederherstellung fehlgeschlagen:', err);
     return fail('Die Sicherung konnte nicht eingespielt werden: ' + err.message);
   }

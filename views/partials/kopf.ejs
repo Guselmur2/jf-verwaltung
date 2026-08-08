@@ -86,6 +86,7 @@
       <details class="menu">
         <summary><%= user.name %><% if (isJugendwart) { %> <span class="chip chip-jw">JW</span><% } %></summary>
         <div class="menu-inhalt">
+          <a href="/handbuch">Handbuch</a>
           <a href="/lagerorte">Lagerorte</a>
           <a href="/ausruestungsarten">Ausrüstungsarten</a>
           <a href="/ausgemustert">Ausgemustert</a>
@@ -112,6 +113,17 @@
 </header>
 
 <main class="inhalt">
+<%# Datenbank neuer als die Software — siehe src/migrationen.js. Steht bewusst
+    ueber der Flash-Meldung: das hier ist wichtiger als alles andere. %>
+<% if (typeof schema !== 'undefined' && schema && schema.zuNeu) { %>
+  <p class="hinweis hinweis-warn">
+    <strong>Die Datenbank ist neuer als diese Software.</strong>
+    Sie steht auf Schema-Fassung <%= schema.fassung %>, diese Fassung kennt nur
+    <%= schema.erwartet %>. Vermutlich wurde eine Aktualisierung zurückgenommen.
+    Bitte die Software aktualisieren — bis dahin können Daten fehlen oder falsch
+    angezeigt werden.
+  </p>
+<% } %>
 <% if (flash) { %>
   <p class="hinweis hinweis-<%= flash.type %>"><%= flash.text %></p>
 <% } %>

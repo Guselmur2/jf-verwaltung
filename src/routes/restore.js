@@ -119,11 +119,14 @@ router.post('/restore', auth.requireJugendwart, async (req, res, next) => {
       'Sicherung eingespielt',
       `${herkunft}: ${bericht.mitglieder} Mitglieder, ${bericht.spinte} Spinte, ${bericht.ausruestung} Teile`
     );
+    const gehoben = bericht.gehoben && bericht.gehoben.nachher > bericht.fassung
+      ? ` Das Schema wurde dabei von Fassung ${bericht.fassung} auf ${bericht.gehoben.nachher} gehoben.`
+      : '';
     req.session.flash = {
       type: 'ok',
       text:
         `Eingespielt: ${bericht.mitglieder} Mitglieder, ${bericht.spinte} Spinte, ` +
-        `${bericht.ausruestung} Teile. Der vorherige Stand liegt als ` +
+        `${bericht.ausruestung} Teile.${gehoben} Der vorherige Stand liegt als ` +
         `${path.basename(sicherheitskopie)} daneben.`,
     };
     // Die eigene Anmeldung stammt aus der ersetzten Datenbank — neu anmelden.
@@ -131,6 +134,9 @@ router.post('/restore', auth.requireJugendwart, async (req, res, next) => {
   } catch (err) {
     if (err.code === 'PASSWORT') return zurueck('Das Passwort passt nicht zu dieser Sicherung.');
     if (err.code === 'FORMAT') return zurueck('Das ist keine Sicherung dieser Software.');
+    // Sicherung aus einer neueren Fassung: nicht einspielen, sonst fielen die
+    // unbemerkt weg, die diese Installation noch nicht kennt.
+    if (err.code === 'VERSION') return zurueck(err.message);
     return next(err);
   }
 });

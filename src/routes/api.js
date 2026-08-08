@@ -141,6 +141,7 @@ router.get('/status', lesen, (req, res) => {
     defekt: s.defect,
     offene_aufgaben: s.tasks,
     bereiche_getrennt: m.showAreas(),
+    schema_fassung: require('../db').schemaStand().fassung,
     zeit: new Date().toISOString(),
   });
 });

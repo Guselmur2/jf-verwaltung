@@ -5,7 +5,7 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 
-const { init, DB_FILE } = require('./src/db');
+const { init, DB_FILE, schemaStand } = require('./src/db');
 
 // Muss vor allen Modulen laufen, die beim Laden SQL-Statements vorbereiten
 // (model.js), damit die Tabellen auf einer frischen Datenbank schon existieren.
@@ -93,6 +93,9 @@ app.use((req, res, next) => {
   res.locals.offeneAufgaben = req.session.user ? model.openTaskCount() : 0;
   res.locals.stammdaten = settings.alle();
   res.locals.erfassen = settings.schalter('erfassen');
+  // Steht die Datenbank auf einer Fassung, die diese Software nicht kennt, muss
+  // das auf jeder Seite stehen — sonst faellt es erst auf, wenn Daten fehlen.
+  res.locals.schema = schemaStand();
   next();
 });
 
@@ -157,6 +160,7 @@ app.use(require('./src/routes/settings'));
 app.use(require('./src/routes/dienst'));
 app.use(require('./src/routes/system'));
 app.use(require('./src/routes/restore'));
+app.use(require('./src/routes/handbuch'));
 app.use(require('./src/routes/etiketten'));
 app.use(require('./src/routes/history'));
 

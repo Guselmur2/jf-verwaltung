@@ -5,7 +5,8 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { pipeline } = require('stream/promises');
-const { db, migrate } = require('./db');
+const { db } = require('./db');
+const migrationen = require('./migrationen');
 
 // Zurueckspielen einer Sicherung. Statt die Datenbankdatei auszutauschen — dafuer
 // muesste die Software neu starten — wird der Inhalt in die laufende Datenbank
@@ -13,6 +14,8 @@ const { db, migrate } = require('./db');
 // hier auch gibt, sodass eine aeltere Sicherung automatisch mitwaechst.
 //
 // sessions bleibt aussen vor: alte Anmeldungen zurueckzuholen ergibt keinen Sinn.
+// schema_version ebenfalls: die Fassung der Sicherung wird eigens gelesen und
+// steuert, welche Migrationen hinterher laufen (siehe einspielen).
 const TABELLEN = [
   'users',
   'members',
@@ -86,8 +89,31 @@ function pruefen(datei) {
         throw Object.assign(new Error(`In der Sicherung fehlt die Tabelle "${noetig}".`), { code: 'FORMAT' });
       }
     }
+    // Auf welcher Schema-Fassung steht die Sicherung? Sicherungen aus der Zeit
+    // vor der Versionierung haben die Tabelle nicht — die stehen auf 1, denn
+    // genau das war der Stand, als die Zaehlung begann.
+    let fassung = 1;
+    if (vorhanden.has('schema_version')) {
+      fassung = quelle.prepare('SELECT MAX(version) AS v FROM schema_version').get().v || 1;
+    }
+
+    // Neuer als diese Software: nicht einspielen. Die unbekannten Spalten
+    // wuerden beim Kopieren stillschweigend wegfallen, und niemand merkte es —
+    // bis die Daten fehlen. Lieber gar nicht als halb.
+    if (fassung > migrationen.NEUESTE) {
+      throw Object.assign(
+        new Error(
+          `Diese Sicherung stammt aus einer neueren Fassung der Software ` +
+            `(Schema ${fassung}, diese Installation kennt ${migrationen.NEUESTE}). ` +
+            `Bitte erst die Software aktualisieren, dann erneut einspielen.`
+        ),
+        { code: 'VERSION', fassung, erwartet: migrationen.NEUESTE }
+      );
+    }
+
     return {
       tabellen: vorhanden,
+      fassung,
       benutzer: quelle.prepare('SELECT COUNT(*) AS n FROM users').get().n,
       mitglieder: quelle.prepare('SELECT COUNT(*) AS n FROM members').get().n,
       spinte: quelle.prepare('SELECT COUNT(*) AS n FROM lockers').get().n,
@@ -140,10 +166,15 @@ function einspielen(datei) {
         }
       })();
 
-      // Aeltere Sicherungen kennen z.B. die QR-Token noch nicht — nachziehen.
-      migrate();
+      // Ab der Fassung der Sicherung EINSCHLIESSLICH neu anwenden, nicht erst
+      // danach: die eben kopierten Zeilen stammen aus der Sicherung, und was
+      // ihre Fassung zusichert, muss fuer sie auch wirklich gelten. Aeltere
+      // Sicherungen kennen z.B. die QR-Token noch nicht — die werden dabei
+      // nachgetragen. Moeglich ist das nur, weil jede Migration mehrfach
+      // ausfuehrbar sein muss.
+      const gehoben = migrationen.anwenden(db, bericht.fassung - 1);
 
-      return { ...bericht, uebernommen };
+      return { ...bericht, uebernommen, gehoben };
     } finally {
       db.exec('DETACH DATABASE sicherung');
     }

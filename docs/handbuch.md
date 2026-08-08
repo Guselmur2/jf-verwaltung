@@ -19,6 +19,7 @@ damit macht.
 - [Mitglieder](#mitglieder)
 - [Am Handy](#am-handy)
 - [Verwaltung](#verwaltung) — Stammdaten, Betreuer, Sicherung, Update
+- [Dieses Handbuch in der Software](#dieses-handbuch-in-der-software)
 - [Bilder neu aufnehmen](#bilder-neu-aufnehmen)
 
 ---
@@ -381,6 +382,19 @@ Stand als `…-vor-restore.db.enc` daneben — wer sich in der Datei vergreift, 
 Rückweg da. Danach wird man abgemeldet, denn die Anmeldung stammt aus der ersetzten
 Datenbank.
 
+### Schema-Fassung
+
+Jede Sicherung trägt die Fassung des Datenbankschemas — im Dateinamen
+(`spinte-2026-08-08-2012-s1.db.enc`) und in der Datei selbst. Beim Einspielen
+wird verglichen:
+
+* **Ältere** Sicherung → wird eingespielt und auf den aktuellen Stand gehoben.
+* **Neuere** Sicherung → wird abgelehnt. Erst die Software aktualisieren.
+
+Ohne diesen Vergleich fielen beim Einspielen einer neueren Sicherung genau die
+Spalten weg, die die ältere Software noch nicht kennt — ohne Fehler, ohne
+Meldung. Einzelheiten in [Datenbank und Schema-Fassungen](datenbank.md).
+
 ### API-Zugänge
 
 Für andere Systeme: lesender oder schreibender Zugriff per Token. Gespeichert wird nur der
@@ -396,6 +410,21 @@ Jacke 158 hin?" beantworten lassen.
 ![Änderungsverlauf](bilder/verlauf.png)
 
 ---
+
+## Dieses Handbuch in der Software
+
+Das Handbuch liegt nicht nur hier im Repository, sondern auch **in der laufenden
+Installation**: unter *eigener Name → Handbuch*. Es wandert mit jedem Update
+mit, die laufende Fassung zeigt also immer das Handbuch, das zu ihr gehört —
+kein veralteter Ausdruck im Ordner, und im Gerätehaus ohne Netz funktioniert es
+auch.
+
+![Handbuch in der Oberfläche](bilder/handbuch.png)
+
+Oben stehen der Stand der Software und die Schema-Fassung. Über die drei
+Schaltflächen kommt man zu den beiden anderen Dokumenten: der technischen
+Beschreibung (dem README) und der Beschreibung der Datenbank-Fassungen.
+Sichtbar ist das nur für Angemeldete.
 
 ## Bilder neu aufnehmen
 

@@ -53,6 +53,22 @@ async function stand() {
 }
 
 /**
+ * Der Stand als Kurzfassung, ohne git aufzurufen — liest .git direkt.
+ * Fuer Anzeigen gedacht, die bei jedem Seitenaufruf gebraucht werden.
+ */
+function standSynchron() {
+  try {
+    const kopf = fs.readFileSync(path.join(ORDNER, '.git', 'HEAD'), 'utf8').trim();
+    const ref = kopf.startsWith('ref: ') ? kopf.slice(5) : null;
+    const sha = ref ? fs.readFileSync(path.join(ORDNER, '.git', ref), 'utf8').trim() : kopf;
+    return /^[0-9a-f]{7,}$/i.test(sha) ? sha.slice(0, 7) : null;
+  } catch {
+    // Kein Git-Arbeitsverzeichnis oder gepackte Referenzen — dann eben ohne.
+    return null;
+  }
+}
+
+/**
  * Sieht nach, ob es etwas Neues gibt. Holt dafuer vom Server (das aendert
  * nichts an den Dateien) und vergleicht.
  */
@@ -136,4 +152,7 @@ function inArbeit() {
   return !!(s && s.laeuft);
 }
 
-module.exports = { istGit, stand, pruefen, anfordern, status, inArbeit, ORDNER, MARKE, STATUS, ZWEIG };
+module.exports = {
+  istGit, stand, standSynchron, pruefen, anfordern, status, inArbeit,
+  ORDNER, MARKE, STATUS, ZWEIG,
+};

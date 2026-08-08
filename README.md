@@ -18,7 +18,8 @@ die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf einem R
 ohne Internet und ohne Cloud.
 
 **➜ [Handbuch mit Bildern](docs/handbuch.md)** — ein Rundgang durch alle Seiten. Dieses README
-erklärt Einrichtung und Technik, das Handbuch die Bedienung.
+erklärt Einrichtung und Technik, das Handbuch die Bedienung. Beide liegen auch **in der
+laufenden Installation** unter `/handbuch` und wandern damit bei jedem Update mit.
 
 ## Was die Seiten können
 
@@ -45,6 +46,7 @@ erklärt Einrichtung und Technik, das Handbuch die Bedienung.
 | QR-Aufkleber drucken | `/qr` | Betreuer |
 | Spint-Etiketten (1/2/4 je Seite) | `/etiketten`, `/etikett/7` | Betreuer |
 | Logo der Wehr | `/logo` | **jeder** |
+| Handbuch (dieses Dokument in der Software) | `/handbuch` | Betreuer |
 | Änderungsverlauf | `/verlauf` | Betreuer |
 | Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
 | Betreuer verwalten | `/betreuer` | **nur Jugendwart** |
@@ -1111,7 +1113,9 @@ in UTC, so wie SQLite sie speichert — im Sommer also zwei Stunden vor der Orts
 ```
 server.js              Start, Sitzungen, Router-Reihenfolge
 src/db.js              SQLite öffnen, Schema anwenden, migrieren, Standardarten anlegen
-src/schema.sql         Tabellen
+src/schema.sql         Tabellen — immer der vollständige, aktuelle Stand
+src/migrationen.js     Schema-Fassungen und der Weg von einer zur nächsten
+src/markdown.js        kleiner Markdown-Übersetzer für das Handbuch in der Oberfläche
 src/auth.js            Anmeldung, Rollen, CSRF
 src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
 src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
@@ -1128,7 +1132,7 @@ src/upload.js          Dateiannahme für Sicherung, Logo und Wiederherstellung
 scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
 scripts/doku-daten.js  Demo-Bestand fuer das Handbuch (erfundene Namen)
 scripts/doku-bilder.js nimmt die Bilder auf: Chrome kopflos ueber das DevTools-Protokoll
-docs/                  Handbuch mit Bildern
+docs/                  Handbuch mit Bildern, Beschreibung der Datenbank-Fassungen
 scripts/update-helfer.sh  läuft als root ausserhalb des Dienstes: sichern, einspielen,
                        neu starten, prüfen — und bei Misserfolg zurücksetzen
 deploy/                Dienst, polkit-Regel, Sicherungs- und Update-Einheiten als Vorlage
@@ -1153,6 +1157,12 @@ Auch die Aktualisierung wird durchgespielt, ohne dass dabei etwas aktualisiert w
 ein kleines Repository mit einem Commit Vorsprung an — geprüft werden also die echte Liste der
 Änderungen, die Warnung während der Übungszeit, die abgelegte Markierung und die Anzeige eines
 zurückgesetzten Versuchs. Der Helfer selbst läuft nie mit; das ist Sache von systemd.
+
+`node test/schema.mjs` (läuft bei `npm test` mit) prüft die Datenbank gegen sich selbst: eine
+frisch aus `schema.sql` angelegte Datenbank darf sich nicht mehr verändern, wenn alle
+Migrationen darauf laufen. Damit hängen zwei Regeln an einer Prüfung — was eine Migration
+anlegt, muss auch in `schema.sql` stehen, und jede Migration muss mehrfach ausführbar sein.
+Einzelheiten in [docs/datenbank.md](docs/datenbank.md).
 
 Auch das Herunterfahren wird geprüft: der Abschaltbefehl lässt sich über `ABSCHALT_BEFEHL`
 austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner abzuschalten.

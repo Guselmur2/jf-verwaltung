@@ -573,3 +573,53 @@ details.block[open] summary { margin-bottom: .5rem; }
 .commitliste { list-style: none; margin: .5rem 0 1rem; padding: 0; display: grid; gap: .3rem; }
 .commitliste li { font-size: .9rem; }
 .commitliste code { color: var(--gedaempft); margin-right: .4rem; }
+
+/* ---------- Handbuch (docs/*.md in der Oberfläche) ---------- */
+.dokuwahl { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+.dokulayout { display: grid; grid-template-columns: 15rem 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 900px) { .dokulayout { grid-template-columns: 1fr; } }
+
+.dokunav {
+  position: sticky; top: 1rem;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius);
+  padding: .6rem .8rem; font-size: .88rem;
+}
+.dokunav > summary { cursor: pointer; font-weight: 600; }
+.dokunav ul { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .2rem; }
+.dokunav .stufe-3 { padding-left: .9rem; font-size: .95em; }
+.dokunav a { text-decoration: none; }
+.dokunav a:hover { text-decoration: underline; }
+
+/* Der gerenderte Text selbst. Bewusst schmal: lange Zeilen liest niemand. */
+.doku { max-width: 46rem; }
+.doku h1 { font-size: 1.5rem; margin: 2rem 0 .6rem; }
+.doku h2 {
+  font-size: 1.3rem; margin: 2.2rem 0 .7rem;
+  padding-bottom: .3rem; border-bottom: 1px solid var(--linie);
+}
+.doku h3 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; color: var(--text); }
+.doku h2:first-child, .doku h1:first-child { margin-top: 0; }
+.doku p { margin: .7rem 0; }
+.doku ul, .doku ol { margin: .7rem 0; padding-left: 1.3rem; }
+.doku li { margin: .25rem 0; }
+.doku blockquote {
+  margin: 1rem 0; padding: .7rem .9rem;
+  border-left: 4px solid var(--warn); background: var(--flaeche); border-radius: 0 var(--radius) var(--radius) 0;
+}
+.doku hr { border: none; border-top: 1px solid var(--linie); margin: 2rem 0; }
+.doku code { background: var(--hintergrund); border: 1px solid var(--linie); border-radius: 4px; padding: 0 .25em; }
+.doku pre.befehl code { background: none; border: none; padding: 0; }
+
+/* Bilder sind Bildschirmfotos — Rahmen, damit sie sich vom Text absetzen. */
+.doku img {
+  display: block; max-width: 100%; height: auto; margin: 1rem 0;
+  border: 1px solid var(--linie); border-radius: var(--radius); box-shadow: var(--schatten);
+}
+/* Die drei Handy-Ansichten stehen in einer Tabelle nebeneinander. */
+.doku td img { margin: 0; }
+
+.doku .tabellenrahmen { overflow-x: auto; margin: 1rem 0; }
+.doku table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.doku th, .doku td { border: 1px solid var(--linie); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+.doku th { background: var(--hintergrund); }

@@ -55,8 +55,8 @@ CREATE TABLE IF NOT EXISTS lockers (
   member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
   note      TEXT
 );
--- Der Index auf token entsteht in migrate() (db.js), weil bei einer aelteren
--- Datenbank erst die Spalte nachgeruestet werden muss.
+CREATE UNIQUE INDEX IF NOT EXISTS lockers_token
+  ON lockers(token) WHERE token IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS lockers_member_unique
   ON lockers(member_id) WHERE member_id IS NOT NULL;
@@ -117,7 +117,8 @@ CREATE TABLE IF NOT EXISTS storages (
   sort_order INTEGER NOT NULL DEFAULT 100,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
--- Index auf token: siehe migrate() in db.js.
+CREATE UNIQUE INDEX IF NOT EXISTS storages_token
+  ON storages(token) WHERE token IS NOT NULL;
 
 -- Einzelne Ausruestungsstuecke. Wo ein Teil liegt, ergibt sich so:
 --   locker_id gesetzt                  -> in diesem Spint
@@ -141,6 +142,12 @@ CREATE TABLE IF NOT EXISTS equipment (
 CREATE INDEX IF NOT EXISTS equipment_locker_idx  ON equipment(locker_id);
 CREATE INDEX IF NOT EXISTS equipment_storage_idx ON equipment(storage_id);
 CREATE INDEX IF NOT EXISTS equipment_inv_idx     ON equipment(inventory_no);
+
+-- Eine Inventarnummer gehoert zu genau einem Teil. Sammelposten ohne Nummer
+-- bleiben ausgenommen, davon gibt es beliebig viele.
+CREATE UNIQUE INDEX IF NOT EXISTS equipment_inv_unique
+  ON equipment(inventory_no COLLATE NOCASE)
+  WHERE inventory_no IS NOT NULL AND inventory_no <> '';
 
 -- Aufgaben, die beim Jugendwart auflaufen: Kleidungsstueck in anderer Groesse
 -- besorgen oder ersetzen. Art, Mitglied und Spint stehen zusaetzlich als eigene
@@ -291,6 +298,15 @@ CREATE TABLE IF NOT EXISTS assets (
   mime      TEXT NOT NULL,
   daten     BLOB NOT NULL,
   geaendert TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Fassung des Schemas. Steht als Liste da, nicht als einzelne Zahl: so ist
+-- nachvollziehbar, wann welcher Schritt gelaufen ist. Die aktuelle Fassung ist
+-- das Maximum. Siehe src/migrationen.js und docs/datenbank.md.
+CREATE TABLE IF NOT EXISTS schema_version (
+  version    INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  angewendet TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Sessions (eigener Store, damit kein zweites DB-Modul noetig ist)

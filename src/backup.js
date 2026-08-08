@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { pipeline } = require('stream/promises');
 const { db, DB_FILE } = require('./db');
+const migrationen = require('./migrationen');
 
 // Die Datenbank laeuft im WAL-Modus: ein Teil der Aenderungen steht in
 // spinte.db-wal und noch nicht in spinte.db. Ein einfaches Kopieren der Datei
@@ -25,11 +26,19 @@ const VERFAHREN = 'aes-256-cbc';
 const ITERATIONEN = 10000; // Vorgabe von "openssl enc -pbkdf2"
 const MIN_PASSWORT = 8;
 
-/** Dateiname mit Datum und Uhrzeit, z.B. spinte-2026-07-27-2241.db */
+/**
+ * Dateiname mit Datum, Uhrzeit und Schema-Fassung, z.B.
+ * spinte-2026-07-27-2241-s1.db
+ *
+ * Die Fassung steht auch IN der Datei — sie hier zu wiederholen kostet nichts
+ * und beantwortet vor einem Stick voller Sicherungen die Frage, welche davon zu
+ * welchem Softwarestand gehoert. Ohne Passwort, ohne Entschluesseln.
+ */
 function dateiname(jetzt = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   const d = `${jetzt.getFullYear()}-${p(jetzt.getMonth() + 1)}-${p(jetzt.getDate())}`;
-  return `spinte-${d}-${p(jetzt.getHours())}${p(jetzt.getMinutes())}.db`;
+  const fassung = migrationen.stand(db) || 1;
+  return `spinte-${d}-${p(jetzt.getHours())}${p(jetzt.getMinutes())}-s${fassung}.db`;
 }
 
 /** Prueft das Passwort und liefert eine Fehlermeldung oder null. */

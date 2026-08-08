@@ -857,7 +857,8 @@ dl = await holen(SICHERUNGSPASSWORT);
 const kopf = dl.kopf;
 const rumpf = dl.rumpf;
 check('Sicherung wird geliefert', dl.status === 200 && rumpf.length > 1000, `${dl.status}, ${rumpf.length} Bytes`);
-check('als .db.enc mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}\.db\.enc/.test(kopf), kopf);
+check('als .db.enc mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}-s\d+\.db\.enc/.test(kopf), kopf);
+check('mit der Schema-Fassung im Namen', /-s1\.db\.enc/.test(kopf), kopf);
 check('ist verschlüsselt, nicht im Klartext', rumpf.subarray(0, 8).toString() === 'Salted__');
 check('enthält keine lesbaren Namen', !rumpf.includes(Buffer.from('Max Muster')));
 
@@ -1931,6 +1932,99 @@ r = await req('/restore');
 check('die Sicherheitskopie liegt daneben', /vor-restore\.db\.enc/.test(r.text));
 r = await req('/verlauf');
 check('der Verlauf hält das Einspielen fest', r.text.includes('Sicherung eingespielt'));
+
+console.log('\n38) Handbuch in der Oberfläche');
+r = await req('/handbuch');
+check('Handbuch erreichbar', r.status === 200 && r.text.includes('Handbuch'), String(r.status));
+check('Überschriften bekommen Anker', /<h2 id="der-übungsabend">/.test(r.text));
+check('Bilder zeigen auf die eigene Adresse', r.text.includes('src="/handbuch/bilder/uebersicht.png"'));
+check('Tabellen werden gesetzt', r.text.includes('<table>') && r.text.includes('<th>'));
+check('Codeblöcke bleiben Code', r.text.includes('<pre class="befehl"'));
+check('kein rohes Markdown mehr', !r.text.includes('](bilder/'));
+check('Inhaltsverzeichnis vorhanden', r.text.includes('class="dokunav"'));
+// Verweise auf Dateien im Repository führen in der Oberfläche ins Leere und
+// bleiben deshalb Text statt Link.
+check('Verweis auf das README wird umgebogen', r.text.includes('href="/handbuch/readme"'));
+check('Verweis auf eine Quelldatei bleibt Text', !r.text.includes('href="../scripts/doku-daten.js"'));
+
+r = await req('/handbuch/readme');
+check('Technische Beschreibung erreichbar', r.status === 200 && r.text.includes('Was die Seiten können'));
+r = await req('/handbuch/datenbank');
+check('Datenbank-Seite erreichbar', r.status === 200 && r.text.includes('Schema-Fassungen'));
+
+const bild = await fetch(BASE + '/handbuch/bilder/uebersicht.png', { headers: { cookie } });
+check('Bild wird ausgeliefert', bild.status === 200, String(bild.status));
+check('als PNG', (bild.headers.get('content-type') || '').includes('png'));
+r = await req('/handbuch/bilder/gibtsnicht.png');
+check('unbekanntes Bild gibt 404', r.status === 404, String(r.status));
+r = await req('/handbuch/bilder/server.js');
+check('nur Bilder werden ausgeliefert', r.status === 404, String(r.status));
+
+r = await req('/');
+check('das Menü verlinkt das Handbuch', r.text.includes('href="/handbuch"'));
+
+merkeAnmeldung = cookie;
+cookie = '';
+r = await req('/handbuch');
+check('ohne Anmeldung gesperrt', r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+r = await req('/handbuch/bilder/uebersicht.png');
+check('auch die Bilder sind gesperrt', r.status === 302, String(r.status));
+cookie = merkeAnmeldung;
+
+console.log('\n39) Sicherung aus einer neueren Fassung');
+// Eine Sicherung mit höherer Schema-Fassung nachbauen: entschlüsseln, Nummer
+// hochsetzen, wieder verschlüsseln. Genau so käme sie von einer Installation,
+// die schon aktualisiert wurde.
+token = await csrf('/sicherung');
+const echt = await holen(SICHERUNGSPASSWORT);
+check('Sicherung für den Versuch gezogen', echt.status === 200, String(echt.status));
+
+const salzAlt = echt.rumpf.subarray(8, 16);
+const abAlt = cryptoMod.pbkdf2Sync(SICHERUNGSPASSWORT, salzAlt, 10000, 48, 'sha256');
+const entschl = cryptoMod.createDecipheriv('aes-256-cbc', abAlt.subarray(0, 32), abAlt.subarray(32, 48));
+const roh = Buffer.concat([entschl.update(echt.rumpf.subarray(16)), entschl.final()]);
+
+const bastelOrdner = mkdtempSync(path.join(tmpdir(), 'jf-zukunft-'));
+const bastelDatei = path.join(bastelOrdner, 'zukunft.db');
+writeFileSync(bastelDatei, roh);
+const gebastelt = new DB(bastelDatei);
+gebastelt.prepare('INSERT INTO schema_version (version, name) VALUES (?, ?)').run(99, 'Aus der Zukunft');
+gebastelt.close();
+
+const salzNeu = cryptoMod.randomBytes(8);
+const abNeu = cryptoMod.pbkdf2Sync(SICHERUNGSPASSWORT, salzNeu, 10000, 48, 'sha256');
+const verschl = cryptoMod.createCipheriv('aes-256-cbc', abNeu.subarray(0, 32), abNeu.subarray(32, 48));
+const zukunftDatei = path.join(ablage, 'spinte-2026-12-24-1800-s99.db.enc');
+writeFileSync(
+  zukunftDatei,
+  Buffer.concat([Buffer.from('Salted__'), salzNeu, verschl.update(readFileSync(bastelDatei)), verschl.final()])
+);
+rmSync(bastelOrdner, { recursive: true, force: true });
+
+r = await req('/restore');
+check('die neuere Sicherung steht in der Liste', r.text.includes('spinte-2026-12-24-1800-s99.db.enc'));
+
+token = await csrf('/restore');
+r = await req('/restore', {
+  method: 'POST',
+  form: { _csrf: token, verstanden: 'ja', pfad: zukunftDatei, passwort: SICHERUNGSPASSWORT },
+});
+check('sie wird nicht eingespielt', r.status === 302 && r.location === '/restore', `${r.status} ${r.location}`);
+r = await req('/restore');
+check('mit Hinweis auf die neuere Fassung', r.text.includes('neueren Fassung'));
+check('und den beiden Nummern', r.text.includes('99') && r.text.includes('Schema'));
+r = await req('/mitglieder');
+check('die Daten sind unangetastet', r.text.includes('Max Muster'));
+
+// Die passende Sicherung geht weiterhin — der Schutz sperrt nicht alles aus.
+token = await csrf('/restore');
+r = await req('/restore', {
+  method: 'POST',
+  form: { _csrf: token, verstanden: 'ja', pfad: sicherungsdatei, passwort: SICHERUNGSPASSWORT },
+});
+check('die passende Sicherung dagegen schon', r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+token = await csrf('/anmelden');
+await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'jugendwart', password: 'geheim1234' } });
 
 server2.kill();
 

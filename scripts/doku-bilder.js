@@ -311,6 +311,8 @@ async function main() {
   await bild('betreuer', '/betreuer', { maxHoehe: 1000 });
   await bild('api-zugaenge', '/api-zugaenge', { maxHoehe: 1200 });
   await bild('verlauf', '/verlauf', { maxHoehe: 1200 });
+  // Das Handbuch in der Software — dieses Dokument, von innen gesehen.
+  await bild('handbuch', '/handbuch', { maxHoehe: 1400 });
 
   // Dunkle Darstellung — die Software folgt der Einstellung des Geraets.
   await draht.ruf('Emulation.setEmulatedMedia', {
