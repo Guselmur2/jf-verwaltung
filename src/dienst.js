@@ -806,11 +806,24 @@ function teamsSpeichern(terminId, teams) {
 
     const einfuegen = db.prepare('INSERT INTO team_mitglieder (team_id, member_id, funktion) VALUES (?, ?, ?)');
     teams.forEach((team, index) => {
-      const info = db.prepare('INSERT INTO teams (termin_id, nummer) VALUES (?, ?)').run(terminId, index + 1);
+      const info = db
+        .prepare("INSERT INTO teams (termin_id, nummer, gespeichert) VALUES (?, ?, datetime('now'))")
+        .run(terminId, index + 1);
       for (const m of team) einfuegen.run(info.lastInsertRowid, m.id, m.funktion || null);
     });
   })();
   return teams.length;
+}
+
+/**
+ * Wann wurde die Einteilung dieses Termins zuletzt gespeichert? Leerer Text,
+ * wenn noch nie. Der Speichern-Knopf vergleicht damit, ob zwischen Anzeigen
+ * und Abschicken jemand anderes gespeichert hat — zwei Betreuer koennen die
+ * Seite gleichzeitig offen haben.
+ */
+function teamsStand(terminId) {
+  const r = db.prepare('SELECT MAX(gespeichert) AS stand FROM teams WHERE termin_id = ?').get(terminId);
+  return (r && r.stand) || '';
 }
 
 /**
@@ -879,6 +892,7 @@ module.exports = {
   trennenEntfernen,
   teamsBilden,
   teamsSpeichern,
+  teamsStand,
   gespeicherteTeams,
   letztePaarungen,
   paarKey,

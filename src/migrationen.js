@@ -195,6 +195,17 @@ const MIGRATIONEN = [
     vertraeglich: true,
     hoch: ausgangsstand,
   },
+  {
+    version: 2,
+    name: 'Speicherzeitpunkt an der Einteilung',
+    // Nur eine zusätzliche Spalte — ältere Software ignoriert sie.
+    vertraeglich: true,
+    hoch(db) {
+      if (!hatSpalte(db, 'teams', 'gespeichert')) {
+        db.exec('ALTER TABLE teams ADD COLUMN gespeichert TEXT');
+      }
+    },
+  },
 ];
 
 const NEUESTE = MIGRATIONEN.reduce((h, m) => Math.max(h, m.version), 0);

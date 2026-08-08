@@ -254,7 +254,12 @@ CREATE TABLE IF NOT EXISTS teams (
   id        INTEGER PRIMARY KEY,
   termin_id INTEGER NOT NULL REFERENCES termine(id) ON DELETE CASCADE,
   nummer    INTEGER NOT NULL,
-  name      TEXT
+  name      TEXT,
+  -- Wann diese Einteilung gespeichert wurde. Daran erkennt der Speichern-Knopf,
+  -- ob inzwischen jemand anderes gespeichert hat (Fassung 2). Ein Zeitstempel
+  -- statt der Zeilen-IDs, weil SQLite freigewordene IDs wiederverwendet — nach
+  -- Loeschen und Neuanlegen koennten dieselben IDs entstehen.
+  gespeichert TEXT
 );
 
 -- funktion: der Platz in der Gruppe (Gruppenfuehrer, Angriffstrupp-Fuehrer ...)

@@ -220,6 +220,9 @@ router.get('/einteilung', login, (req, res, next) => {
       vorschlag: d.einheitenVorschlag(d.anwesendeMitWerten(termin.id).length, aufstellung),
       ergebnis,
       gespeichert: d.gespeicherteTeams(termin.id),
+      // Stand beim Anzeigen — kommt als verstecktes Feld zurueck, damit der
+      // Speichern-Knopf erkennt, ob inzwischen jemand anderes gespeichert hat.
+      stand: d.teamsStand(termin.id),
       heute: d.heute(),
     });
   } catch (err) {
@@ -243,6 +246,24 @@ router.post('/einteilung/:id(\\d+)/speichern', login, (req, res) => {
   if (!Array.isArray(teams) || !teams.length) {
     req.session.flash = { type: 'warn', text: 'Es gab nichts zu speichern.' };
     return res.redirect('/einteilung?termin=' + termin.id);
+  }
+
+  // Hat inzwischen jemand anderes gespeichert? Dann nicht stillschweigend
+  // ersetzen, sondern nachfragen — die eigene Einteilung bleibt dabei im
+  // Formular erhalten. Beim Bestätigen wird der Stand neu mitgeschickt; hat
+  // bis dahin wieder jemand gespeichert, kommt die Frage erneut.
+  const standJetzt = d.teamsStand(termin.id);
+  if ((req.body.stand || '') !== standJetzt) {
+    const wann = standJetzt ? new Date(standJetzt.replace(' ', 'T') + 'Z') : null;
+    return res.render('einteilung-bestaetigen', {
+      title: 'Einteilung ersetzen?',
+      termin,
+      anzahlTeams: teams.length,
+      standJetzt,
+      standAnzeige: wann && !Number.isNaN(wann.getTime()) ? wann.toLocaleString('de-DE') : '',
+      teamsRoh: req.body.teams,
+      gespeichert: d.gespeicherteTeams(termin.id),
+    });
   }
 
   const anzahl = d.teamsSpeichern(termin.id, teams);

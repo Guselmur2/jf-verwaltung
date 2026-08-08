@@ -860,7 +860,7 @@ const kopf = dl.kopf;
 const rumpf = dl.rumpf;
 check('Sicherung wird geliefert', dl.status === 200 && rumpf.length > 1000, `${dl.status}, ${rumpf.length} Bytes`);
 check('als .db.enc mit Datum im Namen', /spinte-\d{4}-\d{2}-\d{2}-\d{4}-s\d+\.db\.enc/.test(kopf), kopf);
-check('mit der Schema-Fassung im Namen', /-s1\.db\.enc/.test(kopf), kopf);
+check('mit der Schema-Fassung im Namen', /-s2\.db\.enc/.test(kopf), kopf);
 check('ist verschlüsselt, nicht im Klartext', rumpf.subarray(0, 8).toString() === 'Salted__');
 check('enthält keine lesbaren Namen', !rumpf.includes(Buffer.from('Max Muster')));
 
@@ -1454,6 +1454,61 @@ check('Erklärung, was mitspielt', r.text.includes('einzeln') && r.text.includes
 // bei jedem Neuladen unter den Händen.
 r = await req(`/einteilung?termin=${terminId}`);
 check('ohne Knopfdruck keine neue Einteilung', !r.text.includes('Diese Einteilung übernehmen'));
+
+console.log('\n30g2) Zwei Betreuer teilen gleichzeitig ein');
+// Beide Handys erzeugen je einen Vorschlag. Speichert das zweite nach dem
+// ersten, darf es die fremde Einteilung nicht stillschweigend ersetzen.
+const einteilungsSeite = async () => {
+  const seite = await req(`/einteilung?termin=${terminId}&bilden=1&aufstellung=trupp&anzahl=2`);
+  const entschaerfen = (t) => t.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#34;/g, '"');
+  return {
+    teams: entschaerfen(seite.text.match(/name="teams" value="([^"]*)"/)[1]),
+    stand: seite.text.match(/name="stand" value="([^"]*)"/)[1],
+    token: seite.text.match(/name="_csrf" value="([^"]+)"/)[1],
+  };
+};
+
+const handyA = await einteilungsSeite();
+const handyB = await einteilungsSeite();
+check('beide Seiten tragen denselben Stand', handyA.stand === handyB.stand, `${handyA.stand} / ${handyB.stand}`);
+
+// A speichert zuerst.
+r = await req(`/einteilung/${terminId}/speichern`, {
+  method: 'POST',
+  form: { _csrf: handyA.token, teams: handyA.teams, stand: handyA.stand },
+});
+check('A speichert ohne Rückfrage', r.status === 302, String(r.status));
+
+// Die Erkennung vergleicht Zeitstempel in Sekunden — kurz warten, damit ein
+// erneutes Speichern einen anderen traegt.
+await new Promise((x) => setTimeout(x, 1100));
+
+// B speichert mit dem Stand von vorhin — inzwischen veraltet.
+r = await req(`/einteilung/${terminId}/speichern`, {
+  method: 'POST',
+  form: { _csrf: handyB.token, teams: handyB.teams, stand: handyB.stand },
+});
+check('B bekommt eine Rückfrage statt zu überschreiben', r.status === 200 && r.text.includes('Einteilung ersetzen?'), String(r.status));
+check('mit der fremden Einteilung zum Ansehen', r.text.includes('Aktuell gespeichert'));
+check('und der eigenen als Zahl', /Einheiten|Einheit/.test(r.text));
+
+r = await req(`/einteilung?termin=${terminId}`);
+check('gespeichert ist weiterhin die Einteilung von A', r.text.includes('Gespeicherte Einteilung'));
+
+// B bestätigt: der Bestätigungsdialog trägt den frischen Stand.
+const bestaetigung = await req(`/einteilung/${terminId}/speichern`, {
+  method: 'POST',
+  form: { _csrf: handyB.token, teams: handyB.teams, stand: handyB.stand },
+});
+const standNeu = bestaetigung.text.match(/name="stand" value="([^"]*)"/)[1];
+check('der Dialog trägt den neuen Stand', standNeu !== handyB.stand, standNeu);
+r = await req(`/einteilung/${terminId}/speichern`, {
+  method: 'POST',
+  form: { _csrf: handyB.token, teams: handyB.teams, stand: standNeu },
+});
+check('mit frischem Stand wird gespeichert', r.status === 302, String(r.status));
+r = await req(`/einteilung?termin=${terminId}`);
+check('jetzt steht Bs Einteilung da', r.text.includes('Gespeicherte Einteilung'));
 
 console.log('\n30h) Einschätzungen bleiben unter Verschluss');
 merkeCookie = cookie;

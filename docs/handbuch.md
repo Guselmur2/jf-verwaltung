@@ -131,6 +131,11 @@ Eine neue Einteilung entsteht nur auf Knopfdruck — sonst stünde bei jedem Auf
 eine andere da als die, die man gerade vorgelesen hat. Gespeichert wird, was auf dem
 Bildschirm steht; erst dann zählt die Einteilung für die Rotation beim nächsten Mal.
 
+Das gilt je Gerät: öffnen zwei Betreuer die Seite auf ihren Handys und würfeln beide, sieht
+jeder seinen eigenen Vorschlag. Speichert der eine, während der andere seine Seite noch
+offen hat, fragt die Software beim zweiten Speichern nach, statt die erste Einteilung
+stillschweigend zu ersetzen — mit beiden Einteilungen nebeneinander zur Auswahl.
+
 ---
 
 ## Spinte und Ausrüstung

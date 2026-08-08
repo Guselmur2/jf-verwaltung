@@ -95,6 +95,7 @@
     <form method="post" action="/einteilung/<%= termin.id %>/speichern" class="nichtdrucken">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="hidden" name="teams" value="<%= JSON.stringify(ergebnis.teams.map((t) => t.map((m) => ({ id: m.id, funktion: m.funktion || null })))) %>">
+      <input type="hidden" name="stand" value="<%= stand %>">
       <button class="btn" type="submit">Diese Einteilung übernehmen</button>
       <span class="klein">
         Gespeichert wird genau das, was hier steht. Erst dann zählt sie für die Rotation beim

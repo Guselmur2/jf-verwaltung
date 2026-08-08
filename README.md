@@ -108,6 +108,12 @@ Ist eine Einheit kleiner als die Aufstellung, fallen die **hinteren** Plätze we
 dann der Schlauchtrupp). Der Gruppenführer steht zuerst in der Liste und bleibt immer
 besetzt.
 
+Ein Vorschlag existiert nur auf dem Gerät, das „Neu mischen" gedrückt hat; gespeichert wird
+per verstecktem Feld genau die angezeigte Aufteilung. Haben zwei Betreuer die Seite
+gleichzeitig offen und speichern beide, erkennt das der Speicherzeitpunkt an der Einteilung
+(`teams.gespeichert`, Schema-Fassung 2): der zweite bekommt eine Rückfrage mit beiden
+Einteilungen nebeneinander, statt die erste stillschweigend zu ersetzen.
+
 ### Einschätzung — drei Achsen statt einer Note
 
 | Merkmal | gemeint ist |

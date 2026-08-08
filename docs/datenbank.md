@@ -146,3 +146,4 @@ der Update-Helfer **vor** dem Versuch gezogen hat.
 | Fassung | Name | Verträglich | Was dazukam |
 |---|---|---|---|
 | 1 | Ausgangsstand | ja | Alles, was vor der Zählung entstanden ist: Geschlecht am Mitglied, Umkleidebereiche am Spint, Lagerorte an der Ausrüstung, Größenschemata und Barcode-Präfix an den Arten, Standard-Lagerort, QR-Token für Spinte und Lagerorte, eindeutige Inventarnummern. Sicherungen ohne Fassungsnummer gelten als Fassung 1. |
+| 2 | Speicherzeitpunkt an der Einteilung | ja | Spalte `teams.gespeichert`. Daran erkennt der Speichern-Knopf der Einteilung, ob zwischen Anzeigen und Abschicken jemand anderes gespeichert hat — zwei Betreuer können die Seite gleichzeitig offen haben. Ein Zeitstempel statt der Zeilen-IDs, weil SQLite freigewordene IDs wiederverwendet. |

@@ -1,0 +1,58 @@
+<%- include('partials/kopf') %>
+
+<div class="seitenkopf">
+  <h1>Einteilung ersetzen?</h1>
+  <span class="klein"><%= datum(termin.datum) %><% if (termin.thema) { %> · <%= termin.thema %><% } %></span>
+</div>
+
+<p class="hinweis hinweis-warn">
+  <strong>Inzwischen hat jemand anderes eine Einteilung für diesen Termin
+  gespeichert</strong><% if (standAnzeige) { %> (<%= standAnzeige %> Uhr)<% } %>.
+  Vermutlich hat ein zweiter Betreuer die Seite ebenfalls offen. Beim Speichern wird sie
+  durch deine ersetzt.
+</p>
+
+<% if (gespeichert.length) { %>
+  <section class="block">
+    <h2>Aktuell gespeichert</h2>
+    <div class="teamsraster">
+      <% gespeichert.forEach(function (t) { %>
+        <section class="teamkarte">
+          <h3><%= t.name || ('Gruppe ' + t.nummer) %></h3>
+          <ol class="teamliste">
+            <% t.mitglieder.forEach(function (m) { %>
+              <li>
+                <% if (m.funktion_kurz) { %><span class="funktion" title="<%= m.funktion_label %>"><%= m.funktion_kurz %></span><% } %>
+                <%= m.name %>
+              </li>
+            <% }); %>
+          </ol>
+        </section>
+      <% }); %>
+    </div>
+  </section>
+<% } %>
+
+<section class="block">
+  <h2>Deine Einteilung</h2>
+  <p>
+    <%= anzahlTeams %> <%= anzahlTeams === 1 ? 'Einheit' : 'Einheiten' %> — so, wie sie auf
+    deinem Bildschirm stand.
+  </p>
+
+  <form method="post" action="/einteilung/<%= termin.id %>/speichern" class="formstapel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="teams" value="<%= teamsRoh %>">
+    <%# Der Stand von JETZT: speichert bis zum Klick schon wieder jemand,
+        kommt diese Frage erneut. %>
+    <input type="hidden" name="stand" value="<%= standJetzt %>">
+    <div class="formfuss">
+      <button class="btn btn-gefahr" type="submit">Trotzdem ersetzen</button>
+      <a class="btn btn-still" href="/einteilung?termin=<%= termin.id %>">
+        Verwerfen und gespeicherte ansehen
+      </a>
+    </div>
+  </form>
+</section>
+
+<%- include('partials/fuss') %>
