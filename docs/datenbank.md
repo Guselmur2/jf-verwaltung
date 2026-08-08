@@ -1,30 +1,28 @@
 # Datenbank und Schema-Fassungen
 
-Wie die Datenbank von einer Fassung zur nächsten kommt — und warum es diese
+Wie die Datenbank von einer Fassung zur nächsten kommt, und warum es diese
 Zählung gibt, obwohl sich am Schema noch nichts geändert hat.
 
-## Warum überhaupt
+## Wozu die Fassungsnummer
 
-Beim Zurückspielen übernimmt die Software nur Spalten, die es in **beiden**
-Datenbanken gibt. Das hat eine angenehme Folge und eine unangenehme.
+Beim Zurückspielen einer Sicherung übernimmt die Software nur Spalten, die es
+in **beiden** Datenbanken gibt. Für eine *ältere* Sicherung ist das unkritisch:
+sie wächst in das neuere Schema hinein, fehlende Spalten bleiben leer und werden
+nachgetragen.
 
-**Angenehm:** eine *ältere* Sicherung wächst von selbst in ein neueres Schema
-hinein. Was sie nicht kennt, bleibt leer und wird nachgetragen. Diese Richtung
-war nie das Problem.
+Kritisch ist die Gegenrichtung: eine *neuere* Sicherung in einer älteren
+Installation. Dabei würden die Spalten wegfallen, die die ältere Software noch
+nicht kennt — ohne Fehler und ohne Meldung. Aufgefallen wäre das erst, wenn die
+Daten gebraucht werden. Die Fassungsnummer macht diesen Fall erkennbar: die
+Software vergleicht sie vor dem Einspielen und lehnt eine neuere Sicherung ab.
 
-**Unangenehm:** eine *neuere* Sicherung in eine ältere Installation. Dann fallen
-die unbekannten Spalten stillschweigend weg. Kein Fehler, keine Meldung — die
-Daten sind einfach nicht da. Das merkt man Wochen später.
-
-Genau dafür ist die Nummer da. Sie beantwortet die Frage, die sich sonst nicht
-beantworten lässt: *ist diese Sicherung neuer als ich?*
-
-Dieselbe Nummer klärt einen zweiten Fall. Geht eine Aktualisierung schief, setzt
-der Helfer den **Code** zurück — die **Datenbank** aber nicht. Wurde dabei schon
-migriert, läuft alte Software auf einem neueren Bestand. Solange alle
-Migrationen nur *hinzufügen*, ist das harmlos: die alte Software ignoriert, was
-sie nicht kennt. Sobald eine Migration etwas *umbaut*, ist es das nicht mehr —
-und dann muss man es wenigstens merken.
+Die Nummer deckt noch einen zweiten Fall ab. Geht eine Aktualisierung schief,
+setzt der Helfer den **Code** zurück, die **Datenbank** aber nicht. Wurde dabei
+schon migriert, läuft danach alte Software auf einem neueren Bestand. Solange
+alle Migrationen nur Spalten *hinzufügen*, ist das unkritisch — die alte
+Software ignoriert, was sie nicht kennt. Sobald eine Migration etwas *umbaut*,
+gilt das nicht mehr, und dann soll es zumindest auffallen: die Software zeigt
+in diesem Fall auf jeder Seite eine Warnung.
 
 ## Wie es funktioniert
 
@@ -49,18 +47,15 @@ Beim Start wendet die Software alles an, was der Datenbank noch fehlt.
 | Vorhandene Datenbank | Beim Start laufen die Migrationen, die fehlen. |
 | Eingespielte Sicherung | Die Fassung der Sicherung wird **vor** dem Kopieren gelesen. Danach wird ab dieser Fassung **einschließlich** neu angewendet. |
 
-Der dritte Fall ist der feine. „Einschließlich" heißt: bei einer Sicherung der
-Fassung 3 läuft Schritt 3 noch einmal, nicht erst Schritt 4. Grund: die eben
-kopierten Zeilen stammen aus der Sicherung, und was Fassung 3 zusichert, muss
-für sie auch wirklich gelten. Ein Beispiel aus der Vergangenheit: die QR-Token.
-Eine alte Sicherung bringt Spinte ohne Token mit — die Spalte gibt es, sie ist
-nur leer. Erst das erneute Anwenden trägt sie nach.
-
-Möglich ist das nur, weil jede Migration mehrfach ausführbar sein muss.
+Beim dritten Fall ist das „einschließlich" wichtig: bei einer Sicherung der
+Fassung 3 läuft Schritt 3 noch einmal, nicht erst Schritt 4. Die kopierten
+Zeilen stammen aus der Sicherung, und was Fassung 3 zusichert, muss auch für
+sie gelten. Beispiel QR-Token: eine alte Sicherung bringt Spinte ohne Token
+mit — die Spalte existiert, ist aber leer. Erst das erneute Anwenden des
+Schritts trägt die Token nach. Das setzt voraus, dass jede Migration mehrfach
+ausführbar ist (Regel 1).
 
 ## Regeln für neue Migrationen
-
-Vier Stück. Sie tragen den ganzen Bau:
 
 **1. Mehrfach ausführbar.** Jede Migration muss ohne Schaden zweimal laufen
 können — `CREATE ... IF NOT EXISTS`, vorher `hatSpalte(...)` fragen, `INSERT OR
@@ -69,17 +64,18 @@ hilft ein zweiter Lauf, statt einen halben Stand zu hinterlassen.
 
 **2. Was eine Migration anlegt, gehört gleichzeitig in `schema.sql`.** Frische
 Datenbanken entstehen aus `schema.sql`, nicht aus der Migrationskette. Beides
-muss dasselbe ergeben — sonst hat eine Neuinstallation ein anderes Schema als
-eine gewachsene, und das findet niemand.
+muss dasselbe ergeben, sonst hat eine Neuinstallation ein anderes Schema als
+eine über Migrationen gewachsene Installation.
 
-**3. Neue Nummer nur anhängen, nie eine bestehende ändern.** Draußen laufen
-Datenbanken, die die alte Nummer schon gespeichert haben. Wer 3 nachträglich
-umschreibt, ändert nichts an ihnen — sie halten 3 für erledigt.
+**3. Neue Nummer nur anhängen, nie eine bestehende ändern.** Es laufen bereits
+Datenbanken, die die alte Nummer gespeichert haben. Wird Schritt 3 nachträglich
+umgeschrieben, wenden diese Datenbanken ihn nicht erneut an — für sie gilt 3
+als erledigt.
 
-**4. Bauen statt umbauen.** Eine zusätzliche Spalte ist rückwärtsverträglich,
-ein Umbenennen nicht. Wo es sich nicht vermeiden lässt: `vertraeglich: false`
-setzen, hier aufschreiben warum — und wissen, dass ein zurückgenommenes Update
-dann eine Sicherung braucht.
+**4. Hinzufügen statt umbauen.** Eine zusätzliche Spalte ist
+rückwärtsverträglich, ein Umbenennen nicht. Lässt sich ein Umbau nicht
+vermeiden: `vertraeglich: false` setzen und hier dokumentieren. Ein
+zurückgenommenes Update braucht dann eine Sicherung.
 
 ### Der Test, der das absichert
 
@@ -129,8 +125,8 @@ Dazu:
 | Lage | Verhalten |
 |---|---|
 | Sicherung **älter** als die Software | Wird eingespielt und gehoben. Die Meldung nennt die Fassungen. |
-| Sicherung **neuer** als die Software | Wird **abgelehnt**. „Bitte erst die Software aktualisieren, dann erneut einspielen." Lieber gar nicht als halb. |
-| Datenbank **neuer** als die Software | Die Software startet trotzdem — an einem Übungsabend hilft es niemandem, wenn gar nichts mehr geht. Aber auf jeder Seite steht eine Warnung, und im Protokoll steht sie auch. |
+| Sicherung **neuer** als die Software | Wird **abgelehnt**, mit dem Hinweis, erst die Software zu aktualisieren. |
+| Datenbank **neuer** als die Software | Die Software startet trotzdem, damit sie am Übungsabend benutzbar bleibt. Auf jeder Seite und im Protokoll steht aber eine Warnung. |
 
 Der letzte Fall tritt praktisch nur nach einem zurückgenommenen Update auf. Der
 Weg heraus: entweder wieder aktualisieren, oder die Sicherung einspielen, die
@@ -140,8 +136,8 @@ der Update-Helfer **vor** dem Versuch gezogen hat.
 
 * In der Datenbank, Tabelle `schema_version`.
 * Im **Dateinamen** jeder Sicherung: `spinte-2026-08-08-2012-s1.db.enc`. So
-  sieht man vor einem Stick voller Dateien, welche zu welchem Stand gehört —
-  ohne Passwort, ohne Entschlüsseln.
+  lässt sich ohne Passwort erkennen, welche Datei zu welchem Softwarestand
+  gehört.
 * In der API unter `GET /api/v1/status` als `schema_fassung`.
 * Im Kopf dieser Seite, neben dem Stand der Software.
 
@@ -149,4 +145,4 @@ der Update-Helfer **vor** dem Versuch gezogen hat.
 
 | Fassung | Name | Verträglich | Was dazukam |
 |---|---|---|---|
-| 1 | Ausgangsstand | ja | Alles, was vor der Zählung gewachsen ist: Geschlecht am Mitglied, Umkleidebereiche am Spint, Lagerorte an der Ausrüstung, Größenschemata und Barcode-Präfix an den Arten, Standard-Lagerort, QR-Token für Spinte und Lagerorte, eindeutige Inventarnummern. Sicherungen von vor der Zählung gelten als Fassung 1 — genau das war der Stand, als sie begann. |
+| 1 | Ausgangsstand | ja | Alles, was vor der Zählung entstanden ist: Geschlecht am Mitglied, Umkleidebereiche am Spint, Lagerorte an der Ausrüstung, Größenschemata und Barcode-Präfix an den Arten, Standard-Lagerort, QR-Token für Spinte und Lagerorte, eindeutige Inventarnummern. Sicherungen ohne Fassungsnummer gelten als Fassung 1. |

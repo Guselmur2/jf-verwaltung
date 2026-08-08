@@ -65,8 +65,8 @@ Antippen wechselt durch **da → entschuldigt → fehlt → offen**; jeder Tipp 
 nichts zu speichern. Am schnellsten geht es meist so: erst **„alle da"**, dann die wenigen
 antippen, die fehlen.
 
-„Kein Eintrag" ist bewusst etwas anderes als „fehlt" — sonst wüsste man nicht, ob jemand
-wirklich gefehlt hat oder nur noch niemand hingeschaut hat.
+„Kein Eintrag" und „fehlt" sind zwei verschiedene Zustände — sonst ließe sich nicht
+unterscheiden, ob jemand gefehlt hat oder nur noch niemand nachgetragen hat.
 
 **Mehrere Betreuer gleichzeitig** ist vorgesehen. Die Daten liegen in einer Datenbank, jeder
 Tipp gilt sofort für alle; die offenen Seiten gleichen sich alle 15 Sekunden von selbst ab
@@ -105,8 +105,8 @@ damit sich die Gruppe von Woche zu Woche mischt.
 nur an Kinder mit Eignung, und wer eine Funktion lange nicht hatte, bekommt sie eher.
 
 Ist eine Einheit kleiner als die Aufstellung, fallen die **hinteren** Plätze weg (erst Melder,
-dann der Schlauchtrupp) — der Gruppenführer steht zuerst in der Liste und bleibt besetzt. Eine
-Einheit ohne Führung ist keine Einheit.
+dann der Schlauchtrupp). Der Gruppenführer steht zuerst in der Liste und bleibt immer
+besetzt.
 
 ### Einschätzung — drei Achsen statt einer Note
 
@@ -117,8 +117,8 @@ Einheit ohne Führung ist keine Einheit.
 | Anleiten | übernimmt, hilft anderen, bleibt ruhig |
 
 Je 1–5, Voreinstellung überall 3. **Ein Klick auf die Zahl setzt sie** — kein Auswahlfeld,
-kein Speichern-Knopf. Bewusst **keine Gesamtnote**: eine einzelne Zahl wäre eine
-Rangliste. Ein Kind mit 5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar.
+kein Speichern-Knopf. Eine Gesamtnote gibt es nicht, denn daraus würde eine Rangliste. Ein
+Kind mit 5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar.
 
 **Die Werte sind nicht offen sichtbar.** Sie erscheinen erst nach einem Klick auf
 „Einschätzungen anzeigen" — blickt ein Kind auf das Handy, stehen dort nur Namen. Die Liste ist
@@ -140,16 +140,16 @@ von zwei Stufen:
 * **kann** — macht das selbstständig
 * **übt** — soll das lernen, braucht dabei ein Auge
 
-Die zweite Stufe ist der eigentliche Zweck. Ohne sie bekämen immer dieselben zwei Kinder den
-Gruppenführer, und niemand sonst lernte es je. Die Einteilung zieht Übende heran, sobald die
-Routinierten die Funktion zuletzt schon hatten — in der Ansicht sind sie mit **übt** markiert,
-damit klar ist, wo man hinschauen muss. Reicht es nicht, steht dort **ohne Eignung**: dann
-macht es jemand, der es noch nicht kann, und das soll man sehen.
+Die zweite Stufe ist wichtig: ohne sie bekämen immer dieselben zwei Kinder den
+Gruppenführer, und die anderen kämen nie dran. Die Einteilung setzt Übende ein, sobald die
+Routinierten die Funktion beim letzten Mal hatten; in der Ansicht sind sie mit **übt**
+markiert. Reicht auch das nicht, steht dort **ohne Eignung** — dann übernimmt jemand ohne
+Eignung, und das ist gekennzeichnet.
 
-**Der Maschinist braucht keine Eignung.** Fahren und Pumpe bedienen machen in der
-Jugendfeuerwehr die Betreuer, die Kinder assistieren. Im Gegenteil: der Platz ist der beste für
-jemanden, der erst schnuppert — dort steht ein Betreuer eins zu eins daneben. Die Einteilung
-schickt darum bevorzugt Kinder mit wenig Erfahrung auf den Maschinisten.
+**Der Maschinist braucht keine Eignung.** Fahren und Pumpe bedienen übernehmen in der
+Jugendfeuerwehr die Betreuer, die Kinder assistieren. Der Platz eignet sich gut für Kinder,
+die erst schnuppern, weil dort ein Betreuer eins zu eins danebensteht. Die Einteilung setzt
+darum bevorzugt Kinder mit wenig Erfahrung auf den Maschinisten.
 
 Gewichte dazu stehen als Konstanten in `src/dienst.js` (`E_UEBT`, `E_FEHLT_GEWICHT`,
 `BEDARF_GEWICHT`, `R_JE_MAL`, `W_SCHNUPPER`) — dort lässt sich nachstellen, wie stark Rotation gegen
@@ -716,14 +716,14 @@ Unter `/stammdaten` (nur Jugendwart) stehen drei Textfelder und das Logo:
 Die **Abteilung** ist dafür da, sich von der Kinderfeuerwehr abzuheben, wenn beide dasselbe
 Logo tragen — auf dem Blatt steht dann groß, zu wem der Spint gehört.
 
-Dazu kommen **Beginn und Ende des Übungsabends** — bei uns 17:45 bis 19:30. Daraus rechnet
-die Software ein Fenster, in dem sie vom Neustarten abrät: 10 Minuten vor Beginn bis
-45 Minuten nach Ende. Ruft man in dieser Zeit den Update-Knopf auf, steht dort
-„Gerade ist ein schlechter Zeitpunkt" — verboten wird nichts, aber man weiß es. Endet der
-Dienst nach Mitternacht, rechnet das Fenster trotzdem richtig.
+Dazu kommen **Beginn und Ende des Übungsabends** (Voreinstellung 17:45 bis 19:30). Daraus
+ergibt sich das Zeitfenster, in dem die Software vor einem Neustart warnt: 10 Minuten vor
+Beginn bis 45 Minuten nach Ende. Ruft man in dieser Zeit die Update-Seite auf, erscheint
+ein Hinweis; ein Update bleibt trotzdem möglich. Ein Dienstende nach Mitternacht wird
+richtig berechnet.
 
-Dasselbe passiert, wenn für **heute schon Anwesenheit erfasst** ist: dann läuft der Abend
-gerade oder war eben, und ein Neustart mitten in der Liste wäre ärgerlich.
+Derselbe Hinweis erscheint, wenn für heute schon Anwesenheit erfasst ist — dann läuft der
+Übungsabend vermutlich gerade.
 
 Das Logo (PNG, JPEG, GIF, WebP oder SVG, höchstens 2 MB) liegt **in der Datenbank**, nicht
 als Datei daneben. Damit steckt es in jeder Datensicherung und ist nach einer
@@ -771,14 +771,12 @@ verschlüsselt** (AES-256-CBC, Schlüssel über PBKDF2 mit 10 000 Runden). Das P
 **nirgends gespeichert** — ohne es ist die Datei wertlos. Also aufschreiben und getrennt von
 der Sicherung aufbewahren.
 
-Bewusst gewählt ist das Format von `openssl enc`. Damit lässt sich die Sicherung mit einem
+Verwendet wird das Format von `openssl enc`. Damit lässt sich die Sicherung mit einem
 Standardbefehl öffnen, auch wenn diese Software einmal nicht mehr läuft:
 
 ```bash
 openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-07-27-2241.db.enc -out spinte.db
 ```
-
-Eine Sicherung, die nur das eigene Programm lesen kann, ist im Ernstfall keine.
 
 ### Zurückspielen
 
@@ -1075,7 +1073,7 @@ Besitzer gesucht.
 
 ### Inventarnummern sind eindeutig
 
-Eine Inventarnummer gehört zu genau einem Teil — sonst führt jeder Scan ins Ungewisse.
+Eine Inventarnummer gehört zu genau einem Teil, sonst wäre ein Scan nicht eindeutig.
 Der Versuch, eine schon vergebene Nummer einzutragen, wird abgewiesen; die Meldung nennt,
 wo die Nummer bereits steckt („… ist schon vergeben: Jacke Gr. 164 in Spint 01 (Max Meier)").
 Groß- und Kleinschreibung zählen dabei nicht: `JA-1` und `ja-1` sind dieselbe Nummer.
@@ -1102,8 +1100,9 @@ nächsten Start zusätzlich die Datenbank-Regel.
 - **Aufgabe** — Tausch- oder Bestellwunsch. Art, Mitglied und Spint stehen zusätzlich als
   eigene Felder darin, damit die Aufgabe lesbar bleibt, wenn das Teil später wegfällt.
 
-Nichts wird beim Löschen mitgerissen: Wird ein Spint gelöscht, wandert sein Inhalt ins
-Lager. Tritt ein Mitglied aus, wird sein Spint frei, die Ausrüstung bleibt liegen.
+Beim Löschen gehen keine abhängigen Daten verloren: Wird ein Spint gelöscht, wandert sein
+Inhalt ins Lager. Tritt ein Mitglied aus, wird sein Spint frei, die Ausrüstung bleibt
+liegen.
 
 Jede Änderung landet mit Zeitstempel und Name im Verlauf (`/verlauf`). Die Zeiten stehen
 in UTC, so wie SQLite sie speichert — im Sommer also zwei Stunden vor der Ortszeit.
@@ -1188,7 +1187,7 @@ Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY` steht).
 
 Es gibt drei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
 
-### Über die Oberfläche (der bequemste Weg)
+### Über die Oberfläche (empfohlen)
 
 Unter **System, Update & Herunterfahren** → *Nach Aktualisierung sehen*. Ein Klick auf
 *Nach Neuem sehen* fragt beim Repository nach, danach steht die Liste der Änderungen da,
@@ -1215,13 +1214,13 @@ Dass die Markierung unter `/run` liegt, ist Absicht: das ist eine RAM-Platte. Na
 Stromausfall mitten im Vorgang ist die Anforderung weg und löst beim nächsten Start nicht
 versehentlich noch ein Update aus.
 
-Aus demselben Grund fragt auch **das blosse Nachsehen** über den Helfer. `git fetch` will
-`.git/FETCH_HEAD` schreiben, und der Dienst darf ausser `data/` nirgends schreiben
-(`ProtectSystem=strict`). Die naheliegende Abhilfe wäre, `.git` in `ReadWritePaths`
-aufzunehmen — und genau die wäre falsch: wer in `.git` schreiben kann, ändert die
-Herkunftsadresse oder schiebt Objekte unter, und der Helfer spielt sie anschliessend **als
-root** ein und lässt dabei `npm ci` laufen. Aus einer Lücke in der Weboberfläche würde so
-Rootzugriff. Der Helfer holt, die Seite liest nur das Ergebnis.
+Auch das bloße Nachsehen („Nach Neuem sehen") läuft über den Helfer. `git fetch` müsste
+`.git/FETCH_HEAD` schreiben, der Dienst darf aber außer `data/` nirgends schreiben
+(`ProtectSystem=strict`). `.git` in `ReadWritePaths` freizugeben wäre keine Lösung: wer in
+`.git` schreiben kann, kann die Herkunftsadresse ändern oder Objekte unterschieben, und der
+Helfer würde sie anschließend als root einspielen und `npm ci` darauf laufen lassen. Eine
+Sicherheitslücke in der Weboberfläche würde damit zu Rootzugriff. Deshalb holt der Helfer,
+und die Seite liest nur das Ergebnis.
 
 ### Vom Projektordner aus (funktioniert sofort)
 
