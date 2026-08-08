@@ -2021,8 +2021,15 @@ check('der Verlauf hält das Einspielen fest', r.text.includes('Sicherung einges
 console.log('\n38) Handbuch in der Oberfläche');
 r = await req('/handbuch');
 check('Handbuch erreichbar', r.status === 200 && r.text.includes('Handbuch'), String(r.status));
-check('Überschriften bekommen Anker', /<h2 id="der-übungsabend">/.test(r.text));
+// Absichtlich nicht an einzelne Überschriften gebunden: die Doku wird
+// umgeschrieben, der Übersetzer soll trotzdem geprüft bleiben.
+check('Überschriften bekommen Anker', (r.text.match(/<h2 id="[^"]+">/g) || []).length >= 5,
+  String((r.text.match(/<h2 id="[^"]+">/g) || []).length));
 check('Bilder zeigen auf die eigene Adresse', r.text.includes('src="/handbuch/bilder/uebersicht.png"'));
+// Die Bildschirmfotos sind der halbe Wert des Handbuchs — verschwinden sie beim
+// Umschreiben, soll das auffallen und nicht erst jemandem beim Lesen.
+const bilderImHandbuch = (r.text.match(/src="\/handbuch\/bilder\//g) || []).length;
+check('alle Bildschirmfotos sind eingebunden', bilderImHandbuch >= 30, `${bilderImHandbuch} Bilder`);
 check('Tabellen werden gesetzt', r.text.includes('<table>') && r.text.includes('<th>'));
 check('Codeblöcke bleiben Code', r.text.includes('<pre class="befehl"'));
 check('kein rohes Markdown mehr', !r.text.includes('](bilder/'));
@@ -2033,7 +2040,7 @@ check('Verweis auf das README wird umgebogen', r.text.includes('href="/handbuch/
 check('Verweis auf eine Quelldatei bleibt Text', !r.text.includes('href="../scripts/doku-daten.js"'));
 
 r = await req('/handbuch/readme');
-check('Technische Beschreibung erreichbar', r.status === 200 && r.text.includes('Was die Seiten können'));
+check('Technische Beschreibung erreichbar', r.status === 200 && r.text.includes('Umgebungsvariablen'), String(r.status));
 r = await req('/handbuch/datenbank');
 check('Datenbank-Seite erreichbar', r.status === 200 && r.text.includes('Schema-Fassungen'));
 

@@ -1,608 +1,408 @@
-# JF-Verwaltung
+# JF-Verwaltung — Technische Dokumentation
 
-Spinte und Ausrüstung, Anwesenheit und Einteilung für eine Jugendfeuerwehr.
+Lokale Verwaltung von Spinten, Ausrüstung, Anwesenheit und Übungseinteilung für eine
+Jugendfeuerwehr. Läuft autark auf einem Raspberry Pi im Vereins-WLAN, ohne Cloud und ohne
+Internet.
+
+Dieses Dokument richtet sich an alle, die die Software **einrichten und betreiben**:
+Architektur, Installation, Konfiguration, Betrieb, Sicherung, Datenmodell, API und Tests.
+
+> **Für Betreuer und Jugendwarte:** Die Bedienung der Oberfläche — Anwesenheit erfassen,
+> Kleidung tauschen, Einteilung, Etiketten drucken — steht im
+> **[Handbuch](docs/handbuch.md)** und nicht hier.
+
+Beide Dokumente liegen auch in der laufenden Installation unter `/handbuch` und werden mit
+jedem Update mit aktualisiert.
 
 > **Für andere Wehren:** Das hier ist für *eine* Jugendfeuerwehr gebaut und läuft dort im
-> Alltag. Wer es übernehmen will, klont das Repo und folgt „Installation auf einem Raspberry
-> Pi". Alles Wehr-Spezifische — Name, Logo, Ausrüstungsarten, Größenreihen, Barcode-Präfixe —
-> steht in der Oberfläche und nicht im Code. Rückfragen und Verbesserungen gern als Issue.
+> Alltag. Wer es übernehmen will, klont das Repo und folgt Abschnitt 4. Alles
+> Wehr-Spezifische — Name, Logo, Ausrüstungsarten, Größenreihen, Barcode-Präfixe — steht in
+> der Oberfläche und nicht im Code.
 >
 > **Nicht ins Internet stellen.** Die Software ist für ein abgeschottetes Vereins-WLAN
 > gedacht: keine Verschlüsselung der Datenbank im Betrieb, keine Angriffserkennung, keine
 > Ratenbegrenzung an der Anmeldung. Sie enthält Namen, Geburtsdaten und Einschätzungen von
 > Kindern. Auf einem öffentlich erreichbaren Server hat sie nichts verloren.
 
-Lokale Verwaltung von Spinten, Mitgliedern und Einsatzkleidung — dazu Anwesenheitslisten
-und die Einteilung in Gruppen, Staffeln und Trupps. An jedem Spint hängt ein QR-Code, der auf
-die Detailseite dieses Spints im Vereins-WLAN zeigt. Läuft komplett auf einem Raspberry Pi,
-ohne Internet und ohne Cloud.
+---
 
-**➜ [Handbuch mit Bildern](docs/handbuch.md)** — ein Rundgang durch alle Seiten. Dieses README
-erklärt Einrichtung und Technik, das Handbuch die Bedienung. Beide liegen auch **in der
-laufenden Installation** unter `/handbuch` und wandern damit bei jedem Update mit.
+## Inhalt
 
-Entstanden ist das Projekt in Zusammenarbeit mit einer KI — Näheres unter
-[Mit KI entwickelt](#mit-ki-entwickelt).
+1. [Überblick](#1-überblick)
+2. [Architektur](#2-architektur)
+3. [Rechte- und Sicherheitskonzept](#3-rechte--und-sicherheitskonzept)
+4. [Installation](#4-installation)
+5. [Konfiguration](#5-konfiguration)
+6. [Betrieb](#6-betrieb)
+7. [Datensicherung und Wiederherstellung](#7-datensicherung-und-wiederherstellung)
+8. [Datenmodell](#8-datenmodell)
+9. [API](#9-api)
+10. [Entwicklung und Tests](#10-entwicklung-und-tests)
+11. [Lizenzen der Abhängigkeiten](#11-lizenzen-der-abhängigkeiten)
+12. [Mit KI entwickelt](#12-mit-ki-entwickelt)
+13. [Lizenz](#13-lizenz)
 
-## Was die Seiten können
+---
 
-| Seite | Adresse | Wer |
-|---|---|---|
-| Spint-Detail (Ziel des QR-Codes) | `/s/<token>` | **jeder, der diesen QR-Code scannt** |
-| Anwesenheit | `/anwesenheit` | Betreuer |
-| Anwesenheit über die Zeit | `/anwesenheit/quoten` | Betreuer |
-| Einteilung &amp; Teams | `/einteilung` | Betreuer |
-| Einschätzung der Kinder | `/einschaetzung` | Betreuer |
-| Lagerort-Detail (Ziel des QR-Codes) | `/l/<token>` | **jeder, der diesen QR-Code scannt** |
-| Übersicht aller Spinte | `/` | Betreuer |
-| Lager (Ausrüstung ohne Spint) | `/lager` | Betreuer |
-| Mitglieder | `/mitglieder` | Betreuer |
-| Suche über alles | `/suche` | Betreuer |
-| Barcode scannen | `/scannen` | Betreuer |
-| Spint-Detail intern | `/spint/7` | Betreuer |
-| Spint bearbeiten | `/spint/7/bearbeiten` | Betreuer |
-| Tauschen / Bestellen | `/ausruestung/12/tauschen` | Betreuer |
-| Aufgaben | `/aufgaben` | Betreuer, zuständig ist der Jugendwart |
-| Lagerorte verwalten | `/lagerorte` | Betreuer |
-| Arten & Größen (inkl. Barcode-Präfix) | `/ausruestungsarten` | Betreuer |
-| Ausgemusterte Teile | `/ausgemustert` | Betreuer |
-| QR-Aufkleber drucken | `/qr` | Betreuer |
-| Spint-Etiketten (1/2/4 je Seite) | `/etiketten`, `/etikett/7` | Betreuer |
-| Logo der Wehr | `/logo` | **jeder** |
-| Handbuch (dieses Dokument in der Software) | `/handbuch` | Betreuer |
-| Änderungsverlauf | `/verlauf` | Betreuer |
-| Umkleidebereiche | `/bereiche` | **nur Jugendwart** |
-| Betreuer verwalten | `/betreuer` | **nur Jugendwart** |
-| Stammdaten &amp; Logo | `/stammdaten` | **nur Jugendwart** |
-| Datensicherung | `/sicherung` | **nur Jugendwart** |
-| API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
-| System, Update, Pi herunterfahren | `/system` | **nur Jugendwart** |
-| Aktualisierung einspielen | `/system/update` | **nur Jugendwart** |
-| Sicherung zurückspielen | `/restore` | **nur Jugendwart** |
-| API für andere Systeme | `/api/v1/…` | **Token** |
+## 1. Überblick
 
-## Anwesenheit
-
-Ein Termin je Übungsabend (Datum, optional Thema), darunter alle aktiven Mitglieder. Ein
-Antippen wechselt durch **da → entschuldigt → fehlt → offen**; jeder Tipp sitzt sofort, es gibt
-nichts zu speichern. Am schnellsten geht es meist so: erst **„alle da"**, dann die wenigen
-antippen, die fehlen.
-
-„Kein Eintrag" und „fehlt" sind zwei verschiedene Zustände — sonst ließe sich nicht
-unterscheiden, ob jemand gefehlt hat oder nur noch niemand nachgetragen hat.
-
-**Mehrere Betreuer gleichzeitig** ist vorgesehen. Die Daten liegen in einer Datenbank, jeder
-Tipp gilt sofort für alle; die offenen Seiten gleichen sich alle 15 Sekunden von selbst ab
-(und sofort, wenn man zur App zurückwechselt). Damit dabei nichts durcheinandergerät, schickt
-der Knopf den **Zielzustand** mit statt „einen weiter" — sonst könnte ein Tipp auf einer
-veralteten Seite aus einem fremden „da" ein „entschuldigt" machen. So ist derselbe Tipp von
-zwei Seiten einfach wirkungslos.
-
-Unter **Anwesenheit über die Zeit** steht die Quote je Kind. Bezugsgröße ist, wie oft für das
-Kind überhaupt etwas erfasst wurde — wer erst seit Herbst dabei ist, wird nicht an den
-Terminen davor gemessen. Für Jugendflamme und Leistungsspange ist das die Zahl, nach der
-gefragt wird.
-
-## Einteilung: ausgeglichene Einheiten mit Funktionen
-
-Eingeteilt wird immer nur, **wer da ist** — die Einteilung zieht sich die Anwesenheit des
-Termins. Vier Aufstellungen:
-
-| Aufstellung | Plätze |
+| Eigenschaft | |
 |---|---|
-| Freie Teams | ohne Funktionen — für Spiele und Wettkämpfe |
-| Gruppe (9) | GF · MA · AF · AM · WF · WM · SF · SM · Me |
-| Staffel (6) | GF · MA · AF · AM · WF · WM |
-| Trupp (3) | AF · AM · WM |
+| Betrieb | vollständig lokal auf einem Raspberry Pi, kein Internet nötig |
+| Oberfläche | serverseitig gerendert (EJS), für Handy und Tablet gebaut |
+| Datenhaltung | eine SQLite-Datei, WAL-Modus |
+| Zugriff ohne Anmeldung | ausschließlich die eine per QR-Code aufgerufene Seite |
+| Sicherungen | ausnahmslos verschlüsselt (AES-256-CBC, Format `openssl enc`) |
+| Aktualisierung | über die Oberfläche, mit automatischem Rückweg |
 
-Das läuft in zwei Schritten, weil es zwei verschiedene Fragen sind: **wer mit wem** und
-**wer macht was**.
+Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig. Das ist Absicht — auf einem
+Pi im Gerätehaus soll niemand eine Werkzeugkette pflegen müssen.
 
-**Wer mit wem.** Die drei Achsen aus der Einschätzung werden *einzeln* ausgeglichen, nicht die
-Summe — sonst könnte eine Einheit aus drei Kräftigen ohne Erfahrung bestehen und die nächste
-umgekehrt. Dazu zählt: jede Einheit braucht jemanden, der die Führungsfunktionen kann,
-„nicht zusammen"-Paare werden getrennt, und Paarungen der letzten Termine werden gemieden,
-damit sich die Gruppe von Woche zu Woche mischt.
+## 2. Architektur
 
-**Wer macht was.** Innerhalb der Einheit werden die Plätze besetzt. Führungsfunktionen gehen
-nur an Kinder mit Eignung, und wer eine Funktion lange nicht hatte, bekommt sie eher.
+Node.js mit Express, EJS-Vorlagen, SQLite über `better-sqlite3` (synchron, kein
+Verbindungspool nötig). Acht direkte Abhängigkeiten.
 
-Ist eine Einheit kleiner als die Aufstellung, fallen die **hinteren** Plätze weg (erst Melder,
-dann der Schlauchtrupp). Der Gruppenführer steht zuerst in der Liste und bleibt immer
-besetzt.
+```
+        Vereins-WLAN (kein Internet-Zugang nötig)
+                        │  HTTPS, selbstsigniertes Zertifikat
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│ Raspberry Pi                                        │
+│                                                     │
+│  systemd: jf-spinte.service   (Node, Dienstbenutzer)│
+│      │        NoNewPrivileges, ProtectSystem=strict │
+│      │        schreibt nur in data/                 │
+│      ▼                                              │
+│  server.js ─ src/routes/*.js ─ src/model.js         │
+│      │                                              │
+│      ▼                                              │
+│  data/spinte.db  (SQLite, WAL)                      │
+│                                                     │
+│  systemd: jf-sicherung.timer  nächtliche Sicherung  │
+│  systemd: jf-update.path      wartet auf Markierung │
+│              └─> scripts/update-helfer.sh (root)    │
+└─────────────────────────────────────────────────────┘
+```
 
-Ein Vorschlag existiert nur auf dem Gerät, das „Neu mischen" gedrückt hat; gespeichert wird
-per verstecktem Feld genau die angezeigte Aufteilung. Haben zwei Betreuer die Seite
-gleichzeitig offen und speichern beide, erkennt das der Speicherzeitpunkt an der Einteilung
-(`teams.gespeichert`, Schema-Fassung 2): der zweite bekommt eine Rückfrage mit beiden
-Einteilungen nebeneinander, statt die erste stillschweigend zu ersetzen.
+### Ordnerstruktur
 
-### Einschätzung — drei Achsen statt einer Note
+```
+server.js              Start, Sitzungen, Router-Reihenfolge, Zugriffsschutz
+src/db.js              SQLite öffnen, Schema anwenden, migrieren
+src/schema.sql         Tabellen — immer der vollständige, aktuelle Stand
+src/migrationen.js     Schema-Fassungen und der Weg von einer zur nächsten
+src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
+src/dienst.js          Anwesenheit, Einschätzung, Einteilung mit Funktionen
+src/auth.js            Anmeldung, Rollen, CSRF
+src/backup.js          Sicherung erzeugen und verschlüsseln
+src/restore.js         Sicherung entschlüsseln und einspielen
+src/update.js          nach Neuem sehen, Aktualisierung anfordern
+src/markdown.js        kleiner Markdown-Übersetzer für /handbuch
+src/sizes.js           Größen prüfen, nächstliegende finden
+src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
+src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
+src/tokens.js          Geheimnisse für die QR-Links
+src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
+src/routes/            eine Datei je Themenbereich
+views/                 EJS-Vorlagen
+public/                CSS, kleine Skripte, Barcode-Scanner
+deploy/                systemd-Einheiten und polkit-Regel als Vorlage
+scripts/               Installation, Deployment, Sicherung, Update, Doku-Bilder
+docs/                  Handbuch und Datenbank-Beschreibung
+test/                  smoke.mjs (Abläufe) und schema.mjs (Migrationen)
+tls/                   Zertifikat und Schlüssel (nicht im Repo)
+data/                  Datenbank (nicht im Repo)
+```
 
-| Merkmal | gemeint ist |
+## 3. Rechte- und Sicherheitskonzept
+
+### Rollen
+
+| Rolle | Darf |
 |---|---|
-| Erfahrung | wie viel kann er/sie schon |
-| Zupacken | körperlich, praktisch, Schlauch und Leiter |
-| Anleiten | übernimmt, hilft anderen, bleibt ruhig |
+| Betreuer | Spinte, Ausrüstung, Mitglieder, Arten, Anwesenheit, Einschätzung, Einteilung |
+| Jugendwart | zusätzlich Zugänge, Rollen, Stammdaten, Sicherung, API-Zugänge, System und Update |
+| ohne Anmeldung | **nur** die eine Seite, deren QR-Code gerade gescannt wurde |
 
-Je 1–5, Voreinstellung überall 3. **Ein Klick auf die Zahl setzt sie** — kein Auswahlfeld,
-kein Speichern-Knopf. Eine Gesamtnote gibt es nicht, denn daraus würde eine Rangliste. Ein
-Kind mit 5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar.
+Es muss immer mindestens ein aktiver Jugendwart übrig bleiben; die Software verhindert, dass
+sich die Wehr aussperrt.
 
-**Die Werte sind nicht offen sichtbar.** Sie erscheinen erst nach einem Klick auf
-„Einschätzungen anzeigen" — blickt ein Kind auf das Handy, stehen dort nur Namen. Die Liste ist
-immer alphabetisch und nicht nach Werten sortierbar. Auf den QR-Seiten am Spint, die ohne
-Anmeldung erreichbar sind, tauchen sie nie auf, und die API gibt sie nicht heraus. Im
-Änderungsverlauf steht, *dass* jemand eine Einschätzung geändert hat, nicht *welche Werte*.
+### Zugriff ohne Anmeldung
 
-> Einschätzungen von Minderjährigen zu speichern ist etwas anderes als eine Kleidergröße. Sie
-> landen in den (verschlüsselten) Sicherungen. Sag im Zweifel der Wehrführung, dass ihr das so
-> führt, und halte die Merkmale bei **Fähigkeiten**: „Anleiten 2" ist eine Beobachtung, ein
-> Urteil über den Charakter hätte hier nichts zu suchen.
+Ohne Anmeldung ist **alles** gesperrt — keine Übersicht, keine Mitgliederliste, keine Suche,
+kein Lagerbestand. Offen sind nur die Anmeldung, statische Dateien, das Logo und die beiden
+Token-Adressen aus den QR-Codes.
 
-### Eignung: „kann" und „übt"
+Deshalb steht im QR-Code nicht die laufende Nummer, sondern ein zufälliger Token
+(`/s/t8exz96cepde` statt `/s/1`): 12 Zeichen aus einem 31-stelligen Alphabet, rund 59 Bit.
+Mit fortlaufenden IDs könnte sonst jeder im WLAN von einem Etikett auf alle anderen
+schließen und hätte Namen und Kleidergrößen aller Jugendlichen.
 
-Gruppenführer kann nicht jeder — man kann nicht jeden ins Tor stellen. Gepflegt werden
-deshalb nur die beiden **Führungsfunktionen** (Gruppenführer, Truppführer), je Kind in einer
-von zwei Stufen:
-
-* **kann** — macht das selbstständig
-* **übt** — soll das lernen, braucht dabei ein Auge
-
-Die zweite Stufe ist wichtig: ohne sie bekämen immer dieselben zwei Kinder den
-Gruppenführer, und die anderen kämen nie dran. Die Einteilung setzt Übende ein, sobald die
-Routinierten die Funktion beim letzten Mal hatten; in der Ansicht sind sie mit **übt**
-markiert. Reicht auch das nicht, steht dort **ohne Eignung** — dann übernimmt jemand ohne
-Eignung, und das ist gekennzeichnet.
-
-**Der Maschinist braucht keine Eignung.** Fahren und Pumpe bedienen übernehmen in der
-Jugendfeuerwehr die Betreuer, die Kinder assistieren. Der Platz eignet sich gut für Kinder,
-die erst schnuppern, weil dort ein Betreuer eins zu eins danebensteht. Die Einteilung setzt
-darum bevorzugt Kinder mit wenig Erfahrung auf den Maschinisten.
-
-Gewichte dazu stehen als Konstanten in `src/dienst.js` (`E_UEBT`, `E_FEHLT_GEWICHT`,
-`BEDARF_GEWICHT`, `R_JE_MAL`, `W_SCHNUPPER`) — dort lässt sich nachstellen, wie stark Rotation gegen
-Routine zieht.
-
-## Wer was sehen darf
-
-**Ohne Anmeldung ist alles gesperrt — bis auf die eine Seite, deren QR-Code man gerade
-gescannt hat.** Keine Übersicht, keine Mitgliederliste, keine Suche, kein Lagerbestand.
-
-Damit das hält, steht im QR-Code **nicht** die laufende Nummer, sondern ein zufälliger
-Token: `/s/t8exz96cepde` statt `/s/1`. Sonst könnte jeder im WLAN von einem Etikett auf alle
-anderen schließen und einfach `/spint/2`, `/spint/3` … durchprobieren — und hätte damit Namen
-und Kleidergrößen aller Jugendlichen. Der Token ist 12 Zeichen aus einem 31-stelligen
-Alphabet (rund 59 Bit); Durchprobieren ist ausgeschlossen.
-
-Die Spint-Seite zeigt nur **ihr eigenes** Mitglied und ihren eigenen Inhalt. Für Anonyme gibt
-es dort keine Navigation und keinen Link, der irgendwo anders hinführt — nur „Anmelden".
-
-Der Zugriffsschutz ist als **Positivliste** in `server.js` gebaut: gesperrt ist alles, was
-nicht ausdrücklich freigegeben ist (Anmeldung, statische Dateien, `/s/<token>`,
-`/l/<token>` und `/logo`). Eine neu hinzugefügte Seite ist damit automatisch geschützt,
+Der Schutz ist als **Positivliste** in `server.js` gebaut: gesperrt ist alles, was nicht
+ausdrücklich freigegeben ist. Eine neu hinzugefügte Seite ist damit automatisch geschützt,
 statt versehentlich offen zu stehen.
 
-`/logo` steht bewusst offen: das Logo der Wehr erscheint auch im Kopf der Spint-Seite, die
-man ohne Anmeldung per QR-Code aufruft. Es verrät nichts über Mitglieder.
+### Einschätzungen
 
-Intern verlinkt die Software Spinte weiter über die kurze Nummer (`/spint/7`) — die
-funktioniert aber **nur angemeldet**. Nötig ist die interne Nummer, weil die aufgedruckte
-Spint-Nummer in verschiedenen Umkleidebereichen doppelt vorkommen darf.
+Die Drei-Achsen-Einschätzung der Jugendlichen ist der heikelste Datenbestand. Sie steht in
+einer eigenen Tabelle, erscheint **nicht** auf den QR-Seiten und wird von der API **nicht**
+herausgegeben. Im Änderungsverlauf steht, *dass* jemand eine Einschätzung geändert hat,
+nicht *welche Werte*. In der Oberfläche sind die Werte erst nach einem Klick sichtbar.
 
-> **Beim Umstieg auf Token müssen alle Etiketten neu gedruckt werden.** Beim ersten Start
-> nach dem Update trägt die Software Token für bestehende Spinte und Lagerorte nach und weist
-> im Protokoll darauf hin. Alte Etiketten zeigen dann ins Leere.
+### Härtung des Dienstes
 
-Was der Token **nicht** leistet: Wer einen QR-Code abfotografiert oder die Adresse notiert,
-kann diesen einen Spint weiter aufrufen. Ein Token lässt sich derzeit nicht einzeln
-zurücksetzen — wenn das gebraucht wird, sag Bescheid.
+`deploy/jf-spinte.service` setzt `NoNewPrivileges=true`, `ProtectSystem=strict`,
+`ProtectHome=true` und `PrivateTmp=true` und gibt als einzigen beschreibbaren Pfad `data/`
+frei. Der Dienst kann damit kein `sudo` starten — deshalb läuft das Herunterfahren über
+polkit (Abschnitt 6) und die Aktualisierung über einen getrennten Helfer.
 
-**Rollen:** Betreuer pflegen Spinte, Ausrüstung, Mitglieder und Ausrüstungsarten.
-Jugendwarte sind Betreuer und dürfen zusätzlich Zugänge anlegen, Rollen ändern,
-Passwörter zurücksetzen und Zugänge löschen. Es muss immer mindestens ein aktiver
-Jugendwart übrig bleiben — die Software verhindert, dass sich die Wehr aussperrt.
+### Was die Software nicht leistet
 
-## Erster Start
+* Das Zertifikat ist **selbstsigniert**. Jedes Gerät bestätigt es einmal. Gegen jemanden,
+  der bereits im Netz sitzt und sich dazwischenschaltet, hilft das nicht.
+* Die **Datenbank ist im Betrieb unverschlüsselt**. Wer die Speicherkarte in die Hand
+  bekommt, liest sie. Verschlüsselt sind nur die Sicherungen.
+* **Keine Ratenbegrenzung** an der Anmeldung, keine Angriffserkennung, keine Sperre nach
+  Fehlversuchen.
+
+Deshalb gehört der Pi ins Vereinsnetz und nicht ins Internet — kein Portfreigeben am Router.
+Wer die Seite von außen braucht, setzt ein VPN davor.
+
+## 4. Installation
+
+### Voraussetzungen
+
+* Raspberry Pi (im Einsatz: Pi 5, Debian 13 trixie, arm64) oder ein beliebiger Linux-Rechner
+* Node.js 18 oder neuer (auf dem Pi läuft 20; `scripts/doku-bilder.js` braucht 22)
+* `git`, `openssl`, `curl`
+
+### Entwicklung
 
 ```bash
-npm install
+git clone https://github.com/Guselmur2/jf-verwaltung.git
+cd jf-verwaltung
+npm ci
 npm start
 ```
 
-Beim ersten Aufruf von <http://localhost:3000> erscheint die Ersteinrichtung. Der dort
-angelegte Zugang wird automatisch Jugendwart. Danach ist die Einrichtungsseite gesperrt.
-
-Vorkonfigurierte Ausrüstungsarten: Jacke, Hose, Helm, Handschuhe, Schuhe. Über
-`/ausruestungsarten` lassen sich weitere ergänzen und je Art festlegen, ob Größe und
-Inventarnummer geführt werden.
-
-## Geburtsdatum in Kurzform
-
-Beim Anlegen genügt die Kurzform mit zweistelligem Jahr; das Jahrhundert wird so ergänzt,
-dass das Datum nicht in der Zukunft liegt:
-
-- `5.5.16` → 05.05.2016 (Jugendliche)
-- `23.5.87` → 23.05.1987 (ältere Feuerwehrleute)
-
-Ein zweistelliges Jahr `JJ` wird zu `20JJ`, falls das höchstens das aktuelle Jahr ist,
-sonst zu `19JJ`. Voll ausgeschrieben (`05.05.2016`) oder als ISO-Datum geht natürlich auch.
-
-## Umkleidebereiche und Geschlecht
-
-Jedes Mitglied hat ein Geschlecht (männlich, weiblich, divers). Spinte liegen in
-**Umkleidebereichen**. Die Oberfläche passt sich an, was tatsächlich gebraucht wird:
-
-- Solange nur ein Geschlecht in der Jugendfeuerwehr ist, wird **nicht** nach Bereichen
-  unterschieden — keine Gruppierung, keine Bereichsauswahl.
-- Der Bereich „Divers“ (und ebenso Jungs/Mädels) erscheint erst, sobald es ein Mitglied
-  dieses Geschlechts oder einen Spint dafür gibt.
-- Wird das **erste** Mitglied eines neuen Geschlechts angelegt, fragt die Software den
-  Jugendwart: eigener Umkleidebereich mit eigenen Spinden, oder alle im selben Bereich?
-  Bei einem eigenen Bereich wird zusätzlich gefragt, ob die Spint-Nummerierung dort neu
-  bei 1 beginnt oder hinter der höchsten bestehenden Nummer fortläuft. Legt ein Betreuer
-  (kein Jugendwart) das erste Mitglied an, bleibt es zunächst im gemeinsamen Bereich; der
-  Jugendwart kann das unter `/bereiche` nachträglich einrichten.
-- Weil die Nummerierung je Bereich neu beginnen darf, kann „Spint 01“ mehrfach existieren
-  (einmal je Bereich). Beim Zuweisen eines Spints werden nur Mitglieder angeboten, deren
-  Geschlecht zu diesem Bereich gehört.
-
-Unter `/bereiche` (Jugendwart) lassen sich Bereiche umbenennen, die Nummerierung ändern,
-Geschlechter zuordnen sowie Bereiche anlegen und löschen (leere Bereiche).
-
-## Lagerorte
-
-Was in keinem Spint liegt, ist „im Lager". Damit man es auch findet, bekommt jeder Schrank,
-jedes Regal und jede Kiste einen **Lagerort** mit eigenem QR-Code. Scannen zeigt sofort,
-was drin ist — zusammengefasst als „10 × Jacke, 20 × Schuhe" plus Aufschlüsselung nach Größe.
-
-Einzeln aufgelistet wird nur, was sich unterscheidet: Teile mit Inventarnummer, Notiz oder
-einem Zustand außer „gut". Zwanzig gleiche Paar Schuhe erscheinen als eine Zeile, nicht als
-zwanzig — sonst wäre die Seite unlesbar.
-
-Das **Einbuchen** braucht man vor allem am Anfang, wenn das Material erst aufgenommen wird.
-Dafür gibt es auf der **Lagerorte-Seite** den Schalter **„Material erfassen"**:
-
-* **An** (Voreinstellung): Auf der Lager-Seite steht das Einbuchen ganz oben — beim Einräumen
-  ist das die Aufgabe. Ein Sprung „↓ Bestand ansehen" führt trotzdem schnell zur Liste.
-* **Aus**: Der Bestand steht oben, das Einbuchen ist nur noch eine eingeklappte Zeile
-  („＋ Material einbuchen") und stört den Alltag nicht.
-
-Beim Einbuchen gibt es zwei Wege, weil sie sich im Alltag unterscheiden:
-
-* **Sammelposten** — mehrere gleiche Teile ohne eigene Nummer, etwa 6 Paar Handschuhe Gr. 8.
-  Ein Feld **Anzahl**, keine Inventarnummer. Es entstehen einzelne Teile (nicht ein Posten mit
-  Stückzahl), sodass jedes später eine eigene Nummer oder einen eigenen Zustand bekommen kann.
-* **Einzelteil mit Nummer** — ein Stück mit eigener Inventarnummer (Jacke, Hose, Helm), auch
-  per Kamera scannbar.
-
-Mehrere Teile können schlecht dieselbe Inventarnummer haben; Anzahl zusammen mit einer Nummer
-weist die Software darum ab.
-
-Ausrüstung ohne Lagerort ist nicht verloren, sie läuft unter „ohne Ort" und lässt sich von
-dort einsortieren. Wird ein Lagerort gelöscht, wandert sein Inhalt genau dorthin.
-
-Ein Lagerort lässt sich als **Standard** markieren (Knopf „☆ als Standard" auf der
-Lagerorte-Seite). Neue Teile, die ohne gewähltes Ziel eingebucht werden, landen dann dort —
-im Formular ist er vorausgewählt und mit „(Standard)" beschriftet, und auch die
-[API](#api) legt ohne `lagerort_id`/`spint_id` dorthin ab. Höchstens ein Lagerort ist
-Standard; ein erneuter Klick hebt die Markierung auf. Wer bewusst „ohne Ort" wählt, umgeht den
-Standard — das bleibt eine eigene Entscheidung.
-
-## Barcode scannen
-
-Auf den Etiketten der Einsatzkleidung steht die Inventarnummer meist auch als Strichcode.
-Der 📷-Knopf in der Kopfleiste öffnet die Kamera; erkannt werden Code 128, Code 39, EAN,
-UPC, ITF, Codabar und QR-Codes.
-
-Drei Stellen nutzen den Scanner:
-
-- **Kopfleiste und `/scannen`** — Nummer scannen, die Software springt direkt zu dem Spint
-  oder Lagerort, in dem das Teil liegt. Bei mehreren Treffern landet man auf der Suche.
-- **Suchfeld** — scannen statt tippen.
-- **Jedes Inventarnummer-Feld** — beim Erfassen neuer Ausrüstung die Nummer einscannen.
-
-Erkannt wird zuerst über die im Browser eingebaute `BarcodeDetector`-Schnittstelle
-(Chrome/Android, ohne Download). Fehlt sie, lädt die Seite `html5-qrcode` nach — **lokal vom
-Pi aus `/vendor`**, nicht von einem CDN. Der Scan funktioniert damit auch ohne Internet.
-
-### Testinstanz mit HTTPS (zum Ausprobieren am Handy)
+Danach `http://localhost:3000`. Beim ersten Aufruf führt die Software durch die
+Ersteinrichtung. Für den Barcode-Scan am Handy braucht der Browser HTTPS:
 
 ```bash
-npm run testdaten
 npm run https
 ```
 
-`npm run testdaten` legt einen kleinen Bestand in `data-test/` an (3 Mitglieder, 3 Spinte,
-2 Lagerorte, 48 Teile, eine offene Aufgabe) — getrennt von der echten Datenbank in `data/`.
-Anmeldung: **test / test1234**. Erneut mit `--force` setzt den Bestand zurück.
-
-`npm run https` erzeugt beim ersten Start ein selbstsigniertes Zertifikat für die eigene
-LAN-Adresse, ermittelt diese Adresse selbst und startet den Server darauf. Die Adresse für
-das Handy steht in der Ausgabe. Ändert sich die IP später (DHCP), warnt das Skript.
-
-Am Handy warnt der Browser vor dem unbekannten Zertifikat — das ist bei selbstsignierten
-Zertifikaten normal:
-
-- **Chrome/Android:** „Erweitert" → „Weiter zu … (unsicher)"
-- **Safari/iOS:** „Details einblenden" → „Diese Website besuchen"
-
-Danach ist die Seite ein sicherer Kontext und die Kamera funktioniert. Sollte iOS die Kamera
-trotzdem verweigern, hilft es, `tls/test.crt` per AirDrop oder Mail aufs Gerät zu laden, als
-Profil zu installieren und unter *Einstellungen → Allgemein → Info → Zertifikats­vertrauens­einstellungen*
-vollständig zu vertrauen.
-
-**Windows-Firewall:** Eingehende Verbindungen sind standardmäßig blockiert. Kommt das Handy
-nicht durch, diesen Befehl **als Administrator** in PowerShell ausführen:
-
-```powershell
-New-NetFirewallRule -DisplayName "JF-Verwaltung Test 8443" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Private
-```
-
-Nach dem Testen wieder entfernen:
-
-```powershell
-Remove-NetFirewallRule -DisplayName "JF-Verwaltung Test 8443"
-```
-
-Zum Ausprobieren liegt in den Testdaten die Inventarnummer **112000172** (Hose Gr. 170 in
-Spint 01) — dieselbe wie auf dem Etikett einer echten Hose, sodass sich der Scan am
-tatsächlichen Kleidungsstück prüfen lässt.
-
-### Wichtig: die Kamera braucht HTTPS
-
-Browser geben `getUserMedia` nur in einem **sicheren Kontext** frei — also über HTTPS oder
-auf `localhost`. Über `http://192.168.1.50:3000` im WLAN bleibt die Kamera gesperrt. Das ist
-eine Browser-Regel, keine Einstellung der Software; der Scan-Dialog sagt das dann auch und
-bietet die Eingabe per Tastatur an.
-
-**Auf dem Pi ist das erledigt:** `install-pi.sh` stellt beim Einrichten ein selbstsigniertes
-Zertifikat auf den Hostnamen aus und trägt `TLS_KEY`/`TLS_CERT` in die Dienst-Datei ein. Beim
-ersten Aufruf warnt das Handy einmal vor dem unbekannten Zertifikat — bestätigen, danach ist
-die Seite ein sicherer Kontext und die Kamera funktioniert.
-
-Wird ein bestehender Pi nachträglich auf HTTPS umgestellt, **müssen die QR-Codes neu gedruckt
-werden**, weil `http://` darin steht.
-
-Eine Alternative ohne Zertifikat: ein USB- oder Bluetooth-Handscanner. Der verhält sich wie
-eine Tastatur, tippt die Nummer ins fokussierte Feld und braucht keinen Kamerazugriff.
-
-## Tauschen und Bestellen
-
-Wächst ein Jugendlicher aus der Jacke heraus oder geht etwas kaputt, klickt der Betreuer im
-Spint beim betreffenden Teil auf **Tauschen / Bestellen**.
-
-1. **Wunschgröße wählen.** Für die gängigen Zahlenschemata schlägt die Software die nächsten
-   Größen vor: Körpergrößen in Schritten von 6 (164 → 170 → 176), Schuh- und
-   Handschuhgrößen in Einerschritten (32 → 34 bei zwei Nummern größer). Freitext-Größen wie
-   „S/M/L" bekommen keinen Vorschlag, dort tippt man selbst.
-2. **Lager wird geprüft.** Liegt ein passendes Stück da, sagt die Software, **wo** es ist
-   („Schrank 1, 6 Stück, Gr. 176").
-3. **Kontrolle vor dem Tausch** (siehe unten) — beide Teile werden geprüft.
-4. **Getauscht.** Das Ersatzteil wandert in den Spint, das alte wahlweise zurück ins Lager,
-   in einen bestimmten Schrank oder in die Ausmusterung. Defekte Teile stehen dabei auf
-   „ausmustern" vorbelegt.
-5. **Nichts da? Dann wird es eine Aufgabe.** Sie landet im Tab **Aufgaben** und bleibt dort
-   offen, bis jemand sie abhakt.
-
-### Kontrolle vor dem Tausch
-
-In der Umkleide vergreift man sich schnell — deshalb kommt vor dem Tausch ein Zwischenschritt,
-der **beide** Teile abfragt:
-
-- **Altes Teil aus dem Spint:** muss exakt stimmen. Führt die Art eine Inventarnummer, wird
-  diese gescannt oder eingetippt; sonst (z. B. Handschuhe) die Größe eingetragen. Passt es
-  nicht, bricht die Software ab und sagt, was nicht stimmt.
-- **Neues Teil aus dem Lager:** hier zählt **jedes** Teil der gesuchten Größe an dieser
-  Fundstelle als richtig — es ist ja gleichwertig. Geprüft wird nur, dass die gescannte
-  Nummer wirklich zu dieser Fundstelle gehört.
-
-Praktischer Nebeneffekt: Wurde das neue Teil als Sammelposten ohne Inventarnummer erfasst
-(20 Paar Schuhe auf einmal), **trägt die Software die gescannte Nummer jetzt ein**. So füllen
-sich die Nummern beim Ausgeben von selbst, statt dass jemand sie vorab abtippen muss.
-
-Die erwarteten Werte stehen bewusst **nicht** auf der Kontrollseite — sonst wäre das Scannen
-ein Klick ins Leere. Sie stehen auf dem Etikett am Teil in der Hand.
-
-**Wenn das alte Teil fehlt:** unter „Altes Teil nicht auffindbar?" lässt sich die Kontrolle
-mit Grund überspringen (verloren, Etikett unlesbar, sonstiges). Bei „verloren" wird das alte
-Teil automatisch ausgemustert, denn es kann nicht zurück ins Lager. Der übersprungene Check
-landet mit Grund im Verlauf. Das **neue** Teil wird trotzdem geprüft.
-
-Diese Kontrolle ist ein Schutz gegen Verwechslung, keine Sicherheitsmaßnahme — wer will,
-kann die Nummer abschreiben. Darum geht es nicht; es geht darum, dass niemand versehentlich
-die Jacke des Nachbarn einbucht.
-
-Der Aufgaben-Tab zeigt Art, Mitglied, Spint, Größenwechsel (`164 → 188`), Grund, Notiz und
-wer sie wann angelegt hat. Ein Zähler in der Navigation zeigt die offenen Aufgaben. Aufgaben
-lassen sich erledigen, abbrechen und wieder öffnen; löschen darf nur der Jugendwart. Über
-„Aufgabe ohne konkretes Teil" geht auch eine reine Bestellung wie „5 Paar Stiefel Gr. 42".
-
-Zuständig für die Aufgaben ist der Jugendwart — sichtbar und bearbeitbar sind sie aber für
-alle Betreuer, weil in der Praxis oft der die Lieferung annimmt, der gerade da ist.
-
-### Einstellungen (Umgebungsvariablen)
-
-| Variable | Standard | Zweck |
-|---|---|---|
-| `PORT` | `3000` | Port des Webservers |
-| `HOST` | `0.0.0.0` | Netzwerkschnittstelle |
-| `SESSION_SECRET` | fester Vorgabewert | **auf dem Pi unbedingt setzen**, sonst sind Sitzungs-Cookies fälschbar |
-| `DATA_DIR` | `./data` | Ablageort der Datenbank |
-| `BASE_URL` | Adresse der Anfrage | Adresse, die in den QR-Codes steht |
-| `TLS_KEY` / `TLS_CERT` | leer | Pfade zu Schlüssel und Zertifikat. Nur gesetzt läuft die Seite über HTTPS — nötig für den Barcode-Scan per Kamera |
-| `ABSCHALT_BEFEHL` | `systemctl poweroff --no-block` | Befehl hinter „Pi herunterfahren" |
-| `SICHERUNG_ZIEL` | `/mnt/jf-sicherung` | wo `/restore` nach Sicherungen sucht (USB-Stick) |
-| `GIT_ORDNER` | Programmordner | Arbeitsverzeichnis, aus dem aktualisiert wird |
-| `UPDATE_ZWEIG` | `main` | Git-Zweig, aus dem geholt wird |
-| `UPDATE_MARKE` | `/run/jf-spinte/update-anfordern` | Markierung, die den Helfer über systemd anstößt |
-| `UPDATE_STATUS` | `<DATA_DIR>/update-status.json` | wohin der Helfer sein Ergebnis schreibt |
-
-## Der eingerichtete Pi
-
-| | |
-|---|---|
-| Adresse | **https://jfw-pi.fritz.box** |
-| Gerät | Raspberry Pi, Debian 13 (arm64), Node 20 |
-| Verzeichnis | `/opt/jf-spinte` |
-| Datenbank | `/opt/jf-spinte/data/spinte.db` |
-| Zertifikat | `/opt/jf-spinte/tls/pi.crt`, gültig bis Juli 2036 |
-| Dienst | `jf-spinte.service`, Autostart aktiv, `Restart=always` |
-| Benutzer | `pi` |
-
-### Warum der Hostname statt der IP
-
-Das Zertifikat ist auf **`jfw-pi.fritz.box`** ausgestellt, nicht auf eine IP-Adresse. Es bleibt
-damit gültig, wenn der Pi eine neue IP bekommt — auch beim Umzug in ein anderes Netz, solange
-dort ebenfalls eine FRITZ!Box steht und der Pi seinen Hostnamen `jfw-pi` behält. Die
-Einträge im Zertifikat:
-
-```
-DNS:jfw-pi.fritz.box, DNS:jfw-pi, DNS:jfw-pi.local,
-DNS:localhost, IP:192.168.1.50, IP:127.0.0.1
-```
-
-Die IP steht zusätzlich drin, damit der Zugriff auch dann klappt, wenn der Name gerade nicht
-auflöst. Ändert sich die IP, verliert nur dieser eine Eintrag seine Bedeutung — über den
-Namen läuft weiterhin alles.
-
-**Wann der Name doch nicht auflöst:** Wenn ein Handy „Privates DNS" (DNS-über-HTTPS/TLS)
-aktiviert hat, fragt es nicht mehr die FRITZ!Box und findet `jfw-pi.fritz.box` nicht. Dann
-hilft, privates DNS im WLAN abzuschalten — oder die IP zu verwenden.
-
-### Dienst bedienen
+Ein Testbestand zum Ausprobieren:
 
 ```bash
-ssh -i ~/.ssh/jfw-pi_key pi@jfw-pi.fritz.box
-sudo systemctl status jf-spinte
-sudo systemctl restart jf-spinte
-journalctl -u jf-spinte -n 50 --no-pager
+npm run testdaten
 ```
 
-### Neue Version aufspielen
-
-Drei Wege, ausführlich unter „Updates und was dabei zu beachten ist": der **Knopf unter
-`/system`** (nichts anzuschließen, nichts einzutippen), `update-pi.sh` in einer SSH-Sitzung
-auf dem Pi, oder `deploy-pi.sh` vom Projektordner aus. Datenbank, Zertifikat und
-Einstellungen bleiben in allen Fällen unberührt.
-
-### Datensicherung
-
-Drei Wege, alle **verschlüsselt** — Einzelheiten weiter unten unter „Datensicherung":
-
-* in der Oberfläche unter **Datensicherung** (nur Jugendwart),
-* nachts von selbst auf den USB-Stick (`jf-sicherung.timer`),
-* per Doppelklick vom Windows-Rechner (`Sicherung holen.cmd`).
-
-Von Hand mit `sqlite3` oder `cp` ginge es auch — dabei entstünde aber eine
-**unverschlüsselte** Kopie mit Namen, Geburtsdaten und Einschätzungen von Kindern.
-Besser nicht.
-
-## Installation auf einem anderen Raspberry Pi
-
-Getestet mit Raspberry Pi 5, Debian 13 und Node.js 20. Alles Nötige erledigt ein Skript:
+### Raspberry Pi
 
 ```bash
-git clone <dein-repo> jf-spinte && cd jf-spinte
 sudo sh scripts/install-pi.sh
 ```
 
-Das war es. Der Aufruf darf wiederholt werden — Datenbank, Zertifikat und
-Sitzungsgeheimnis bleiben dabei erhalten.
-
-Was das Skript tut:
+Das Skript ist wiederholbar — Datenbank, Zertifikat und Sitzungsgeheimnis bleiben erhalten.
+Was es tut:
 
 | Schritt | |
 |---|---|
-| Pakete | `nodejs`, `npm`, `openssl`, `polkitd`, `avahi-daemon`, `git` nachinstallieren |
-| Software | nach `/opt/jf-spinte` kopieren, `npm install --omit=dev` |
-| Zertifikat | selbstsigniert für `<name>.fritz.box`, `<name>.local`, `localhost` und die aktuelle IP |
-| Dienst | `jf-spinte.service` aus `deploy/` erzeugen, Geheimnis würfeln, starten |
-| Herunterfahren | polkit-Regel aus `deploy/` einspielen |
-| Sicherung | `jf-sicherung.timer` bereitlegen (schaltet sich ein, sobald ein Passwort hinterlegt ist) |
-| Update | `jf-update.path` einschalten — die Wache für den Update-Knopf in der Oberfläche |
-| Probe | Weboberfläche antwortet? Herunterfahren erlaubt? |
+| Pakete | `nodejs`, `npm`, `openssl`, `polkitd`, `avahi-daemon`, `git` |
+| Software | nach `/opt/jf-spinte` kopieren, Abhängigkeiten installieren |
+| Zertifikat | selbstsigniert für `<name>.fritz.box`, `<name>.local`, `localhost`, aktuelle IP |
+| Dienst | `jf-spinte.service` erzeugen, Sitzungsgeheimnis würfeln, starten |
+| Herunterfahren | polkit-Regel einspielen |
+| Sicherung | `jf-sicherung.timer` bereitlegen |
+| Update | `jf-update.path` einschalten |
+| Probe | antwortet die Oberfläche? ist das Herunterfahren erlaubt? |
 
-Anpassen lässt sich das über Umgebungsvariablen:
+Anpassbar über Umgebungsvariablen:
 
 ```bash
 sudo BENUTZER=pi ORDNER=/opt/jf-spinte ADRESSE=spinte.fritz.box sh scripts/install-pi.sh
 ```
 
-Nach einem Umzug in ein anderes Netz steht im Zertifikat noch die alte IP. Über den
-Hostnamen funktioniert trotzdem alles; wer es sauber will, stellt es neu aus:
+### WLAN einrichten (ohne Monitor und Tastatur)
+
+Eine zweite Verbindung anlegen, solange der Pi noch am alten Netz hängt — danach findet er
+sich am neuen Ort von selbst ein:
 
 ```bash
-sudo ZERTIFIKAT_NEU=1 sh /opt/jf-spinte/scripts/install-pi.sh
+sudo nmcli connection add type wifi con-name Feuerwehr ifname wlan0 ssid "FRITZ!Box 7530 CA"
+sudo nmcli connection modify Feuerwehr wifi-sec.key-mgmt wpa-psk wifi-sec.psk "DAS-WLAN-PASSWORT"
+sudo nmcli connection up Feuerwehr
 ```
 
-> Danach hat das Zertifikat einen neuen Fingerabdruck. Das Sicherungsskript auf dem
-> Windows-Rechner merkt sich den alten und bricht ab — einmal mit `-Einrichten` neu starten.
+Zwei Stolpersteine aus der Praxis: die **SSID unterscheidet Groß- und Kleinschreibung**
+(`FRITZ!Box` ist nicht `FRITZ!BOX`), und ohne das abschließende `up` bleibt die Verbindung
+angelegt, aber inaktiv.
 
-### Warum der Pi über polkit heruntergefahren wird und nicht über sudo
+### Eigene Angaben: `deploy.config`
 
-Der Dienst läuft als gewöhnlicher Benutzer und ist mit `NoNewPrivileges=true` abgesichert.
-Damit kann er **kein sudo starten** — sudo ist ein setuid-Programm, und genau das unterbindet
-diese Einstellung. Das ist so gewollt: der Benutzer, unter dem der Dienst läuft, darf per sudo
-meist ohnehin alles, und aus einer Lücke in der Weboberfläche würden sonst sofort Root-Rechte.
-
-`systemctl poweroff` geht stattdessen über D-Bus an `systemd-logind` — kein setuid nötig,
-nur eine Erlaubnis. Die steht in
-[`deploy/49-jf-spinte-poweroff.rules`](deploy/49-jf-spinte-poweroff.rules) und gilt für genau
-eine Aktion und genau einen Benutzer. Neustarten, Dienste verwalten, Dateien lesen: alles
-weiterhin gesperrt.
-
-Ohne diese Regel läuft die Software normal weiter, nur der Knopf **Pi herunterfahren** meldet
-dann „Interactive authentication required". Von Hand nachrüsten:
+Hostname, Benutzername und Schlüsselpfad des eigenen Pi stehen **nicht** im Repo:
 
 ```bash
-sudo sed 's/@BENUTZER@/pi/' /opt/jf-spinte/deploy/49-jf-spinte-poweroff.rules \
-  | sudo tee /etc/polkit-1/rules.d/49-jf-spinte-poweroff.rules
-sudo systemctl reload polkit
+cp deploy.config.beispiel deploy.config
 ```
 
-Prüfen, ob es greift — ohne den Pi wirklich abzuschalten:
+Die Datei ist von der Versionsverwaltung ausgeschlossen. `scripts/deploy-pi.sh` liest sie
+automatisch; alternativ gelten die Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY`.
+
+## 5. Konfiguration
+
+Die Konfiguration erfolgt über **Umgebungsvariablen**; auf dem Pi stehen sie in
+`/etc/systemd/system/jf-spinte.service`. Eine `.env`-Datei wird nicht gelesen.
+
+| Variable | Standard | Zweck |
+|---|---|---|
+| `PORT` | `3000` | Port des Webservers (auf dem Pi 443) |
+| `HOST` | `0.0.0.0` | Netzwerkschnittstelle |
+| `SESSION_SECRET` | fester Vorgabewert | **auf dem Pi unbedingt setzen**, sonst sind Sitzungs-Cookies fälschbar |
+| `DATA_DIR` | `./data` | Ablageort der Datenbank |
+| `BASE_URL` | Adresse der Anfrage | Adresse, die in den QR-Codes steht |
+| `TLS_KEY` / `TLS_CERT` | leer | Pfade zu Schlüssel und Zertifikat. **Nur wenn beide gesetzt sind, läuft die Seite über HTTPS** — sonst über HTTP, und der Barcode-Scan geht dann nur auf `localhost` |
+| `ABSCHALT_BEFEHL` | `systemctl poweroff --no-block` | Befehl hinter „Pi herunterfahren" |
+| `SICHERUNG_ZIEL` | `/mnt/jf-sicherung` | wo `/restore` nach Sicherungen sucht |
+| `GIT_ORDNER` | Programmordner | Arbeitsverzeichnis, aus dem aktualisiert wird |
+| `UPDATE_ZWEIG` | `main` | Git-Zweig, aus dem geholt wird |
+| `UPDATE_MARKE` | `/run/jf-spinte/update-anfordern` | Markierung, die den Helfer anstößt |
+| `UPDATE_STATUS` | `<DATA_DIR>/update-status.json` | Ergebnis der letzten Aktualisierung |
+| `UPDATE_ABGLEICH` | `<DATA_DIR>/update-abgleich.json` | Ergebnis der letzten Suche |
+
+API-Zugänge sind **keine** Umgebungsvariable: die Token werden in der Oberfläche angelegt
+und liegen als Hash in der Datenbank.
+
+## 6. Betrieb
+
+### Dienst
 
 ```bash
-busctl --system call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanPowerOff
+sudo systemctl status jf-spinte
+sudo systemctl restart jf-spinte
+journalctl -u jf-spinte -n 50 --no-pager
 ```
 
-Antwortet das mit `s "yes"`, sitzt die Regel. Bei `s "challenge"` fehlt sie noch.
+### Hostname statt IP
+
+Die Adresse in den QR-Codes sollte der **Hostname** sein (`https://jfwpi.fritz.box`), nicht
+die IP: nach einem Routertausch oder einer neuen DHCP-Vergabe zeigen sonst alle gedruckten
+Etiketten ins Leere. Funktioniert der Name auf dem Handy nicht, hilft es meist, privates DNS
+abzuschalten — oder ersatzweise `<name>.local` (avahi).
+
+### Herunterfahren über polkit
+
+Der Dienst läuft mit `NoNewPrivileges=true` und kann deshalb **kein sudo starten** — sudo
+ist ein setuid-Programm, und genau das unterbindet das Flag. Stattdessen spricht
+`systemctl poweroff` über D-Bus mit systemd-logind; eine polkit-Regel
+(`deploy/49-jf-spinte-poweroff.rules`) gibt genau diese eine Aktion für genau diesen
+Benutzer frei. Die Weboberfläche bekommt damit die Erlaubnis zum Abschalten, ohne
+irgendwelche Root-Rechte zu erhalten.
+
+Geordnet herunterzufahren ist wichtiger, als es klingt: reißt man dem Pi im Betrieb den
+Strom weg, kann die Speicherkarte Schaden nehmen und damit der ganze Bestand.
+
+### Aktualisierung
+
+Drei Wege:
+
+**1. Über die Oberfläche** (empfohlen) — *System → Zur Update-Seite → Nach Updates suchen →
+Jetzt aktualisieren*. Der Ablauf: Sicherung ziehen, neuen Stand holen, `npm ci`, Dienst neu
+starten, prüfen, ob die Seite antwortet. Klappt das nach zwei Versuchen nicht, setzt der
+Helfer per `git reset --hard` auf den vorherigen Stand zurück.
+
+**2. Auf dem Pi per SSH**
+
+```bash
+sudo sh /opt/jf-spinte/scripts/update-pi.sh
+```
+
+**3. Vom Projektordner aus** (überträgt den lokalen Stand per SSH)
+
+```bash
+bash scripts/deploy-pi.sh
+```
+
+#### Einmalige Umstellung auf Git
+
+Eine mit `install-pi.sh` eingerichtete Installation enthält kein `.git`. Das Umstell-Skript
+liegt deshalb anfangs auch nicht auf dem Pi und wird zuerst geholt — **beides in der
+SSH-Sitzung auf dem Pi**, nicht in der Windows-Eingabeaufforderung:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NAME/REPO/main/scripts/auf-git-umstellen.sh -o /tmp/auf-git-umstellen.sh
+sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git
+```
+
+Datenbank, Zertifikat, `node_modules` und `deploy.config` bleiben unberührt.
+
+#### Warum der Dienst nicht selbst aktualisiert
+
+Die Anwendung **kann sich nicht selbst neu starten** — `systemctl restart` würde den Prozess
+abschießen, der den Befehl gerade absetzt. Und wäre nach einem misslungenen Update die
+Anwendung hin, könnte ausgerechnet sie keine Rettungsseite mehr ausliefern.
+
+Sie legt deshalb nur eine Markierung unter `/run/jf-spinte/` ab. Eine systemd-`.path`-Einheit
+sieht diese Datei und startet `scripts/update-helfer.sh` als root, **außerhalb** des
+Dienstes. `/run` ist eine RAM-Platte: nach einem Stromausfall mitten im Vorgang ist die
+Anforderung weg und löst beim nächsten Start nicht versehentlich ein Update aus.
+
+Aus demselben Grund läuft auch die **Suche nach Updates** über den Helfer. `git fetch` müsste
+`.git/FETCH_HEAD` schreiben, der Dienst darf aber außer `data/` nirgends schreiben.
+`.git` in `ReadWritePaths` freizugeben wäre keine Lösung: wer dort schreiben kann, kann die
+Herkunftsadresse ändern oder Objekte unterschieben — und der Helfer würde sie anschließend
+als root einspielen und `npm ci` darauf laufen lassen. Eine Lücke in der Weboberfläche würde
+damit zu Rootzugriff.
+
+#### Warum `npm ci` und nicht `npm install`
+
+`npm install` darf stillschweigend neuere Fassungen holen. `npm ci` installiert genau das,
+was in `package-lock.json` steht — mit **Prüfsumme je Paket**. Aus 8 direkten
+Abhängigkeiten werden über 150 Pakete; würde eines davon gekapert und neu veröffentlicht,
+fiele es beim Prüfsummenvergleich auf.
+
+#### Wo das eigentliche Risiko liegt
+
+| Risiko | Gegenmittel |
+|---|---|
+| GitHub-Konto übernommen | Zwei-Faktor-Anmeldung, am besten Passkey |
+| Pull Request ungelesen zusammengeführt | Diff lesen, bei Fremdbeiträgen immer |
+| Gekapertes npm-Paket | `npm ci` mit Prüfsummen, kein blindes `npm update` |
+| Update ungeprüft eingespielt | die Update-Seite zeigt die Änderungen vorher an |
+
+Zur Einordnung: `npm ci` läuft als Dienstbenutzer, und der darf per `sudo` ohne Passwort
+alles. Ein bösartiges Installationsskript hätte damit den ganzen Pi. Der Dienst selbst ist
+dagegen abgesichert — die Lücke ist der Update-Vorgang, nicht der Betrieb.
+
+## 7. Datensicherung und Wiederherstellung
+
+Der Abzug entsteht über die **Sicherungsfunktion von SQLite**, nicht durch Kopieren der
+Datei: die Datenbank läuft im WAL-Modus, ein Teil der Änderungen steht in `spinte.db-wal`
+und noch nicht in `spinte.db`. Ein einfaches `cp` liefert deshalb einen unvollständigen
+Stand. Die Software darf während der Sicherung weiterlaufen.
+
+Sicherungen sind **ausnahmslos verschlüsselt** (AES-256-CBC, Schlüssel über PBKDF2 mit
+10 000 Runden). Das Passwort wird nirgends gespeichert. Verwendet wird das Format von
+`openssl enc`, damit sich eine Sicherung auch ohne diese Software öffnen lässt:
+
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-08-08-2241-s2.db.enc -out spinte.db
+```
+
+Der Dateiname trägt Datum, Uhrzeit und die **Schema-Fassung** (`-s2`).
 
 ### Nächtliche Sicherung auf einen USB-Stick
 
-Das Windows-Skript holt die Sicherung nur, wenn der Rechner an ist **und** im selben Netz
-steht wie der Pi. Sobald der Pi im Gerätehaus hängt, fällt das weg. Der Pi läuft ohnehin
-durch — also sichert er sich selbst, jede Nacht um 3:30 Uhr.
-
-Gesichert wird zweierlei, beides mit demselben Passwort verschlüsselt:
-
-| Datei | Inhalt |
-|---|---|
-| `spinte-JJJJ-MM-TT-hhmm.db.enc` | die Datenbank |
-| `wlan-JJJJ-MM-TT-hhmm.tar.gz.enc` | die WLAN-Zugangsdaten |
-
-Die WLAN-Daten stehen an zwei Stellen: von Hand angelegte Verbindungen unter
-`/etc/NetworkManager/system-connections`, die bei der Ersteinrichtung erzeugten in
-`/etc/netplan`. Beide gehen mit — sonst fehlt nach einer Neuinstallation ausgerechnet der
-Netzzugang, und man steht mit einem Pi da, der nirgends hinkommt.
-
-**Einrichten** (der Timer selbst kommt aus `install-pi.sh`, es fehlt nur Ziel und Passwort):
-
-```bash
-sudo mkdir -p /mnt/jf-sicherung
-sudo blkid | grep -i usb   # UUID des Sticks herausfinden
-```
-
-Den Stick fest einhängen, damit er auch ohne angemeldeten Benutzer da ist — der
-Desktop-Automount unter `/media/...` hilft nachts nicht. In `/etc/fstab`:
+Der Timer kommt aus `install-pi.sh`; es fehlen nur Ziel und Passwort. Den Stick fest
+einhängen — der Desktop-Automount unter `/media/...` hilft nachts nicht:
 
 ```
 UUID=XXXX-XXXX  /mnt/jf-sicherung  vfat  defaults,nofail,noatime,uid=1000,gid=1000,umask=0077,x-systemd.device-timeout=10  0  0
 ```
 
-`nofail` ist wichtig: fehlt der Stick, bootet der Pi trotzdem durch. Dann Passwort
-hinterlegen und einschalten:
+`nofail` ist wichtig: fehlt der Stick, bootet der Pi trotzdem durch. Dann:
 
 ```bash
 sudo mkdir -p /etc/jf-spinte
@@ -613,486 +413,99 @@ sudo systemctl enable --now jf-sicherung.timer
 sudo systemctl start jf-sicherung.service   # einmal zur Probe
 ```
 
-Wann zuletzt gesichert wurde, steht unter **System** in der Weboberfläche. Ist der Stand
-älter als zwei Tage, sagt die Seite es.
+Läuft um 3:30 Uhr und hebt die letzten 30 Stände auf. Gesichert wird zweierlei, beides mit
+demselben Passwort:
 
-**Fehlt der Stick**, weicht die Sicherung auf die Speicherkarte aus
-(`/opt/jf-spinte/data/sicherungen`) und meldet das als Warnung. Eine Sicherung am
-schlechteren Ort ist besser als gar keine — verschwiegen wird es aber nicht.
+| Datei | Inhalt |
+|---|---|
+| `spinte-JJJJ-MM-TT-hhmm-sN.db.enc` | die Datenbank |
+| `wlan-JJJJ-MM-TT-hhmm.tar.gz.enc` | die WLAN-Zugangsdaten |
+
+Die WLAN-Daten gehen mit, weil nach einer Neuinstallation sonst ausgerechnet der Netzzugang
+fehlt. Der Timer läuft als root, weil die Zugangsdaten sonst niemand lesen darf; die
+Datenbank-Sicherung reicht das Skript an den Dienstbenutzer weiter. Fehlt der Stick, weicht
+die Sicherung auf `data/sicherungen` aus und meldet das als Warnung.
 
 > **Was das nicht leistet:** Passwort und Sicherung liegen beide auf dem Pi. Wer das Gerät
 > mitnimmt, hat beides. Der Schutz wirkt für den Stick, wenn man ihn herausnimmt und
-> woanders hinlegt — und genau dafür ist er gedacht. Die Sicherung, die du über die
-> Weboberfläche von Hand herunterlädst, kann ruhig ein anderes Passwort haben; dann bleibt
-> sie auch dann geschützt, wenn der Pi in fremde Hände gerät.
-
-Der Timer läuft als root, weil die WLAN-Zugangsdaten sonst niemand lesen darf. Die
-Datenbank-Sicherung reicht das Skript an den Dienstbenutzer weiter — als root gehörten die
-Begleitdateien der Datenbank (`-wal`, `-shm`) plötzlich root, und der Dienst könnte danach
-nicht mehr schreiben.
-
-Zurückspielen geht mit Standardwerkzeug, die Software wird dafür nicht gebraucht:
-
-```bash
-openssl enc -d -aes-256-cbc -pbkdf2 -in wlan-2026-07-28-0330.tar.gz.enc -out wlan.tar.gz
-tar -tzf wlan.tar.gz
-```
-
-### Pi herunterfahren
-
-Unter **eigener Name → System, Update & Herunterfahren** (nur Jugendwart) steht der Knopf
-**Pi herunterfahren**. Der fährt den Rechner geordnet herunter — wichtig, bevor jemand den
-Stecker zieht, sonst kann die Speicherkarte Schaden nehmen.
-
-Die Status-Leuchte sagt, wann es soweit ist:
-
-| Leuchte | Bedeutung |
-|---|---|
-| grün, blinkend | läuft, es wird geschrieben — **nicht ziehen** |
-| ruhig rot | heruntergefahren, noch am Strom — ab hier ist Ziehen sicher |
-| aus | kein Strom |
-
-Der Raspberry Pi 5 hat neben dem USB-C-Anschluss einen **Ein-/Ausschalter**: ein kurzer Druck
-startet ihn wieder, Kabelziehen ist nicht nötig. Ältere Modelle haben den nicht — dort das
-Netzteil ziehen und **ein paar Sekunden warten**, bevor es wieder eingesteckt wird, sonst
-merkt der Pi den Unterbruch nicht.
-
-### QR-Codes drucken
-
-Es gibt zwei Formate für dieselbe Sache:
-
-| | `/qr` | `/etiketten` |
-|---|---|---|
-| Größe | mehrere Aufkleber je Blatt | 1, 2 oder 4 Etiketten je Blatt |
-| Zeigt | Nummer, Name, Klartext-Adresse | Logo, Name der Wehr, Name in groß, QR-Code |
-| Wofür | Lagerorte, Kisten, kleine Beschriftungen | die Spinttür |
-
-Bei beiden zuerst im Feld „Adresse" die feste Pi-Adresse eintragen (z. B.
-`https://jfw-pi.fritz.box`), **Übernehmen**, einen Code am Handy testen, dann drucken.
-
-Steht die Adresse dauerhaft fest, besser gleich `Environment=BASE_URL=https://jfw-pi.fritz.box`
-in die Service-Datei eintragen. Dann stimmen die QR-Codes unabhängig davon, über welchen
-Namen man die Seite gerade aufruft.
-
-### Das Spint-Etikett für die Spinttür
-
-`/etiketten` druckt die Etiketten: oben Logo und Name der Wehr, groß **„Dieser Spint wird
-benutzt von …"**, daneben der QR-Code mit der Frage *„Was ist hier drin?"*, unten der
-Schriftzug der Abteilung. Ein einzelnes Etikett gibt es über den Knopf **Etikett drucken** auf
-der Spint-Seite oder unter `/etikett/<nr>`.
-
-**Wie viele je Seite** wählt man oben aus — 1, 2 oder 4. Voreinstellung ist **2 je Seite**;
-das passt an den meisten Spinten. Eins je Seite dreht das Blatt ins Querformat (für einen
-Aushang), vier je Seite ergibt kleine Etiketten für Kisten und Fächer.
-
-Zum Drucken nur zwei Dinge:
-
-* **„Tatsächliche Größe"** (100 %) statt „An Seite anpassen" — sonst skaliert der Browser das
-  Etikett.
-* **Hintergrundgrafiken** an — in Chrome unter „Weitere Einstellungen“, sonst bleiben die
-  roten Balken weiß.
-
-Um die **Ränder** muss man sich nicht mehr kümmern. Früher lief das Etikett bis an die
-Blattkante, und jeder Heimdrucker schnitt die roten Balken ab (der Grund, warum das erste
-Exemplar den Umweg über Word nehmen musste). Jetzt sitzt jedes Etikett als umrandete Karte mit
-Sicherheitsabstand (`@page`-Rand 8 mm plus Abstand im Raster) sicher innerhalb des bedruckbaren
-Bereichs.
-
-**Ein Bauprinzip zum Nachlesen:** Alle Layouts sind dieselbe Karte in verschiedenen Größen. In
-`public/etikett.css` steht `--kw` (Kartenbreite) je `data-pro-seite`, `--u` ist ein Hundertstel
-davon, und alle Maße darin sind Vielfache von `--u`. So skaliert die Karte als Ganzes. Die
-Schriftgröße des Namens wird nicht geschätzt, sondern in `namensgroesse()`
-(`src/routes/etiketten.js`) ausgerechnet: der Zeilenumbruch wird nachgestellt und der größte
-Grad genommen, bei dem kein Wort breiter als eine Zeile ist und alle Zeilen in die Höhe passen.
-Dabei zählen `m` und `w` breiter als `i` und `l` — ohne diese Gewichtung zerriss der Browser
-„Wollmann“ mitten im Wort. Weil die Karte in allen Layouts gleich geformt ist, genügt der
-Anteil (`NAME_SPALTE`, `NAME_HOEHE`); die passende Schrift skaliert dann mit `kartenBreiteMm`
-aus `LAYOUTS`.
-
-> Ändert sich die Kartengröße in `public/etikett.css` (`--kw`), muss `kartenBreiteMm` in
-> `LAYOUTS` (`src/routes/etiketten.js`) mitgezogen werden — beide beschreiben dieselbe Karte.
-
-### Stammdaten: Name, Logo und Übungszeit
-
-Unter `/stammdaten` (nur Jugendwart) stehen drei Textfelder und das Logo:
-
-| Feld | steht auf dem Etikett | Beispiel |
-|---|---|---|
-| Name der Wehr | oben im roten Balken | `Jugendfeuerwehr Ebertsheim` |
-| Abteilung | unten in Großbuchstaben | `Jugendfeuerwehr` |
-| Leitspruch | unten rechts, klein | `Wir sind die Helden von morgen!` |
-
-Die **Abteilung** ist dafür da, sich von der Kinderfeuerwehr abzuheben, wenn beide dasselbe
-Logo tragen — auf dem Blatt steht dann groß, zu wem der Spint gehört.
-
-Dazu kommen **Beginn und Ende des Übungsabends** (Voreinstellung 17:45 bis 19:30). Daraus
-ergibt sich das Zeitfenster, in dem die Software vor einem Neustart warnt: 10 Minuten vor
-Beginn bis 45 Minuten nach Ende. Ruft man in dieser Zeit die Update-Seite auf, erscheint
-ein Hinweis; ein Update bleibt trotzdem möglich. Ein Dienstende nach Mitternacht wird
-richtig berechnet.
-
-Derselbe Hinweis erscheint, wenn für heute schon Anwesenheit erfasst ist — dann läuft der
-Übungsabend vermutlich gerade.
-
-Das Logo (PNG, JPEG, GIF, WebP oder SVG, höchstens 2 MB) liegt **in der Datenbank**, nicht
-als Datei daneben. Damit steckt es in jeder Datensicherung und ist nach einer
-Wiederherstellung ohne Zutun wieder da. Ob eine hochgeladene Datei wirklich ein Bild ist,
-prüft die Software am Dateiinhalt, nicht am Namen oder am gemeldeten Typ.
-
-## Sicherheit — was diese Software leistet und was nicht
-
-Passwörter liegen als bcrypt-Hash in der Datenbank, Formulare sind CSRF-geschützt, die
-Sitzungs-ID wechselt beim Anmelden. Die Verbindung läuft über **HTTPS** — `install-pi.sh`
-stellt beim Einrichten ein Zertifikat auf den Hostnamen aus. Passwörter und QR-Token gehen
-damit nicht im Klartext durchs WLAN.
-
-Was **nicht** enthalten ist:
-
-* **Das Zertifikat ist selbstsigniert.** Jedes Gerät bestätigt es einmal. Gegen jemanden,
-  der bereits im Netz sitzt und sich dazwischenschaltet, hilft das nicht.
-* **Die Datenbank ist im Betrieb unverschlüsselt.** Wer die Speicherkarte in die Hand
-  bekommt, liest sie. Verschlüsselt sind nur die Sicherungen.
-* **Keine Ratenbegrenzung an der Anmeldung**, keine Angriffserkennung, keine Sperre nach
-  Fehlversuchen.
-
-Deshalb gehört der Pi ins Vereinsnetz und **nicht** ins Internet — kein Portfreigeben am
-Router. Wer die Seite von außen braucht, setzt ein VPN davor.
-
-Das Lesen **einer** Spint-Seite ist bewusst ohne Anmeldung möglich, damit ein QR-Scan sofort
-etwas anzeigt — aber nur die Seite, deren Token man gescannt hat (siehe „Wer was sehen
-darf"). Alles andere verlangt eine Anmeldung.
-
-## Datensicherung
-
-Alles steckt in einer einzigen SQLite-Datei. Der Jugendwart findet die Sicherung im Menü
-hinter dem eigenen Namen unter **Datensicherung**. Dort ein Passwort vergeben — heraus kommt
-`spinte-2026-07-27-2241.db.enc`.
-
-Erzeugt wird der Abzug über die **Sicherungsfunktion von SQLite**, nicht durch Kopieren der
-Datei. Das ist wichtig: die Datenbank läuft im WAL-Modus, ein Teil der Änderungen steht in
-`spinte.db-wal` und noch nicht in `spinte.db`. Ein einfaches `cp` liefert deshalb einen
-unvollständigen Stand. Die Software darf während der Sicherung weiterlaufen.
-
-### Immer verschlüsselt
-
-In der Sicherung stehen Namen und Geburtsdaten von Kindern, deshalb wird sie **ausnahmslos
-verschlüsselt** (AES-256-CBC, Schlüssel über PBKDF2 mit 10 000 Runden). Das Passwort wird
-**nirgends gespeichert** — ohne es ist die Datei wertlos. Also aufschreiben und getrennt von
-der Sicherung aufbewahren.
-
-Verwendet wird das Format von `openssl enc`. Damit lässt sich die Sicherung mit einem
-Standardbefehl öffnen, auch wenn diese Software einmal nicht mehr läuft:
-
-```bash
-openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-07-27-2241.db.enc -out spinte.db
-```
+> woanders hinlegt. Die von Hand heruntergeladene Sicherung darf ruhig ein anderes Passwort
+> haben.
 
 ### Zurückspielen
 
-**Der einfache Weg:** eine leere Installation aufsetzen — auf der Ersteinrichtungsseite steht
-neben „Neu anfangen" der Punkt **„Mit Sicherung fortsetzen"**. Datei hochladen, Passwort
-eingeben, fertig. Danach meldet man sich mit den *bisherigen* Zugangsdaten an, denn die
-Benutzer stecken mit in der Sicherung.
-
-Eingespielt wird der Inhalt in die laufende Datenbank, statt die Datei auszutauschen. Das
-spart den Neustart und hat einen nützlichen Nebeneffekt: übernommen werden nur Spalten, die es
-hier auch gibt — eine **ältere Sicherung wächst dadurch automatisch mit** und bekommt
-anschließend fehlende Dinge wie die QR-Token nachgetragen.
-
-Der Punkt ist nur sichtbar, solange **kein Zugang existiert**. Eine laufende Installation
-lässt sich damit also nicht überschreiben — dafür gibt es `/restore`.
-
-**In eine laufende Installation** führt `/restore` (nur Jugendwart, im Menü unter *System*
-verlinkt). Die Seite listet auf, was auf dem USB-Stick und auf der Speicherkarte liegt,
-jeweils mit Datum und Größe; ist der gewünschte Stand woanders — in der Cloud, auf dem
-Rechner —, lässt sich die Datei stattdessen hochladen. Nötig sind das Passwort der Sicherung
-und ein Häkchen, dass der jetzige Bestand ersetzt wird.
-
-Vor dem Ersetzen schreibt die Software den **aktuellen** Stand als
-`…-vor-restore.db.enc` daneben — mit demselben Passwort. Wer sich in der Datei vergreift,
-steht also nicht ohne Rückweg da. Danach wird die eigene Sitzung beendet, denn die Anmeldung
-stammt aus der ersetzten Datenbank; man meldet sich mit den Zugangsdaten *aus der Sicherung*
-neu an.
-
-Das ist gedacht für kaputte **Daten** — 40 Teile falsch eingebucht, ein Mitglied
-versehentlich gelöscht. Für ein misslungenes **Update** braucht man es nicht: geht das schief,
-ist die Anwendung selbst hin und könnte diese Seite gar nicht mehr ausliefern. Dafür setzt der
-Update-Helfer von sich aus zurück (siehe „Updates").
-
-**Von Hand** geht es auch — erst entschlüsseln, dann die Datei an ihren Platz legen:
-
-```bash
-openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-07-27-2241.db.enc -out spinte.db
-
-sudo systemctl stop jf-spinte
-cp spinte.db /opt/jf-spinte/data/spinte.db
-rm -f /opt/jf-spinte/data/spinte.db-wal /opt/jf-spinte/data/spinte.db-shm
-sudo systemctl start jf-spinte
-```
-
-Die beiden Dateien `-wal` und `-shm` müssen weg, sonst mischt SQLite alte Änderungen in den
-zurückgespielten Stand.
-
-**Automatisch sichern** geht über die API (siehe unten). Die Datei gehört auf ein anderes
-Gerät — bei einem Defekt der SD-Karte wäre sie sonst mit weg.
-
-## Wie die Daten zusammenhängen
-
-- **Mitglied** — ein Jugendlicher, mit Geschlecht (männlich/weiblich/divers). Hat höchstens
-  einen Spint.
-- **Umkleidebereich** — bündelt die Spinte eines oder mehrerer Geschlechter. Jedes
-  Geschlecht ist genau einem Bereich zugeordnet.
-- **Spint** — trägt die Nummer vom Etikett (je Bereich eindeutig), liegt in einem Bereich,
-  gehört keinem oder genau einem Mitglied.
-- **Lagerort** — Schrank, Regal, Kiste. Eigener QR-Code.
-- **Ausrüstungsstück** — liegt entweder in einem Spint **oder** an einem Lagerort **oder**
-  im Lager ohne Ort. Nie an zwei Stellen gleichzeitig; das stellt `setPlacement()` in
-  `model.js` an einer einzigen Stelle sicher. Ausgemusterte Teile verschwinden aus allen
-  Listen, bleiben aber unter `/ausgemustert` auffindbar und lassen sich zurückholen.
-- **Ausrüstungsart** — Jacke, Helm, … Legt fest, ob Größe und Inventarnummer geführt
-  werden. Eine Art mit vorhandenen Teilen lässt sich nicht löschen, nur stilllegen.
-
-## API
-
-Andere Systeme greifen über `/api/v1/` zu. Zugänge legt der Jugendwart im Menü unter
-**API-Zugänge** an; der Schlüssel wird **einmalig** angezeigt, gespeichert wird nur seine
-Prüfsumme. Jeder Zugang darf entweder `nur lesen` oder `lesen und schreiben`.
-
-Der Schlüssel gehört in die Kopfzeile — beide Schreibweisen funktionieren:
-
-```bash
-curl -k -H "X-API-Key: jfw_…"           https://jfw-pi.fritz.box/api/v1/
-curl -k -H "Authorization: Bearer jfw_…" https://jfw-pi.fritz.box/api/v1/
-```
-
-`GET /api/v1/` listet alle Endpunkte auf. Die Felder heißen deutsch wie die Oberfläche.
-
-### Lesen
-
-| Endpunkt | liefert |
+| Lage | Weg |
 |---|---|
-| `GET /status` | Zahlen im Überblick |
-| `GET /spinte`, `/spinte/:id` | Spinte, Detail mit Inhalt |
-| `GET /mitglieder?alle=1` | Mitglieder (`alle=1` inkl. ausgetretene) |
-| `GET /ausruestung?art=&groesse=&spint=&lagerort=&nummer=&ausgemustert=1` | Ausrüstung, gefiltert |
-| `GET /ausruestung/:id` | ein Teil |
-| `GET /lagerorte`, `/lagerorte/:id` | Lagerorte, Detail mit Zusammenfassung |
-| `GET /aufgaben?status=offen\|erledigt\|abgebrochen\|alle` | Aufgaben |
-| `GET /arten` | Ausrüstungsarten mit Größen und Barcode-Präfix |
-| `GET /groessen` | Größenschemata mit ihren Reihen |
-| `GET /stammdaten` | Name der Wehr, Abteilung, Leitspruch, ob ein Logo hinterlegt ist |
-| `GET /suche?q=Jacke+164` | Suche über alles |
-| `GET /sicherung` | Datensicherung als `.db.enc` (Passwort in `X-Sicherung-Passwort`) |
-| `GET /sicherung/info` | Größe und Umfang des Bestands |
+| leere Installation | Ersteinrichtung → „Mit Sicherung fortsetzen" |
+| laufende Installation | `/restore` (nur Jugendwart) |
+| ohne die Software | `openssl enc -d …`, dann die Datei bei gestopptem Dienst nach `data/spinte.db` |
 
-Bei `nummer=` greift der Barcode-Präfix: `?nummer=172` findet auch `112000172`.
+Eingespielt wird der **Inhalt** in die laufende Datenbank, statt die Datei auszutauschen.
+Übernommen werden nur Spalten, die es in beiden gibt — eine ältere Sicherung wächst dadurch
+in das neuere Schema hinein. `/restore` legt vorher den aktuellen Stand als
+`…-vor-restore.db.enc` daneben und meldet die Sitzung danach ab.
 
-### Schreiben
+Beim Zurückspielen von Hand müssen `spinte.db-wal` und `spinte.db-shm` weg, sonst mischt
+SQLite alte Änderungen in den zurückgespielten Stand.
 
-| Endpunkt | Zweck |
+### Schema-Fassungen
+
+Jede Sicherung trägt die Fassung des Datenbankschemas. Eine **ältere** Sicherung wird
+eingespielt und gehoben, eine **neuere** abgelehnt — sonst fielen die Spalten weg, die die
+ältere Software noch nicht kennt, ohne Fehler und ohne Meldung.
+
+Wie die Fassungen gezählt werden, welche Regeln für eine neue Migration gelten und was
+bisher dazukam, steht in **[docs/datenbank.md](docs/datenbank.md)**. Diese Datei gehört
+inhaltlich zu diesem README; sie steht getrennt, weil sie eine Arbeitsanleitung für
+Schema-Änderungen ist und ihre Fassungsliste mit jeder Migration wächst.
+
+## 8. Datenmodell
+
+Alles in einer SQLite-Datei. Die wichtigsten Tabellen:
+
+| Tabelle | Inhalt |
 |---|---|
-| `POST /ausruestung` | Teile anlegen (`art`, `groesse`, `inventarnummer`, `anzahl`, `spint_id`/`lagerort_id`) |
-| `PATCH /ausruestung/:id` | Größe, Nummer, Zustand, Notiz oder Ablageort ändern |
-| `POST /aufgaben` | Bestellung oder Tauschwunsch anlegen |
-| `PATCH /aufgaben/:id` | Status auf `offen`, `erledigt` oder `abgebrochen` setzen |
-| `POST /arten` | Ausrüstungsart anlegen |
-| `PATCH /arten/:id` | Art ändern (Name, Größenschema, Barcode-Präfix, stilllegen) |
-| `DELETE /arten/:id` | Art löschen (nur ohne zugehörige Teile) |
-| `POST /groessen` | Größenschema anlegen |
-| `PUT /groessen/:schema` | Größenreihe eines Schemas ersetzen |
-| `DELETE /groessen/:schema` | Schema löschen (nur, wenn keine Art es benutzt) |
-| `PATCH /stammdaten` | Name der Wehr, Abteilung oder Leitspruch ändern |
+| `members` | Jugendliche: Name, Geburtsdatum, Geschlecht, Telefon, Notiz |
+| `areas`, `gender_area` | Umkleidebereiche und die Zuordnung je Geschlecht |
+| `lockers` | Spinte: Nummer (nur je Bereich eindeutig), QR-Token, Mitglied |
+| `storages` | Lagerorte mit QR-Token, einer davon Standard |
+| `equipment` | einzelne Teile: Art, Größe, Inventarnummer, Zustand, Ort |
+| `equipment_types` | Arten mit Größenschema und Barcode-Präfix |
+| `size_schemes`, `sizes` | Größenreihen, Reihenfolge über `sort_order` |
+| `tasks` | Tausch- und Bestellwünsche |
+| `termine`, `anwesenheit` | Übungsabende und wer da war |
+| `einschaetzung`, `funktion_eignung`, `trennen` | Grundlage der Einteilung |
+| `teams`, `team_mitglieder` | gespeicherte Einteilungen je Termin |
+| `settings`, `assets` | Stammdaten und Logo |
+| `users`, `api_tokens`, `audit_log`, `sessions` | Zugänge, Protokoll, Sitzungen |
+| `schema_version` | angewendete Migrationen |
 
-Größen ersetzen — die Reihenfolge in der Liste bestimmt, was „eine Nummer größer" ist:
+Wo ein Teil liegt, ergibt sich aus zwei Feldern: `locker_id` gesetzt → im Spint,
+`storage_id` gesetzt → am Lagerort, beide leer → im Lager ohne Ort. Beides gleichzeitig gibt
+es nicht, dafür sorgt der Code.
 
-```bash
-curl -k -X PUT -H "X-API-Key: jfw_…" -H "content-type: application/json" \
-  -d '{"gruppen":[{"gruppe":"Körpergröße","groessen":["116","122","128"]},
-                  {"gruppe":"Konfektion","groessen":["44","46"]}]}' \
-  https://jfw-pi.fritz.box/api/v1/groessen/bekleidung
-```
+Beim Löschen geht nichts mit verloren: Wird ein Spint gelöscht, wandert sein Inhalt ins
+Lager; tritt ein Mitglied aus, wird sein Spint frei und die Ausrüstung bleibt liegen. Jede
+Änderung landet mit Zeitstempel und Name im Verlauf (`/verlauf`); die Zeiten stehen in UTC,
+so wie SQLite sie speichert.
 
-### Umlaute
+### Größenreihen
 
-Die API nimmt **nur gültiges UTF-8** an. Kommt etwas anderes, gibt es `400` mit Angabe des
-Feldes — statt dass „Doppelgrößen“ still als „Doppelgr??en“ in der Datenbank landet. Das ist
-kein theoretischer Fall: genau so sind die Größenschemata einmal zerlegt worden, weil eine
-Shell die Umlaute als Windows-1252 verschickt hat. Rückgängig machen lässt sich das nicht,
-das Byte ist weg.
-
-Wer sich nicht sicher ist, welche Kodierung sein Werkzeug verwendet, schreibt Umlaute als
-`\u`-Escape — das ist reines ASCII und kommt garantiert heil an:
-
-```bash
-curl -k -X POST -H "X-API-Key: jfw_…" -H "content-type: application/json" \
-  -d '{"schema":"jacke","bezeichnung":"Jacke (Doppelgrößen)",
-       "gruppen":[{"gruppe":"Körpergröße","groessen":["146/152"]}]}' \
-  https://jfw-pi.fritz.box/api/v1/groessen
-```
-
-Die Prüfungen der Oberfläche gelten auch hier: doppelte Inventarnummern werden mit `409`
-abgelehnt, und eine unbekannte Größe liefert `409` samt Vorschlag:
-
-```json
-{ "fehler": "Die Größe „162“ gibt es bei Jacke nicht.",
-  "vorschlag": "164",
-  "hinweis": "Mit \"groesse_ok\": true trotzdem übernehmen." }
-```
-
-Änderungen über die API landen im Verlauf, gekennzeichnet als `API: <Name des Zugangs>`.
-
-### Sicherung auf Knopfdruck (Windows)
-
-Im Projektordner liegt **`Sicherung holen.cmd`**. Doppelklick genügt — die Sicherung landet
-verschlüsselt in einem Ordner auf diesem Rechner.
-
-Beim **ersten** Start richtet sich das Skript ein und fragt drei Dinge:
-
-1. Adresse des Pi (Vorgabe `jfw-pi.fritz.box`)
-2. Passwort für die Sicherung — **das wählst du hier, und ohne dieses Passwort ist die
-   Sicherung später nicht zu öffnen**
-3. Zielordner und wie viele Sicherungen aufgehoben werden (Vorgabe 14)
-
-Den API-Schlüssel nimmt es automatisch aus `api.txt`, falls die Datei danebenliegt.
-
-Danach ist jeder weitere Doppelklick ein einziger Klick: Sicherung holen, prüfen, ablegen,
-alte aufräumen.
-
-**Wo die Zugangsdaten liegen:** in `%LOCALAPPDATA%\jf-spintverwaltung\sicherung.json`,
-verschlüsselt mit der Windows-Datenschutzfunktion (DPAPI). Sie lassen sich nur von *diesem*
-Benutzerkonto auf *diesem* Rechner wieder lesen — im Klartext steht dort nichts.
-
-**Zertifikat wird festgenagelt:** Beim Einrichten merkt sich das Skript den Fingerabdruck des
-Pi-Zertifikats und vergleicht ihn bei jedem Lauf. Ändert er sich, bricht es ab, statt
-blind weiterzumachen. Wurde das Zertifikat absichtlich neu erstellt, einmal neu einrichten:
-
-```
-"Sicherung holen.cmd" -Einrichten
-```
-
-**Für die Aufgabenplanung** (automatisch, ohne Fenster):
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Dev\jugendfeuerwehr\scripts\sicherung-holen.ps1" -Still
-```
-
-Rückgabewert 0 = geklappt, 1 = Fehler, 2 = Zertifikat hat sich geändert.
-
-### Tägliche Sicherung einrichten (Linux/macOS)
-
-```bash
-curl -k -H "X-API-Key: jfw_…" \
-  -H "X-Sicherung-Passwort: DeinSicherungsPasswort" \
-  -o "spinte-$(date +%F).db.enc" \
-  https://jfw-pi.fritz.box/api/v1/sicherung
-```
-
-Dafür genügt ein Zugang mit `nur lesen`. Das Passwort steht bewusst in einer Kopfzeile und
-nicht im Adressteil — sonst landete es in jedem Protokoll. **Ohne Passwort gibt es die
-Sicherung nicht**, auch nicht über die API. Das `-k` ist nötig, weil das Zertifikat
-selbstsigniert ist.
-
-## Barcode-Präfix
-
-Auf den Etiketten einer Ausrüstungsart steht meist derselbe Anfang — im Gerätehaus etwa
-`KKJF.1202.` bei den Helmen und `112000` bei Jacken und Hosen. Trägt man diesen Anfang unter
-**Arten & Größen** je Art ein, genügt beim Eintippen der hintere Teil:
-
-| Art | Präfix | Stellen | Eingabe | wird zu |
-|---|---|---|---|---|
-| Jacke | `112000` | 3 | `172` | `112000172` |
-| Jacke | `112000` | 3 | `12` | `112000012` |
-| Helm | `KKJF.1202.` | — | `77` | `KKJF.1202.77` |
-
-**Stellen** füllt den eingetippten Rest mit Nullen auf. Bleibt das Feld leer, wird nicht
-aufgefüllt und die Ergänzung greift bis drei Stellen.
-
-Unverändert bleibt alles, was schon den Präfix trägt, länger als die eingestellte Stellenzahl
-ist oder Buchstaben enthält — **eine gescannte Nummer geht also immer unberührt durch**.
-Ergänzt wird beim Anlegen, beim Bearbeiten, bei der Kontrolle vor dem Tausch und beim Scannen
-über die Tastatur (`/scannen` findet auch die Kurznummer).
-
-Arten ohne Präfix bleiben, wie sie sind.
-
-## Größen
-
-Jede Ausrüstungsart hat ihr eigenes Größenschema — Handschuhe zählen anders als Hosen.
-Vorbelegt sind drei Reihen, änderbar unter **Ausrüstungsarten**:
-
-| Schema | Größen |
-|---|---|
-| Kleidung (Jacke, Hose) | Körpergröße `116 … 176`, danach Konfektion `44 … 70` |
-| Handschuhe | `6 … 12` |
-| Schuhe | `30 … 50` |
-
-Arten ohne Schema (z. B. Helm, der keine Größe führt) nehmen jede Eingabe an.
-
-### Der Übergang 176 → 44
-
-Kinder- und Jugendgrößen sind die **Körpergröße in Zentimetern** und laufen in
-Sechserschritten. Erwachsenen-Konfektionsgrößen entsprechen etwa dem **halben Brustumfang**
-und laufen in Zweierschritten. Zwei verschiedene Systeme also — Jugendfeuerwehr-Bekleidung
-wird bis 170/176 als Körpergröße geführt, danach beginnen die Konfektionsgrößen.
-
-In der Größenreihe steht deshalb die **44 direkt hinter der 176**. „Eine Nummer größer" als
-176 ergibt 44, nicht 182. Für einen schlanken Jugendlichen von 176 cm passt Konfektion 44–48
-(Brustumfang 86–97 cm).
-
-Führt eure Wehr auch die Jugendgrößen 182 und 188, lassen sie sich unter
-*Ausrüstungsarten → Größen* einfach vor der 44 ergänzen. **Die Reihenfolge in der Liste
-bestimmt, was „eine Nummer größer" bedeutet.**
+Kinder- und Jugendgrößen sind die **Körpergröße in Zentimetern** (Sechserschritte),
+Erwachsenengrößen die **Konfektion** (Zweierschritte). In der Reihe steht deshalb die **44
+direkt hinter der 176** — „eine Nummer größer" als 176 ergibt 44, nicht 182. Die
+Reihenfolge in der Liste bestimmt, was „größer" heißt; wer 182 und 188 führt, ergänzt sie
+vor der 44. Handschuhe und Schuhe haben eigene Reihen.
 
 Quellen: [Kindergrößen](https://www.blitzrechner.de/kindergroessen/),
 [Konfektionsgrößen](https://www.blitzrechner.de/konfektionsgroessen/),
 [Größentabellen Kinder-/Jugendfeuerwehr](https://shop.murer-feuerschutz.de/gr%C3%B6%C3%9Fentabellen-feuerwehrdienstbekleidung-kinder-und-jugendfeuerwehr),
-[Jugendfeuerwehr-Bundhose](https://www.feuerwehrversand.de/9/pid/7140/apg/176/Jugendfeuerwehr-Bundhose.htm),
 [Handschuhgrößen](https://www.keiler.net/service/groesse-finden/)
 
-### Wenn eine Größe nicht existiert
+### Inventarnummern
 
-Wird eine Größe eingetippt, die es für diese Art nicht gibt, fragt die Software nach:
-
-> Die Größe **162** gibt es bei **Jacke** nicht. Meintest du **164** (Körpergröße)?
-> [164 verwenden] [162 trotzdem übernehmen] [Abbrechen]
-
-Der Vorschlag ist die nächstliegende gültige Größe. Wer die Eingabe für richtig hält, kann
-sie behalten — geblockt wird nichts, es wird nur nachgefragt. Dieselbe Rückfrage greift beim
-Bearbeiten und bei der Wunschgröße im Tausch-Ablauf.
-
-Damit es gar nicht erst dazu kommt, hängt an jedem Größenfeld eine Auswahlliste mit den
-gültigen Größen der gewählten Art.
-
-### Suche über mehrere Wörter
-
-Die Suche zerlegt die Eingabe in Wörter; **jedes** Wort muss irgendwo passen, aber nicht
-alle in derselben Spalte. Damit findet `Jacke 162` genau die Jacken in Größe 162, obwohl
-nirgends „Jacke 162“ am Stück steht. Weitere Beispiele:
-
-| Eingabe | findet |
-|---|---|
-| `Jacke 162` | Jacken in Größe 162 |
-| `Helm Ben` | den Helm in Bens Spint |
-| `Jacke Schrank1` | Jacken, die in Schrank1 liegen |
-| `Muster Max` | das Mitglied, auch bei umgedrehtem Namen |
-| `112000172` | das Teil mit dieser Inventarnummer |
-
-Groß- und Kleinschreibung sowie die Reihenfolge der Wörter spielen keine Rolle. Bei
-Ausrüstung wird in Art, Größe, Inventarnummer, Zustand, Notiz, Lagerort, Spintnummer und
-Besitzer gesucht.
-
-### Inventarnummern sind eindeutig
-
-Eine Inventarnummer gehört zu genau einem Teil, sonst wäre ein Scan nicht eindeutig.
-Der Versuch, eine schon vergebene Nummer einzutragen, wird abgewiesen; die Meldung nennt,
-wo die Nummer bereits steckt („… ist schon vergeben: Jacke Gr. 164 in Spint 01 (Max Meier)").
-Groß- und Kleinschreibung zählen dabei nicht: `JA-1` und `ja-1` sind dieselbe Nummer.
-
-Ausgenommen sind Teile **ohne** Nummer — davon darf es beliebig viele geben, sonst wären
-Sammelposten (20 Paar Schuhe auf einmal) unmöglich.
-
-Abgesichert ist das doppelt: im Programm für eine verständliche Meldung und zusätzlich als
-Regel in der Datenbank, damit die Eindeutigkeit auch dann hält, wenn später eine Codestelle
-übersehen wird.
+Eine Inventarnummer gehört zu genau einem Teil; Groß- und Kleinschreibung zählen nicht.
+Teile **ohne** Nummer sind ausgenommen — sonst wären Sammelposten unmöglich. Abgesichert ist
+das doppelt: im Programm für eine verständliche Meldung und als Regel in der Datenbank.
 
 Enthält eine ältere Datenbank bereits doppelte Nummern, lässt sich die Datenbank-Regel nicht
 anlegen. Die Software startet dann trotzdem — man käme sonst an die Daten nicht mehr heran,
@@ -1103,244 +516,116 @@ WARNUNG: Diese Inventarnummern sind mehrfach vergeben:
   0001 — 2 Teile
 ```
 
-Betroffene Teile über die Suche aufrufen und die Nummer korrigieren oder leeren. Neue
-Duplikate verhindert das Programm auch in diesem Zustand. Nach dem Berichtigen greift beim
-nächsten Start zusätzlich die Datenbank-Regel.
-- **Aufgabe** — Tausch- oder Bestellwunsch. Art, Mitglied und Spint stehen zusätzlich als
-  eigene Felder darin, damit die Aufgabe lesbar bleibt, wenn das Teil später wegfällt.
+### Barcode-Präfix
 
-Beim Löschen gehen keine abhängigen Daten verloren: Wird ein Spint gelöscht, wandert sein
-Inhalt ins Lager. Tritt ein Mitglied aus, wird sein Spint frei, die Ausrüstung bleibt
-liegen.
+Je Art lässt sich ein fester Anfang der Inventarnummern hinterlegen (`barcode_prefix`) und
+auf wie viele Stellen der eingetippte Rest aufgefüllt wird (`barcode_digits`). Tippt man
+`12`, ergänzt die Software daraus die vollständige Nummer.
 
-Jede Änderung landet mit Zeitstempel und Name im Verlauf (`/verlauf`). Die Zeiten stehen
-in UTC, so wie SQLite sie speichert — im Sommer also zwei Stunden vor der Ortszeit.
+## 9. API
 
-## Aufbau
+Unter `/api/v1/`, JSON, Anmeldung über die Kopfzeile `X-API-Key`. Die Zugänge werden in der
+Oberfläche unter *API-Zugänge* angelegt; gespeichert wird nur der Hash, im Klartext bekommt
+man den Token genau einmal zu sehen. Zwei Rechtestufen: `lesen` und `schreiben`.
+
+**Lesen**
 
 ```
-server.js              Start, Sitzungen, Router-Reihenfolge
-src/db.js              SQLite öffnen, Schema anwenden, migrieren, Standardarten anlegen
-src/schema.sql         Tabellen — immer der vollständige, aktuelle Stand
-src/migrationen.js     Schema-Fassungen und der Weg von einer zur nächsten
-src/markdown.js        kleiner Markdown-Übersetzer für das Handbuch in der Oberfläche
-src/auth.js            Anmeldung, Rollen, CSRF
-src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
-src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
-src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
-src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
-src/api-auth.js        Token für die API prüfen und verwalten
-src/backup.js          Sicherung erzeugen und verschlüsseln
-src/restore.js         Sicherung entschlüsseln und einspielen
-src/tokens.js          Geheimnisse für die QR-Links
-src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
-src/dienst.js          Anwesenheit, Einschätzung, Einteilung mit Funktionen
-src/update.js          nach Neuem sehen und die Aktualisierung anfordern (nur die Markierung)
-src/upload.js          Dateiannahme für Sicherung, Logo und Wiederherstellung
-scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
-scripts/doku-daten.js  Demo-Bestand fuer das Handbuch (erfundene Namen)
-scripts/doku-bilder.js nimmt die Bilder auf: Chrome kopflos ueber das DevTools-Protokoll
-docs/                  Handbuch mit Bildern, Beschreibung der Datenbank-Fassungen
-scripts/update-helfer.sh  läuft als root ausserhalb des Dienstes: sichern, einspielen,
-                       neu starten, prüfen — und bei Misserfolg zurücksetzen
-deploy/                Dienst, polkit-Regel, Sicherungs- und Update-Einheiten als Vorlage
-src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
-src/audit.js           Änderungsprotokoll
-src/routes/            eine Datei je Themenbereich
-views/                 EJS-Vorlagen
-public/                CSS, kleine Skripte, Barcode-Scanner
-public/etikett.css     nur für das A4-Etikett (enthält die @page-Regel: quer, randlos)
+GET /api/v1/status
+GET /api/v1/spinte            GET /api/v1/spinte/:id
+GET /api/v1/mitglieder
+GET /api/v1/ausruestung?art=&groesse=&spint=&lagerort=&nummer=&ausgemustert=
+GET /api/v1/ausruestung/:id
+GET /api/v1/lagerorte         GET /api/v1/lagerorte/:id
+GET /api/v1/aufgaben?status=offen|erledigt|abgebrochen|alle
+GET /api/v1/arten             GET /api/v1/groessen
+GET /api/v1/stammdaten        GET /api/v1/suche?q=
+GET /api/v1/sicherung         (Kopfzeile X-Sicherung-Passwort nötig)
 ```
 
-Kein Build-Schritt: Datei ändern, Dienst neu starten, fertig.
+**Schreiben**
 
-`npm test` startet einen eigenen Server mit leerer Datenbank in einem temporären Ordner
-und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Umkleidebereiche,
-Spinte, Lagerorte mit Mengenanlage, Barcode-Endpunkt, Tauschen mit und ohne Lagertreffer,
-Aufgaben, Suche, QR, Stammdaten mit Logo, A4-Etiketten und öffentlicher Lesezugriff.
-Die echte Datenbank wird nicht angefasst.
+```
+POST   /api/v1/ausruestung          PATCH  /api/v1/ausruestung/:id
+POST   /api/v1/aufgaben             PATCH  /api/v1/aufgaben/:id
+POST   /api/v1/arten                PATCH  /api/v1/arten/:id
+DELETE /api/v1/arten/:id            POST   /api/v1/groessen
+PUT    /api/v1/groessen/:schema     DELETE /api/v1/groessen/:schema
+PATCH  /api/v1/stammdaten
+```
 
-Auch die Aktualisierung wird durchgespielt, ohne dass dabei etwas aktualisiert wird: `GIT_ORDNER`,
-`UPDATE_MARKE` und `UPDATE_STATUS` zeigen im Test in einen temporären Ordner. Dort legt der Test
-ein kleines Repository mit einem Commit Vorsprung an — geprüft werden also die echte Liste der
-Änderungen, die Warnung während der Übungszeit, die abgelegte Markierung und die Anzeige eines
-zurückgesetzten Versuchs. Der Helfer selbst läuft nie mit; das ist Sache von systemd.
+Einschätzungen gibt die API nicht heraus — auch nicht über `/mitglieder`.
 
-`node test/schema.mjs` (läuft bei `npm test` mit) prüft die Datenbank gegen sich selbst: eine
-frisch aus `schema.sql` angelegte Datenbank darf sich nicht mehr verändern, wenn alle
-Migrationen darauf laufen. Damit hängen zwei Regeln an einer Prüfung — was eine Migration
-anlegt, muss auch in `schema.sql` stehen, und jede Migration muss mehrfach ausführbar sein.
-Einzelheiten in [docs/datenbank.md](docs/datenbank.md).
+**Umlaute:** alles ist UTF-8. Eingehende Texte werden geprüft und mit einem Fehler
+abgewiesen, wenn sie das Ersatzzeichen U+FFFD enthalten — sonst landen „Doppelgrößen" als
+„Doppelgr���en" in der Datenbank, und niemand merkt es rechtzeitig.
 
-Auch das Herunterfahren wird geprüft: der Abschaltbefehl lässt sich über `ABSCHALT_BEFEHL`
-austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner abzuschalten.
-So läuft der ganze Weg durch — Rechte, Token, Protokolleintrag und Fehlerfall —, ohne dass
-ein Testlauf den Rechner mitnimmt.
-
-## Eigene Angaben: `deploy.config`
-
-Hostname, Benutzername und Schlüsselpfad des eigenen Pi stehen **nicht** im Repo. Im
-Auslieferungsskript sind neutrale Beispiele hinterlegt (`jfw-pi.fritz.box`, `pi`); die
-eigenen Werte kommen in eine Datei daneben:
+## 10. Entwicklung und Tests
 
 ```bash
-cp deploy.config.beispiel deploy.config
+npm test          # smoke.mjs und schema.mjs
+npm run test-schema
+npm run lizenzen
 ```
 
-Dann anpassen. `deploy.config` ist von der Versionsverwaltung ausgeschlossen — der Name des
-eigenen Pi und das Benutzerkonto gehen niemanden etwas an. `scripts/deploy-pi.sh` liest die
-Datei automatisch, sofern sie da ist; sonst gelten die Beispielwerte (oder was in den
-Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY` steht).
+`test/smoke.mjs` startet einen eigenen Server mit leerer Datenbank in einem temporären
+Ordner und geht die Abläufe durch — Ersteinrichtung, Rollen, Umkleidebereiche, Spinte,
+Lagerorte, Tauschen, Aufgaben, Suche, QR, Etiketten, Anwesenheit, Einschätzung, Einteilung,
+Sicherung, Wiederherstellung, Update und Handbuch. Die echte Datenbank wird nicht angefasst.
 
-## Updates und was dabei zu beachten ist
+Herunterfahren und Aktualisierung werden dabei nachgestellt: `ABSCHALT_BEFEHL` zeigt im Test
+auf ein harmloses Skript, und `GIT_ORDNER`, `UPDATE_MARKE`, `UPDATE_STATUS` sowie
+`UPDATE_ABGLEICH` zeigen in einen temporären Ordner mit einem kleinen Repository. So läuft
+der ganze Weg durch, ohne dass ein Testlauf den Rechner mitnimmt oder wirklich aktualisiert.
 
-Es gibt drei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
+`test/schema.mjs` prüft die Migrationen gegen `schema.sql`: eine frisch aus `schema.sql`
+angelegte Datenbank darf sich nicht mehr verändern, wenn alle Migrationen darauf laufen.
+Damit hängen zwei Regeln an einer Prüfung — was eine Migration anlegt, muss auch in
+`schema.sql` stehen, und jede Migration muss mehrfach ausführbar sein. Einzelheiten in
+[docs/datenbank.md](docs/datenbank.md).
 
-### Über die Oberfläche (empfohlen)
-
-Unter **System, Update & Herunterfahren** → *Zur Update-Seite*. Ein Klick auf
-*Nach Updates suchen* fragt beim Repository nach, danach steht die Liste der Änderungen da,
-jede mit ihrem Kurztext. *Jetzt aktualisieren* erledigt den Rest — Sicherung ziehen, neuen
-Stand holen, `npm ci`, Dienst neu starten, prüfen, ob die Seite wieder antwortet. Der Ablauf
-dauert eine Minute; die Anzeige meldet sich von selbst zurück, sobald der Dienst wieder da
-ist.
-
-**Geht etwas schief, setzt sich das von allein zurück.** Nach zwei erfolglosen Versuchen
-springt der Helfer per `git reset --hard` auf den Stand von vorher, installiert dessen
-Abhängigkeiten und startet neu. Danach steht auf der Seite, was passiert ist. Voraussetzung:
-einmalig `auf-git-umstellen.sh` (siehe unten) — ohne `.git` bleibt der Knopf aus und die Seite
-sagt auch, warum.
-
-Wichtig ist, wie die Rechte dabei aufgeteilt sind. Die Anwendung **kann sich nicht selbst neu
-starten** — `systemctl restart` würde genau den Prozess abschießen, der den Befehl absetzt,
-mitten in der Anfrage. Und wäre nach einem misslungenen Update die Anwendung selbst hin,
-könnte ausgerechnet sie keine Rettungsseite mehr ausliefern. Deshalb legt sie nur eine
-Markierung unter `/run/jf-spinte/` ab. Eine systemd-`.path`-Einheit sieht diese Datei und
-startet `update-helfer.sh` als root, **außerhalb** des Dienstes. Die Weboberfläche braucht
-dafür keinerlei Sonderrechte; `NoNewPrivileges=true` bleibt bestehen.
-
-Dass die Markierung unter `/run` liegt, ist Absicht: das ist eine RAM-Platte. Nach einem
-Stromausfall mitten im Vorgang ist die Anforderung weg und löst beim nächsten Start nicht
-versehentlich noch ein Update aus.
-
-Auch die bloße Suche („Nach Updates suchen") läuft über den Helfer. `git fetch` müsste
-`.git/FETCH_HEAD` schreiben, der Dienst darf aber außer `data/` nirgends schreiben
-(`ProtectSystem=strict`). `.git` in `ReadWritePaths` freizugeben wäre keine Lösung: wer in
-`.git` schreiben kann, kann die Herkunftsadresse ändern oder Objekte unterschieben, und der
-Helfer würde sie anschließend als root einspielen und `npm ci` darauf laufen lassen. Eine
-Sicherheitslücke in der Weboberfläche würde damit zu Rootzugriff. Deshalb holt der Helfer,
-und die Seite liest nur das Ergebnis.
-
-### Vom Projektordner aus (funktioniert sofort)
+### Bilder für das Handbuch
 
 ```bash
-bash scripts/deploy-pi.sh
+npm run doku-daten     # Demo-Bestand mit erfundenen Namen
+npm run doku-bilder    # Chrome kopflos über das DevTools-Protokoll
 ```
 
-Überträgt den letzten Commit per SSH und startet den Dienst neu. Voraussetzung: dieser
-Rechner ist im selben Netz wie der Pi. Steht der Pi im Gerätehaus, geht das nur dort.
+Die Bilder landen in `docs/bilder/`. `data-doku/` ist von der Versionsverwaltung
+ausgeschlossen — nur das Skript wird mitgeliefert, nicht der Bestand.
 
-### Vom Pi aus per SSH (einmal einrichten, dann von überall)
+## 11. Lizenzen der Abhängigkeiten
 
-Die Installation auf dem Pi enthält kein `.git` — `deploy-pi.sh` überträgt die Dateien mit
-`git archive`, also ohne Versionsverwaltung.
+`npm run lizenzen` zählt die Pakete durch und meldet alles, was Aufmerksamkeit braucht —
+insbesondere Copyleft (GPL, AGPL, SSPL), das sich mit der MIT-Lizenz dieses Projekts nicht
+ohne Weiteres verträgt. Stand heute: alles freizügig (MIT, ISC, Apache-2.0, BSD).
 
-> **Alles Folgende läuft auf dem Pi**, also in der SSH-Sitzung — nicht in der Eingabe­auf­forderung
-> von Windows. Dort gibt es kein `sh`, und die Fehlermeldung sagt genau das.
+`node_modules` ist von der Versionsverwaltung ausgeschlossen. Das Repo gibt die fremden
+Pakete also gar nicht weiter — sie holt `npm` beim Installieren direkt von der Quelle, und
+die üblichen Weitergabe-Pflichten entstehen hier nicht. Anders wäre es bei einem fertigen
+SD-Karten-Abbild: dann gehört eine Auflistung der enthaltenen Lizenzen dazu.
 
-Einmalig umstellen. Das Umstell-Skript liegt bis dahin **nicht** auf dem Pi — es kam erst mit
-einer neueren Fassung dazu, und die soll ja gerade eingespielt werden. Darum wird es zuerst
-geholt:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/NAME/REPO/main/scripts/auf-git-umstellen.sh -o /tmp/auf-git-umstellen.sh
-```
-
-```bash
-sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git
-```
-
-(Wer mag, schaut vorher mit `less /tmp/auf-git-umstellen.sh` hinein — es läuft gleich als root.)
-
-Das legt ein Arbeitsverzeichnis an und gleicht es mit dem Repository ab. Datenbank,
-Zertifikat, `node_modules` und `deploy.config` bleiben unberührt — sie stehen in
-`.gitignore`. Danach genügt für jedes Update:
-
-```bash
-sudo sh /opt/jf-spinte/scripts/update-pi.sh
-```
-
-Das Skript zeigt erst, **was** dazukäme, fragt nach, zieht vorher eine Sicherung, spielt ein,
-installiert mit `npm ci` und prüft am Ende, ob die Oberfläche wieder antwortet. Mit `-j`
-läuft es ohne Rückfrage durch.
-
-Der Vorteil: du brauchst weder diesen Rechner noch den Projektordner — eine SSH-Sitzung
-genügt, notfalls vom Handy aus. Im selben Netz wie der Pi musst du trotzdem sein. Dieselbe
-Umstellung schaltet auch den Knopf in der Oberfläche frei.
-
-### Warum `npm ci` und nicht `npm install`
-
-`npm install` darf stillschweigend neuere Fassungen der Abhängigkeiten holen. `npm ci`
-installiert genau das, was in `package-lock.json` steht — mit **Prüfsumme je Paket**. Aus
-8 direkten Abhängigkeiten werden 154 Pakete; würde eines davon gekapert und neu
-veröffentlicht, fiele es beim Prüfsummenvergleich auf.
-
-Passen `package.json` und `package-lock.json` nicht zusammen, bricht `npm ci` ab. Das ist
-gewollt — dann hat jemand am Lockfile vorbei etwas verändert.
-
-### Wo das eigentliche Risiko liegt
-
-Nicht darin, dass Fremde ins Repo schreiben könnten — das können sie nicht. Sondern:
-
-| Risiko | Gegenmittel |
-|---|---|
-| GitHub-Konto übernommen | Zwei-Faktor-Anmeldung, am besten Passkey |
-| Pull Request ungelesen zusammengeführt | Diff lesen. Bei Fremdbeiträgen immer. |
-| Gekapertes npm-Paket | `npm ci` (Prüfsummen), nicht blind `npm update` |
-| Update ungeprüft eingespielt | `update-pi.sh` zeigt die Änderungen und fragt nach |
-
-Zur Einordnung der Tragweite: `npm ci` läuft als Dienstbenutzer, und der darf per `sudo`
-ohne Passwort alles. Ein bösartiges Installationsskript hätte damit den ganzen Pi. Der
-Dienst selbst ist dagegen abgesichert (`NoNewPrivileges=true`) — die Lücke ist der
-Update-Vorgang, nicht der Betrieb.
-
-## Lizenzen der Abhängigkeiten
-
-Aus 8 direkten Abhängigkeiten werden über 150 Pakete. `npm run lizenzen` zählt sie durch und
-meldet alles, was Aufmerksamkeit braucht — insbesondere Copyleft (GPL, AGPL, SSPL), das sich
-mit der MIT-Lizenz dieses Projekts nicht ohne Weiteres verträgt.
-
-Stand heute: **alles freizügig** — MIT, ISC, Apache-2.0, BSD. Kein Copyleft, keine Lücke.
-
-Wichtig für die Pflichten daraus: `node_modules` ist von der Versionsverwaltung
-ausgeschlossen. Das Repo gibt die fremden Pakete also gar nicht weiter — sie holt sich `npm`
-beim Installieren direkt von der Quelle. Damit entstehen die üblichen Weitergabe-Pflichten
-(Lizenztext und Urhebervermerk mitliefern) hier nicht. Anders wäre es, wenn irgendwann ein
-fertiges SD-Karten-Abbild verteilt würde: dann gehört eine Auflistung der enthaltenen
-Lizenzen dazu.
-
-Die einzige Bibliothek, die tatsächlich an Browser ausgeliefert wird, ist `html5-qrcode`
-(Apache-2.0) unter `/vendor`. Sie wird unverändert weitergereicht und trägt ihren
-Lizenzhinweis selbst im Dateikopf.
+Die einzige Bibliothek, die an Browser ausgeliefert wird, ist `html5-qrcode` (Apache-2.0)
+unter `/vendor`. Sie wird unverändert weitergereicht und trägt ihren Lizenzhinweis selbst.
 
 > **Nicht ins Repo gehört das Logo eurer Wehr.** Das Emblem der Jugendfeuerwehr ist
 > geschützt — ihr dürft es führen, ein beliebiger Dritter, der euer Repo klont, nicht. Es
-> liegt in der Datenbank und damit unter `data/`, das ausgeschlossen ist. Bitte dabei belassen
-> und nicht „zur Bequemlichkeit" als Datei dazulegen.
+> liegt in der Datenbank und damit unter `data/`, das ausgeschlossen ist. Bitte dabei
+> belassen und nicht „zur Bequemlichkeit" als Datei dazulegen.
 
-## Mit KI entwickelt
+## 12. Mit KI entwickelt
 
 Diese Software ist in Zusammenarbeit mit einer KI entstanden (Claude von Anthropic). Der
-Code, die Tests und der größte Teil dieser Dokumentation wurden im Dialog geschrieben:
+Code, die Tests und der größte Teil der Dokumentation wurden im Dialog geschrieben:
 Anforderungen, Entscheidungen und die Erfahrungen aus dem Betrieb kamen aus der
 Jugendfeuerwehr, die Umsetzung von der KI.
 
 Das gehört hierher, weil es zwei praktische Fragen berührt:
 
 * **Prüft, was ihr einsetzt.** Das Repo ist öffentlich, der Code lesbar, und es gibt
-  automatische Tests (`npm test`). Wer die Software auf einen eigenen Pi mit den Daten
-  eigener Kinder stellt, sollte trotzdem selbst hineinsehen — das gilt für KI-Code genauso
-  wie für fremden Code von Menschen.
+  automatische Tests. Wer die Software auf einen eigenen Pi mit den Daten eigener Kinder
+  stellt, sollte trotzdem selbst hineinsehen — das gilt für KI-Code genauso wie für fremden
+  Code von Menschen.
 * **Fehler sind trotzdem Fehler.** Was hier läuft, läuft im echten Betrieb einer Wehr und
   ist dort gewachsen: mehrere Sachen in dieser Software gibt es nur, weil im Gerätehaus
   etwas nicht funktioniert hat. Für die Richtigkeit gibt es keine Garantie, weder durch die
@@ -1348,7 +633,7 @@ Das gehört hierher, weil es zwei praktische Fragen berührt:
 
 Die Verantwortung für den Einsatz liegt bei dem, der ihn betreibt — siehe Lizenz.
 
-## Lizenz
+## 13. Lizenz
 
 [MIT](LICENSE) — benutzen, ändern und weitergeben ausdrücklich erwünscht. Ohne Gewähr; wer
 sie einsetzt, ist für seine Daten selbst verantwortlich.
