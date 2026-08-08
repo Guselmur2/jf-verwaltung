@@ -1,0 +1,16 @@
+[Unit]
+Description=Wartet auf eine Aktualisierungsanforderung aus der Weboberflaeche
+
+[Path]
+# Die Weboberflaeche legt diese Datei ab — mehr kann und darf sie nicht. Der
+# eigentliche Ablauf laeuft dann als root und ausserhalb des Dienstes, weil ein
+# Prozess sich nicht selbst neu starten kann.
+#
+# Der Pfad liegt unter /run (RuntimeDirectory des Dienstes) und damit im
+# Arbeitsspeicher: nach einem Stromausfall ist die Anforderung weg und loest
+# beim naechsten Start nicht versehentlich eine Aktualisierung aus.
+PathExists=/run/jf-spinte/update-anfordern
+Unit=jf-update.service
+
+[Install]
+WantedBy=multi-user.target

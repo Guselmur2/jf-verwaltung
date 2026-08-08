@@ -126,4 +126,45 @@
       if (!document.hidden) abgleichen();
     });
   }
+
+  // Aktualisierung: den Fortschritt verfolgen, auch über den Neustart hinweg.
+  //
+  // Währenddessen ist der Dienst für einige Sekunden weg — die Abfrage schlägt
+  // dann fehl. Das ist erwartet und kein Grund aufzuhören: es wird einfach
+  // weiter gefragt, bis er wieder antwortet. Ohne das stünde die Seite still
+  // und man wüsste nicht, ob noch etwas passiert.
+  var laufend = document.querySelector('[data-update-laeuft]');
+  if (laufend && window.fetch) {
+    var meldung = document.querySelector('[data-update-meldung]');
+    var wegSeit = 0;
+    var nachsehen = function () {
+      fetch('/system/update/status.json', { credentials: 'same-origin', cache: 'no-store' })
+        .then(function (a) {
+          return a.ok ? a.json() : null;
+        })
+        .then(function (daten) {
+          if (!daten) return;
+          wegSeit = 0;
+          if (!daten.laeuft) {
+            location.reload();
+            return;
+          }
+          if (meldung && daten.status) {
+            meldung.textContent = (daten.status.schritt || '') + ': ' + (daten.status.meldung || '…');
+          }
+        })
+        .catch(function () {
+          // Dienst startet gerade neu. Nach etwa zwei Minuten ohne Antwort
+          // sagen wir es, statt endlos still zu warten.
+          wegSeit += 1;
+          if (meldung && wegSeit > 3) {
+            meldung.textContent =
+              wegSeit > 40
+                ? 'Seit über zwei Minuten keine Antwort. Bitte per SSH nachsehen.'
+                : 'Der Dienst startet neu … (' + wegSeit * 3 + ' s)';
+          }
+        });
+    };
+    setInterval(nachsehen, 3000);
+  }
 })();

@@ -10,6 +10,11 @@ const STANDARD = {
   organisation: 'Jugendfeuerwehr',
   abteilung: 'Jugendfeuerwehr',
   slogan: 'Wir sind die Helden von morgen!',
+  // Wann der Uebungsabend stattfindet. Daraus ergibt sich das Zeitfenster, in
+  // dem die Software vor einer Aktualisierung warnt — mitten im Dienst will
+  // niemand einen Neustart.
+  dienst_beginn: '17:45',
+  dienst_ende: '19:30',
 };
 
 const FELDER = Object.keys(STANDARD);
@@ -18,7 +23,23 @@ const LAENGE = {
   organisation: 80,
   abteilung: 40,
   slogan: 80,
+  dienst_beginn: 5,
+  dienst_ende: 5,
 };
+
+// Felder, die eine Uhrzeit enthalten. Was nicht als HH:MM lesbar ist, wird
+// verworfen — sonst stuende dort "halb sechs" und die Rechnung ginge schief.
+const ZEITFELDER = ['dienst_beginn', 'dienst_ende'];
+
+function alsUhrzeit(wert) {
+  const t = String(wert ?? '').trim().replace('.', ':');
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const stunde = Number(m[1]);
+  const minute = Number(m[2]);
+  if (stunde > 23 || minute > 59) return null;
+  return `${String(stunde).padStart(2, '0')}:${m[2]}`;
+}
 
 const q = {
   alle: db.prepare('SELECT schluessel, wert FROM settings'),
@@ -61,10 +82,20 @@ function speichern(eingaben) {
   db.transaction(() => {
     for (const feld of FELDER) {
       if (!(feld in eingaben)) continue;
-      const wert = String(eingaben[feld] ?? '')
+
+      let wert = String(eingaben[feld] ?? '')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, LAENGE[feld]);
+
+      // Eine unlesbare Uhrzeit wird verworfen, statt sie zu speichern — sonst
+      // faellt das erst auf, wenn die Warnung vor dem Update ausbleibt.
+      if (ZEITFELDER.includes(feld) && wert) {
+        const zeit = alsUhrzeit(wert);
+        if (!zeit) continue;
+        wert = zeit;
+      }
+
       if (wert) q.setzen.run(feld, wert);
       else q.loeschen.run(feld);
       const neu = wert || STANDARD[feld];

@@ -1,0 +1,123 @@
+<%- include('partials/kopf') %>
+<%
+  const SCHRITTE = {
+    angefordert: 'Angefordert',
+    pruefen: 'Prüfen',
+    sichern: 'Sicherung',
+    einspielen: 'Einspielen',
+    neustart: 'Neustart',
+    zurueck: 'Zurücksetzen',
+    fertig: 'Fertig',
+  };
+%>
+
+<div class="seitenkopf">
+  <h1>Aktualisierung</h1>
+  <a class="btn btn-still" href="/system">Zurück zum System</a>
+</div>
+
+<%# Während der Aktualisierung startet der Dienst neu — die Seite ist dann für
+    einige Sekunden weg. Das Skript in app.js fragt weiter nach und lädt neu,
+    sobald es wieder antwortet. %>
+<% if (laeuft) { %>
+  <section class="block" data-update-laeuft>
+    <h2>Läuft gerade</h2>
+    <p class="hinweis hinweis-info" data-update-meldung>
+      <% if (status) { %>
+        <strong><%= SCHRITTE[status.schritt] || status.schritt %>:</strong> <%= status.meldung || '…' %>
+      <% } else { %>
+        Angefordert — der Helfer legt gleich los.
+      <% } %>
+    </p>
+    <p class="klein">
+      Der Dienst startet dabei neu, die Seite ist dann kurz nicht erreichbar. Das ist normal —
+      diese Anzeige meldet sich von selbst zurück. <strong>Bitte nicht den Strom trennen.</strong>
+    </p>
+    <p class="klein">
+      Geht etwas schief, setzt der Helfer nach zwei Versuchen von selbst auf den vorherigen
+      Stand zurück. Dafür musst du nichts tun.
+    </p>
+  </section>
+<% } %>
+
+<% if (!laeuft && status) { %>
+  <section class="block">
+    <h2>Letzte Aktualisierung</h2>
+    <p class="hinweis hinweis-<%= status.ergebnis === 'ok' ? 'ok' : status.ergebnis === 'zurueckgesetzt' ? 'warn' : status.ergebnis === 'fehler' ? 'warn' : 'info' %>">
+      <% if (status.ergebnis === 'ok') { %>
+        Erfolgreich<% if (status.meldung) { %> — <%= status.meldung %><% } %>
+      <% } else if (status.ergebnis === 'zurueckgesetzt') { %>
+        <strong>Zurückgesetzt.</strong> <%= status.meldung %>
+      <% } else { %>
+        <strong>Fehlgeschlagen.</strong> <%= status.meldung || 'Kein Grund vermerkt.' %>
+      <% } %>
+    </p>
+    <p class="klein">
+      <%= status.zeit ? status.zeit.toLocaleString('de-DE') : '' %>
+      <% if (status.vorher) { %> · vorher: <code><%= status.vorher %></code><% } %>
+      <% if (status.nachher && status.nachher !== status.vorher) { %> · jetzt: <code><%= status.nachher %></code><% } %>
+    </p>
+    <% if (status.ergebnis === 'fehler' || status.ergebnis === 'zurueckgesetzt') { %>
+      <p class="klein">
+        Stimmen die Daten nicht mehr, lässt sich unter <a href="/restore">Sicherung einspielen</a>
+        ein früherer Stand zurückholen.
+      </p>
+    <% } %>
+  </section>
+<% } %>
+
+<% if (!laeuft && pruefung && !pruefung.moeglich) { %>
+  <p class="hinweis hinweis-warn"><%= pruefung.grund %></p>
+<% } %>
+
+<% if (!laeuft && pruefung && pruefung.moeglich) { %>
+  <% if (pruefung.aktuell) { %>
+    <section class="block">
+      <h2>Alles aktuell</h2>
+      <p>Es gibt nichts Neues einzuspielen.</p>
+      <p class="klein">Stand: <code><%= pruefung.stand %></code></p>
+    </section>
+  <% } else { %>
+    <% if (fenster.drin || heuteDienst) { %>
+      <p class="hinweis hinweis-warn">
+        <strong>Gerade ist ein schlechter Zeitpunkt.</strong>
+        <% if (fenster.drin) { %>
+          Zwischen <%= fenster.von %> und <%= fenster.bis %> ist Übungszeit
+          (<%= fenster.dienst_beginn %>–<%= fenster.dienst_ende %> laut
+          <a href="/stammdaten">Stammdaten</a>, plus <%= fenster.vorlauf %> Minuten davor und
+          <%= fenster.nachlauf %> danach).
+        <% } %>
+        <% if (heuteDienst) { %>
+          Für heute ist bei <%= heuteDienst.erfasst %> Kindern schon Anwesenheit erfasst.
+        <% } %>
+        Der Dienst wäre beim Neustart etwa eine Minute weg. Wenn es nicht eilt: später.
+      </p>
+    <% } %>
+
+    <section class="block">
+      <h2><%= pruefung.anzahl %> <%= pruefung.anzahl === 1 ? 'Änderung' : 'Änderungen' %></h2>
+      <p class="klein">Von <code><%= pruefung.stand %></code> auf den neuesten Stand:</p>
+      <ul class="commitliste">
+        <% pruefung.commits.forEach(function (c) { %>
+          <li><code><%= c.kurz %></code> <%= c.text %></li>
+        <% }); %>
+      </ul>
+
+      <form method="post" action="/system/update/starten" class="formstapel"
+            onsubmit="return confirm('Aktualisierung jetzt einspielen?\n\nVorher wird eine Sicherung gezogen. Der Dienst ist dabei etwa eine Minute nicht erreichbar.');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-gross <%= fenster.drin || heuteDienst ? 'btn-gefahr' : '' %>" type="submit">
+          Jetzt aktualisieren
+        </button>
+      </form>
+
+      <p class="klein">
+        Der Ablauf: Sicherung ziehen · neuen Stand holen · Abhängigkeiten installieren ·
+        Dienst neu starten · prüfen, ob die Seite antwortet. Klappt das nach zwei Versuchen
+        nicht, geht es von selbst auf <code><%= pruefung.stand %></code> zurück.
+      </p>
+    </section>
+  <% } %>
+<% } %>
+
+<%- include('partials/fuss') %>

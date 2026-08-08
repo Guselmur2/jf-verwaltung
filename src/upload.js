@@ -39,4 +39,15 @@ function logoHochladenFreundlich(req, res, next) {
   });
 }
 
-module.exports = { sicherungHochladen, logoHochladen: logoHochladenFreundlich };
+// Beim Zurueckspielen in eine laufende Installation ist die Datei optional —
+// man kann auch einen Stand vom USB-Stick waehlen. Darum hier kein Zwang.
+const restoreHochladen = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 64 * 1024 * 1024, files: 1 },
+}).single('sicherung');
+
+module.exports = {
+  sicherungHochladen,
+  logoHochladen: logoHochladenFreundlich,
+  restoreHochladen,
+};

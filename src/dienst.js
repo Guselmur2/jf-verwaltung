@@ -12,6 +12,51 @@ const { db } = require('./db');
 const STATUS = { da: 'da', entschuldigt: 'entschuldigt', fehlt: 'fehlt' };
 const STATUS_REIHE = ['da', 'entschuldigt', 'fehlt'];
 
+// Puffer um den Uebungsabend herum. Vorne wenig — da wird aufgebaut und die
+// Anwesenheit erfasst. Hinten grosszuegig, weil ein Abend selten puenktlich
+// endet und danach noch eingeraeumt und nachgetragen wird.
+const VORLAUF_MIN = 10;
+const NACHLAUF_MIN = 45;
+
+function minutenAusUhrzeit(text, ersatz) {
+  const m = String(text ?? '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return ersatz;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Das Zeitfenster, in dem man den Pi besser in Ruhe laesst — Dienstzeit aus
+ * den Stammdaten, davor und danach ein Puffer. Endet der Dienst nach
+ * Mitternacht, wird trotzdem richtig gerechnet.
+ */
+function dienstfenster(jetzt = new Date()) {
+  const stamm = require('./settings').alle();
+  const beginn = minutenAusUhrzeit(stamm.dienst_beginn, 17 * 60 + 45) - VORLAUF_MIN;
+  let ende = minutenAusUhrzeit(stamm.dienst_ende, 19 * 60 + 30) + NACHLAUF_MIN;
+  if (ende <= beginn) ende += 24 * 60; // ueber Mitternacht
+
+  // Das Fenster kann in beide Richtungen ueber Mitternacht reichen: nach hinten,
+  // wenn der Dienst spaet endet, und nach vorn, wenn er kurz nach Mitternacht
+  // beginnt (dann ist beginn negativ). Beide Seiten muessen zaehlen.
+  const minuten = jetzt.getHours() * 60 + jetzt.getMinutes();
+  const drin = [minuten, minuten + 24 * 60, minuten - 24 * 60].some((m) => m >= beginn && m <= ende);
+
+  const alsText = (m) => {
+    const g = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+    return `${String(Math.floor(g / 60)).padStart(2, '0')}:${String(g % 60).padStart(2, '0')}`;
+  };
+
+  return {
+    drin,
+    von: alsText(beginn),
+    bis: alsText(ende),
+    dienst_beginn: stamm.dienst_beginn,
+    dienst_ende: stamm.dienst_ende,
+    vorlauf: VORLAUF_MIN,
+    nachlauf: NACHLAUF_MIN,
+  };
+}
+
 /** Heute als ISO-Datum, nach lokaler Zeit (nicht UTC — sonst kippt es abends). */
 function heute() {
   const d = new Date();
@@ -799,6 +844,9 @@ module.exports = {
   STATUS_REIHE,
   MERKMALE,
   MITTE,
+  dienstfenster,
+  VORLAUF_MIN,
+  NACHLAUF_MIN,
   FUNKTIONEN,
   FUNKTION,
   EIGNUNGEN,

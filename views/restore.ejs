@@ -1,0 +1,90 @@
+<%- include('partials/kopf') %>
+<% const mb = (b) => (b / 1024).toFixed(0) + ' kB'; %>
+
+<div class="seitenkopf">
+  <h1>Sicherung einspielen</h1>
+  <a class="btn btn-still" href="/system">Zurück zum System</a>
+</div>
+
+<p class="hinweis hinweis-warn">
+  <strong>Das ersetzt den gesamten Bestand.</strong> Alles, was seit der gewählten Sicherung
+  dazugekommen ist, geht verloren — Mitglieder, Ausrüstung, Anwesenheit, Einschätzungen.
+  Der jetzige Stand wird vorher automatisch weggeschrieben, damit du zurückkannst.
+</p>
+
+<section class="block">
+  <h2>Was jetzt drin ist</h2>
+  <div class="kennzahlen">
+    <div class="kennzahl"><strong><%= bestand.mitglieder %></strong><span>Mitglieder</span></div>
+    <div class="kennzahl"><strong><%= bestand.spinte %></strong><span>Spinte</span></div>
+    <div class="kennzahl"><strong><%= bestand.ausruestung %></strong><span>Teile</span></div>
+    <div class="kennzahl"><strong><%= bestand.aufgaben %></strong><span>Aufgaben</span></div>
+  </div>
+</section>
+
+<form method="post" action="/restore" enctype="multipart/form-data" class="formstapel">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <section class="block">
+    <h2>Welche Sicherung?</h2>
+
+    <% if (sicherungen.length) { %>
+      <div class="tabellenrahmen">
+        <table class="tabelle">
+          <thead><tr><th></th><th>Datei</th><th>Ort</th><th>Größe</th><th>Erstellt</th></tr></thead>
+          <tbody>
+            <% sicherungen.forEach(function (s, i) { %>
+              <tr>
+                <td data-label="Wählen">
+                  <input type="radio" name="pfad" value="<%= s.pfad %>" id="s<%= i %>" <%= i === 0 ? 'checked' : '' %>>
+                </td>
+                <td data-label="Datei"><label for="s<%= i %>"><code><%= s.datei %></code></label></td>
+                <td data-label="Ort"><%= s.ort %></td>
+                <td data-label="Größe"><%= mb(s.groesse) %></td>
+                <td data-label="Erstellt"><%= s.zeit.toLocaleString('de-DE') %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <p class="klein">Neueste zuerst. Ist der USB-Stick nicht eingehängt, fehlen die Stände darauf.</p>
+    <% } else { %>
+      <p class="leer">
+        Keine Sicherungen gefunden. Steckt der USB-Stick? Sonst unten eine Datei hochladen.
+      </p>
+    <% } %>
+
+    <label>
+      <span>… oder eine Datei hochladen</span>
+      <input type="file" name="sicherung" accept=".enc">
+      <small>
+        Eine <code>.db.enc</code> von diesem Rechner oder aus der Cloud. Wird eine Datei
+        gewählt, hat sie Vorrang vor der Auswahl oben.
+      </small>
+    </label>
+  </section>
+
+  <section class="block block-gefahr">
+    <h2>Bestätigen</h2>
+    <label>
+      <span>Passwort der Sicherung</span>
+      <input type="password" name="passwort" required minlength="8" autocomplete="off">
+      <small>
+        Dasselbe Passwort wird für die Sicherheitskopie des jetzigen Standes verwendet.
+      </small>
+    </label>
+    <label class="kasten">
+      <input type="checkbox" name="verstanden" value="ja" required>
+      Mir ist klar, dass der gesamte jetzige Bestand ersetzt wird.
+    </label>
+    <div class="formfuss">
+      <button class="btn btn-gross btn-gefahr" type="submit">Sicherung einspielen</button>
+    </div>
+    <p class="klein">
+      Danach wirst du abgemeldet — die Zugangsdaten stecken mit in der Sicherung. Melde dich
+      mit den Daten an, die zum Zeitpunkt dieser Sicherung galten.
+    </p>
+  </section>
+</form>
+
+<%- include('partials/fuss') %>

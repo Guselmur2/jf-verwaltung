@@ -59,6 +59,38 @@
 </section>
 
 <section class="block">
+  <h2>Aktualisierung</h2>
+
+  <% if (!aktualisierung.istGit) { %>
+    <p class="klein">
+      Diese Installation lässt sich noch nicht aus der Oberfläche aktualisieren — sie ist kein
+      Git-Arbeitsverzeichnis. Einmalig umstellen, dann geht es:
+    </p>
+    <pre class="befehl">sudo sh /opt/jf-spinte/scripts/auf-git-umstellen.sh https://github.com/NAME/REPO.git</pre>
+  <% } else if (aktualisierung.laeuft) { %>
+    <p class="hinweis hinweis-info">Es läuft gerade eine Aktualisierung.</p>
+    <p><a class="btn" href="/system/update">Fortschritt ansehen</a></p>
+  <% } else { %>
+    <p>
+      Holt den neuesten Stand aus dem Repository. <strong>Vorher wird gesichert</strong>, und
+      geht etwas schief, setzt die Software von selbst auf den vorherigen Stand zurück.
+    </p>
+    <p><a class="btn" href="/system/update">Nach Aktualisierung sehen</a></p>
+    <% if (aktualisierung.status) { %>
+      <p class="klein">
+        Zuletzt: <%= aktualisierung.status.ergebnis === 'ok' ? 'erfolgreich' : aktualisierung.status.ergebnis %>
+        am <%= aktualisierung.status.zeit ? aktualisierung.status.zeit.toLocaleString('de-DE') : '?' %>
+      </p>
+    <% } %>
+  <% } %>
+
+  <p class="klein">
+    Passt hinterher etwas an den Daten nicht, lässt sich unter
+    <a href="/restore">Sicherung einspielen</a> ein früherer Stand zurückholen.
+  </p>
+</section>
+
+<section class="block">
   <h2>Herunterfahren</h2>
 
   <p>

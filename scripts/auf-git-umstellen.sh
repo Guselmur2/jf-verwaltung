@@ -41,6 +41,43 @@ fi
 BENUTZER="$(stat -c '%U' "$ORDNER/server.js")"
 ALS="runuser -u $BENUTZER --"
 
+# Die zwei systemd-Einheiten hinter dem Update-Knopf und der Ordner unter /run,
+# in dem die Weboberflaeche ihre Anforderung ablegen darf. Steht als Funktion da,
+# weil sie auch gebraucht wird, wenn die Installation schon auf Git lief, die
+# Einheiten aber noch aus einer aelteren Fassung fehlen.
+einheiten_einrichten() {
+  schritt "Aktualisierung ueber die Oberflaeche"
+  if [ -f "$ORDNER/deploy/jf-update.path" ]; then
+    for einheit in jf-update.path jf-update.service; do
+      sed -e "s|@BENUTZER@|$BENUTZER|g" -e "s|@ORDNER@|$ORDNER|g" \
+        "$ORDNER/deploy/$einheit" > "/etc/systemd/system/$einheit"
+      chmod 644 "/etc/systemd/system/$einheit"
+    done
+
+    # Als Ergaenzung statt neu geschrieben: in der Dienst-Datei steht das
+    # Sitzungsgeheimnis, das soll hier nicht angefasst werden.
+    mkdir -p /etc/systemd/system/jf-spinte.service.d
+    cat > /etc/systemd/system/jf-spinte.service.d/10-runtime.conf <<'ENDE'
+# /run/jf-spinte — hier legt die Oberflaeche ihre Anforderung fuer eine
+# Aktualisierung ab. Liegt im Arbeitsspeicher und ist nach einem Neustart weg.
+[Service]
+RuntimeDirectory=jf-spinte
+RuntimeDirectoryMode=0750
+ENDE
+    chmod 644 /etc/systemd/system/jf-spinte.service.d/10-runtime.conf
+
+    systemctl daemon-reload
+    systemctl enable --now jf-update.path >/dev/null 2>&1
+    systemctl restart jf-spinte
+    sleep 3
+    sagen "   eingeschaltet — der Knopf steht unter System in der Oberflaeche"
+  else
+    sagen "   uebersprungen: deploy/jf-update.path fehlt in dieser Fassung."
+    sagen "   Nach dem ersten Update ueber update-pi.sh ist sie da; dann dieses"
+    sagen "   Skript noch einmal aufrufen."
+  fi
+}
+
 sagen ""
 sagen "  Auf Git umstellen"
 sagen "  -----------------"
@@ -52,6 +89,9 @@ if [ -d "$ORDNER/.git" ]; then
   schritt "Schon umgestellt"
   sagen "   $ORDNER ist bereits ein Git-Arbeitsverzeichnis."
   $ALS git -C "$ORDNER" remote -v | sed 's/^/   /'
+  # Die Einheiten koennen trotzdem fehlen, wenn die Umstellung mit einer
+  # aelteren Fassung dieses Skripts gelaufen ist.
+  einheiten_einrichten
   exit 0
 fi
 
@@ -119,10 +159,13 @@ if [ -n "$GEAENDERT" ]; then
   fi
 fi
 
+einheiten_einrichten
+
 schritt "Fertig"
 sagen "   Stand: $($ALS git -C "$ORDNER" log --oneline -1)"
 sagen ""
-sagen "   Ab jetzt genuegt fuer ein Update:"
+sagen "   Ab jetzt genuegt fuer ein Update ein Klick unter System in der"
+sagen "   Oberflaeche — oder auf der Kommandozeile:"
 sagen ""
 sagen "     sudo sh $ORDNER/scripts/update-pi.sh"
 sagen ""

@@ -2,7 +2,7 @@
 // mit leerer Datenbank. Aufruf: npm test
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -26,6 +26,15 @@ writeFileSync(
     "fs.writeFileSync(process.argv[2], 'abgeschaltet');\n"
 );
 
+// Die Aktualisierung wird komplett am Testordner nachgestellt: GIT_ORDNER zeigt
+// nicht auf diese Arbeitskopie (sonst wuerde der Testlauf wirklich vom Server
+// holen), und die Markierung landet in einer Datei, die der Test nachsehen kann.
+// Ein echter Helfer laeuft dabei nie mit — das ist Sache von systemd.
+const gitOrdner = path.join(datenordner, 'installation');
+const updateMarke = path.join(datenordner, 'update-anfordern');
+const updateStatus = path.join(datenordner, 'update-status.json');
+mkdirSync(gitOrdner, { recursive: true });
+
 const server = spawn(process.execPath, ['server.js'], {
   cwd: WURZEL,
   env: {
@@ -34,6 +43,9 @@ const server = spawn(process.execPath, ['server.js'], {
     DATA_DIR: datenordner,
     SESSION_SECRET: 'test',
     ABSCHALT_BEFEHL: JSON.stringify([process.execPath, abschaltHelfer, abschaltNachweis]),
+    GIT_ORDNER: gitOrdner,
+    UPDATE_MARKE: updateMarke,
+    UPDATE_STATUS: updateStatus,
   },
   stdio: ['ignore', 'ignore', 'inherit'],
 });
@@ -1710,6 +1722,215 @@ r = await req('/ausgemustert');
 check('nicht mehr unter „Ausgemustert“', !r.text.includes('Testhandschuhe verloren'));
 r = await req('/verlauf');
 check('der Verlauf hält es fest', r.text.includes('wieder aufgetaucht'));
+
+console.log('\n35) Übungszeit in den Stammdaten');
+r = await req('/stammdaten');
+check('Felder für Beginn und Ende', r.text.includes('name="dienst_beginn"') && r.text.includes('name="dienst_ende"'));
+check('Voreinstellung 17:45 bis 19:30', r.text.includes('value="17:45"') && r.text.includes('value="19:30"'));
+
+const stammSpeichern = async (form) => {
+  const t = await csrf('/stammdaten');
+  return req('/stammdaten', {
+    method: 'POST',
+    form: { _csrf: t, organisation: 'Jugendfeuerwehr Testheim', abteilung: 'Jugendfeuerwehr', slogan: '', ...form },
+  });
+};
+
+// Uhrzeit relativ zu jetzt, damit der Test unabhängig von der Tageszeit läuft.
+const uhrzeitIn = (minuten) => {
+  const gesamt = (new Date().getHours() * 60 + new Date().getMinutes() + minuten + 1440) % 1440;
+  return `${String(Math.floor(gesamt / 60)).padStart(2, '0')}:${String(gesamt % 60).padStart(2, '0')}`;
+};
+
+await stammSpeichern({ dienst_beginn: '18.00', dienst_ende: '19:45' });
+r = await req('/stammdaten');
+check('18.00 wird als 18:00 verstanden', r.text.includes('value="18:00"'));
+check('Ende übernommen', r.text.includes('value="19:45"'));
+
+await stammSpeichern({ dienst_beginn: 'halb sechs', dienst_ende: '19:45' });
+r = await req('/stammdaten');
+check('unlesbare Uhrzeit ändert nichts', r.text.includes('value="18:00"'));
+
+console.log('\n36) Aktualisierung über die Oberfläche');
+r = await req('/system');
+check('Systemseite nennt die Aktualisierung', r.text.includes('Aktualisierung'));
+check('ohne Git der Hinweis zum Umstellen', r.text.includes('auf-git-umstellen.sh'));
+
+token = await csrf('/system');
+r = await req('/system/update/starten', { method: 'POST', form: { _csrf: token } });
+check('Start ohne Git wird abgewiesen', r.status === 302 && r.location === '/system/update', `${r.status} ${r.location}`);
+check('und legt keine Anforderung ab', !existsSync(updateMarke));
+r = await req('/system/update');
+check('mit Grund auf der Seite', r.text.includes('kein Git-Arbeitsverzeichnis'));
+
+// Ein Repository nachstellen: ein "ferner" Stand mit einem Commit mehr als die
+// Installation. Damit läuft dieselbe Prüfung wie auf dem Pi, nur ohne Netz.
+const { execFileSync } = await import('node:child_process');
+const fern = path.join(datenordner, 'fern.git');
+const g = (args, cwd) => execFileSync('git', args, { cwd, stdio: 'pipe' });
+let gitDa = true;
+try {
+  execFileSync('git', ['init', '--bare', '--initial-branch=main', fern], { stdio: 'pipe' });
+  execFileSync('git', ['clone', fern, gitOrdner], { stdio: 'pipe' });
+  for (const ordner of [gitOrdner]) {
+    g(['config', 'user.email', 'test@example.invalid'], ordner);
+    g(['config', 'user.name', 'Test'], ordner);
+  }
+  writeFileSync(path.join(gitOrdner, 'stand.txt'), 'erster Stand\n');
+  g(['add', '.'], gitOrdner);
+  g(['commit', '-m', 'Erster Stand'], gitOrdner);
+  g(['push', '-u', 'origin', 'main'], gitOrdner);
+
+  const zweitkopie = path.join(datenordner, 'zweitkopie');
+  execFileSync('git', ['clone', fern, zweitkopie], { stdio: 'pipe' });
+  g(['config', 'user.email', 'test@example.invalid'], zweitkopie);
+  g(['config', 'user.name', 'Test'], zweitkopie);
+  writeFileSync(path.join(zweitkopie, 'stand.txt'), 'zweiter Stand\n');
+  g(['commit', '-am', 'Etiketten schmaler gesetzt'], zweitkopie);
+  g(['push', 'origin', 'main'], zweitkopie);
+} catch (err) {
+  gitDa = false;
+  console.log('  ---- git nicht verfügbar, Update-Prüfung übersprungen:', err.message.split('\n')[0]);
+}
+
+if (gitDa) {
+  r = await req('/system');
+  check('mit Git verschwindet der Umstell-Hinweis', !r.text.includes('auf-git-umstellen.sh'));
+
+  // Jetzt ist Übungszeit: die Seite soll vom Neustart abraten.
+  await stammSpeichern({ dienst_beginn: uhrzeitIn(5), dienst_ende: uhrzeitIn(30) });
+  r = await req('/system/update');
+  check('die Änderung wird aufgelistet', r.text.includes('Etiketten schmaler gesetzt'), r.status + '');
+  check('als eine einzige Änderung gezählt', r.text.includes('<h2>1 Änderung</h2>'));
+  check('mit Knopf zum Einspielen', r.text.includes('Jetzt aktualisieren'));
+  check('warnt während der Übungszeit', r.text.includes('Gerade ist ein schlechter Zeitpunkt'));
+  check('und nennt das Zeitfenster', r.text.includes('ist Übungszeit'));
+
+  // Außerhalb der Übungszeit soll der Hinweis verschwinden.
+  await stammSpeichern({ dienst_beginn: uhrzeitIn(240), dienst_ende: uhrzeitIn(300) });
+  r = await req('/system/update');
+  check('außerhalb der Übungszeit kein Zeitfenster-Hinweis', !r.text.includes('ist Übungszeit'));
+  check('und dann auch keine Warnung', !r.text.includes('Gerade ist ein schlechter Zeitpunkt'));
+
+  // Ist für heute schon Anwesenheit erfasst, läuft der Abend gerade — dann warnt
+  // die Seite auch außerhalb der eingestellten Zeiten.
+  const jetztDatum = new Date();
+  const heuteISO = `${jetztDatum.getFullYear()}-${String(jetztDatum.getMonth() + 1).padStart(2, '0')}-${String(jetztDatum.getDate()).padStart(2, '0')}`;
+  token = await csrf(`/anwesenheit/${terminId}`);
+  r = await req('/anwesenheit/neu', { method: 'POST', form: { _csrf: token, datum: heuteISO, thema: 'Heute' } });
+  const heuteTermin = Number((r.location || '').match(/\/anwesenheit\/(\d+)/)?.[1]);
+  token = await csrf(`/anwesenheit/${heuteTermin}`);
+  await req(`/anwesenheit/${heuteTermin}/alle`, { method: 'POST', form: { _csrf: token, status: 'da' } });
+  r = await req('/system/update');
+  check('die heute erfasste Anwesenheit zählt', r.text.includes('schon Anwesenheit erfasst'));
+
+  token = r.text.match(/name="_csrf" value="([^"]+)"/)[1];
+  r = await req('/system/update/starten', { method: 'POST', form: { _csrf: token } });
+  check('Start wird angenommen', r.status === 302 && r.location === '/system/update', `${r.status} ${r.location}`);
+  check('legt die Anforderung für systemd ab', existsSync(updateMarke));
+  check('mit Namen des Auslösers darin', readFileSync(updateMarke, 'utf8').includes('Max Wart'));
+
+  r = await req('/system/update');
+  check('die Seite zeigt „Läuft gerade“', r.text.includes('Läuft gerade'));
+  check('und wird vom Skript beobachtet', r.text.includes('data-update-laeuft'));
+  check('kein zweiter Knopf zum Starten', !r.text.includes('Jetzt aktualisieren'));
+
+  r = await req('/system/update/status.json');
+  let stand = JSON.parse(r.text);
+  check('Status als JSON für die Anzeige', stand.laeuft === true && stand.status.schritt === 'angefordert');
+
+  token = await csrf('/system');
+  r = await req('/system/update/starten', { method: 'POST', form: { _csrf: token } });
+  r = await req('/system/update');
+  check('zweiter Start läuft ins Leere', r.text.includes('Es läuft bereits eine Aktualisierung'));
+
+  // Ab hier den Helfer nachstellen: Markierung weg, Ergebnis hinterlegt.
+  unlinkSync(updateMarke);
+  writeFileSync(updateStatus, JSON.stringify({
+    zeitpunkt: new Date().toISOString(), schritt: 'zurueck', ergebnis: 'zurueckgesetzt',
+    meldung: 'Die Seite antwortete nach zwei Versuchen nicht.', vorher: 'abc1234', nachher: 'abc1234',
+  }));
+  r = await req('/system/update/status.json');
+  stand = JSON.parse(r.text);
+  check('danach läuft nichts mehr', stand.laeuft === false);
+  r = await req('/system/update');
+  check('das Zurücksetzen steht auf der Seite', r.text.includes('Zurückgesetzt'));
+  check('mit dem Grund dazu', r.text.includes('nach zwei Versuchen nicht'));
+  check('und dem Weg zur Sicherung', r.text.includes('/restore'));
+}
+
+console.log('\n37) Sicherung in die laufende Installation einspielen');
+// Erst ein Stand zum Zurückholen, dann etwas kaputt machen, dann zurück.
+token = await csrf('/sicherung');
+let stand37 = await holen(SICHERUNGSPASSWORT);
+check('frische Sicherung gezogen', stand37.status === 200 && stand37.rumpf.length > 1000, String(stand37.status));
+
+const ablage = path.join(datenordner, 'sicherungen');
+mkdirSync(ablage, { recursive: true });
+const sicherungsdatei = path.join(ablage, 'spinte-2026-08-08-1200.db.enc');
+writeFileSync(sicherungsdatei, stand37.rumpf);
+
+r = await req('/restore');
+check('Seite erreichbar', r.status === 200 && r.text.includes('Sicherung einspielen'), String(r.status));
+check('findet die abgelegte Sicherung', r.text.includes('spinte-2026-08-08-1200.db.enc'));
+check('und nennt den Fundort', r.text.includes('Speicherkarte'));
+
+// Jetzt ein Mitglied löschen — das muss die Sicherung zurückbringen.
+token = await csrf('/mitglieder');
+r = await req('/mitglieder/neu', { method: 'POST', form: { _csrf: token, name: 'Nur Kurz Da', gender: 'm', birthday: '1.1.15' } });
+r = await req('/mitglieder');
+check('Mitglied nach der Sicherung angelegt', r.text.includes('Nur Kurz Da'));
+
+token = await csrf('/restore');
+r = await req('/restore', { method: 'POST', form: { _csrf: token, pfad: sicherungsdatei, passwort: SICHERUNGSPASSWORT } });
+check('ohne Bestätigung wird nichts ersetzt', r.status === 302 && r.location === '/restore', `${r.status} ${r.location}`);
+r = await req('/restore');
+check('mit Nachfrage nach der Bestätigung', r.text.includes('bestätigen'));
+
+token = await csrf('/restore');
+r = await req('/restore', { method: 'POST', form: { _csrf: token, verstanden: 'ja', passwort: SICHERUNGSPASSWORT } });
+r = await req('/restore');
+check('ohne Datei und ohne Auswahl ein Hinweis', r.text.includes('Bitte eine Sicherung auswählen'));
+
+token = await csrf('/restore');
+r = await req('/restore', {
+  method: 'POST',
+  form: { _csrf: token, verstanden: 'ja', pfad: sicherungsdatei, passwort: 'FalschesPasswort123' },
+});
+r = await req('/restore');
+check('falsches Passwort wird erkannt', r.text.includes('Passwort passt nicht'));
+r = await req('/mitglieder');
+check('und lässt die Daten unangetastet', r.text.includes('Nur Kurz Da'));
+
+token = await csrf('/restore');
+r = await req('/restore', {
+  method: 'POST',
+  form: { _csrf: token, verstanden: 'ja', pfad: path.join(ablage, 'gibt-es-nicht.db.enc'), passwort: SICHERUNGSPASSWORT },
+});
+r = await req('/restore');
+check('erfundener Pfad wird abgelehnt', r.text.includes('nicht (mehr) auffindbar'));
+
+token = await csrf('/restore');
+r = await req('/restore', {
+  method: 'POST',
+  form: { _csrf: token, verstanden: 'ja', pfad: sicherungsdatei, passwort: SICHERUNGSPASSWORT },
+});
+check('Einspielen meldet ab', r.status === 302 && r.location === '/anmelden', `${r.status} ${r.location}`);
+
+r = await req('/mitglieder');
+check('die Sitzung ist wirklich beendet', r.status === 302 && r.location === '/anmelden', String(r.status));
+
+token = await csrf('/anmelden');
+r = await req('/anmelden', { method: 'POST', form: { _csrf: token, username: 'jugendwart', password: 'geheim1234' } });
+check('Anmeldung mit den Daten aus der Sicherung', r.status === 302, String(r.status));
+r = await req('/mitglieder');
+check('das später angelegte Mitglied ist weg', !r.text.includes('Nur Kurz Da'));
+check('die alten Mitglieder sind wieder da', r.text.includes('Max Muster'));
+
+r = await req('/restore');
+check('die Sicherheitskopie liegt daneben', /vor-restore\.db\.enc/.test(r.text));
+r = await req('/verlauf');
+check('der Verlauf hält das Einspielen fest', r.text.includes('Sicherung eingespielt'));
 
 server2.kill();
 

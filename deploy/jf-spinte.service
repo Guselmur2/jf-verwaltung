@@ -33,6 +33,12 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=@ORDNER@/data
+
+# /run/jf-spinte — hier legt die Oberflaeche ihre Anforderung fuer eine
+# Aktualisierung ab (jf-update.path wartet darauf). Liegt im Arbeitsspeicher
+# und ist nach einem Neustart weg, damit keine alte Anforderung nachwirkt.
+RuntimeDirectory=jf-spinte
+RuntimeDirectoryMode=0750
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true

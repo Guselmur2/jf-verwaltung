@@ -1,0 +1,21 @@
+[Unit]
+Description=Spielt eine Aktualisierung ein und startet den Dienst neu
+# Absichtlich KEIN "After=jf-spinte.service": der Helfer startet den Dienst
+# selbst neu und darf nicht mit ihm zusammen beendet werden.
+
+[Service]
+Type=oneshot
+# Laeuft als root: er muss den Dienst neu starten und die Sicherung ausloesen.
+User=root
+Environment=ORDNER=@ORDNER@
+Environment=ZWEIG=main
+Environment=DIENST=jf-spinte
+Environment=VERSUCHE=2
+ExecStart=/bin/sh @ORDNER@/scripts/update-helfer.sh
+
+# Der Helfer startet jf-spinte neu. Ohne das beendet systemd ihn dabei mit.
+KillMode=process
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

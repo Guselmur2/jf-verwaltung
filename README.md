@@ -48,7 +48,9 @@ ohne Internet und ohne Cloud.
 | Stammdaten &amp; Logo | `/stammdaten` | **nur Jugendwart** |
 | Datensicherung | `/sicherung` | **nur Jugendwart** |
 | API-Zugänge | `/api-zugaenge` | **nur Jugendwart** |
-| System, Pi herunterfahren | `/system` | **nur Jugendwart** |
+| System, Update, Pi herunterfahren | `/system` | **nur Jugendwart** |
+| Aktualisierung einspielen | `/system/update` | **nur Jugendwart** |
+| Sicherung zurückspielen | `/restore` | **nur Jugendwart** |
 | API für andere Systeme | `/api/v1/…` | **Token** |
 
 ## Anwesenheit
@@ -415,6 +417,12 @@ alle Betreuer, weil in der Praxis oft der die Lieferung annimmt, der gerade da i
 | `DATA_DIR` | `./data` | Ablageort der Datenbank |
 | `BASE_URL` | Adresse der Anfrage | Adresse, die in den QR-Codes steht |
 | `TLS_KEY` / `TLS_CERT` | leer | Pfade zu Schlüssel und Zertifikat. Nur gesetzt läuft die Seite über HTTPS — nötig für den Barcode-Scan per Kamera |
+| `ABSCHALT_BEFEHL` | `systemctl poweroff --no-block` | Befehl hinter „Pi herunterfahren" |
+| `SICHERUNG_ZIEL` | `/mnt/jf-sicherung` | wo `/restore` nach Sicherungen sucht (USB-Stick) |
+| `GIT_ORDNER` | Programmordner | Arbeitsverzeichnis, aus dem aktualisiert wird |
+| `UPDATE_ZWEIG` | `main` | Git-Zweig, aus dem geholt wird |
+| `UPDATE_MARKE` | `/run/jf-spinte/update-anfordern` | Markierung, die den Helfer über systemd anstößt |
+| `UPDATE_STATUS` | `<DATA_DIR>/update-status.json` | wohin der Helfer sein Ergebnis schreibt |
 
 ## Der eingerichtete Pi
 
@@ -459,9 +467,10 @@ journalctl -u jf-spinte -n 50 --no-pager
 
 ### Neue Version aufspielen
 
-Zwei Wege, ausführlich unter „Updates und was dabei zu beachten ist": `deploy-pi.sh` vom
-Projektordner aus, oder — nach einmaligem `auf-git-umstellen.sh` — `update-pi.sh` direkt auf
-dem Pi. Datenbank, Zertifikat und Einstellungen bleiben in beiden Fällen unberührt.
+Drei Wege, ausführlich unter „Updates und was dabei zu beachten ist": der **Knopf unter
+`/system`** (nichts anzuschließen, nichts einzutippen), `update-pi.sh` in einer SSH-Sitzung
+auf dem Pi, oder `deploy-pi.sh` vom Projektordner aus. Datenbank, Zertifikat und
+Einstellungen bleiben in allen Fällen unberührt.
 
 ### Datensicherung
 
@@ -491,12 +500,13 @@ Was das Skript tut:
 
 | Schritt | |
 |---|---|
-| Pakete | `nodejs`, `npm`, `openssl`, `polkitd`, `avahi-daemon` nachinstallieren |
+| Pakete | `nodejs`, `npm`, `openssl`, `polkitd`, `avahi-daemon`, `git` nachinstallieren |
 | Software | nach `/opt/jf-spinte` kopieren, `npm install --omit=dev` |
 | Zertifikat | selbstsigniert für `<name>.fritz.box`, `<name>.local`, `localhost` und die aktuelle IP |
 | Dienst | `jf-spinte.service` aus `deploy/` erzeugen, Geheimnis würfeln, starten |
 | Herunterfahren | polkit-Regel aus `deploy/` einspielen |
 | Sicherung | `jf-sicherung.timer` bereitlegen (schaltet sich ein, sobald ein Passwort hinterlegt ist) |
+| Update | `jf-update.path` einschalten — die Wache für den Update-Knopf in der Oberfläche |
 | Probe | Weboberfläche antwortet? Herunterfahren erlaubt? |
 
 Anpassen lässt sich das über Umgebungsvariablen:
@@ -616,7 +626,7 @@ tar -tzf wlan.tar.gz
 
 ### Pi herunterfahren
 
-Unter **eigener Name → System & Herunterfahren** (nur Jugendwart) steht der Knopf
+Unter **eigener Name → System, Update & Herunterfahren** (nur Jugendwart) steht der Knopf
 **Pi herunterfahren**. Der fährt den Rechner geordnet herunter — wichtig, bevor jemand den
 Stecker zieht, sonst kann die Speicherkarte Schaden nehmen.
 
@@ -688,7 +698,7 @@ aus `LAYOUTS`.
 > Ändert sich die Kartengröße in `public/etikett.css` (`--kw`), muss `kartenBreiteMm` in
 > `LAYOUTS` (`src/routes/etiketten.js`) mitgezogen werden — beide beschreiben dieselbe Karte.
 
-### Stammdaten: Name und Logo
+### Stammdaten: Name, Logo und Übungszeit
 
 Unter `/stammdaten` (nur Jugendwart) stehen drei Textfelder und das Logo:
 
@@ -700,6 +710,15 @@ Unter `/stammdaten` (nur Jugendwart) stehen drei Textfelder und das Logo:
 
 Die **Abteilung** ist dafür da, sich von der Kinderfeuerwehr abzuheben, wenn beide dasselbe
 Logo tragen — auf dem Blatt steht dann groß, zu wem der Spint gehört.
+
+Dazu kommen **Beginn und Ende des Übungsabends** — bei uns 17:45 bis 19:30. Daraus rechnet
+die Software ein Fenster, in dem sie vom Neustarten abrät: 10 Minuten vor Beginn bis
+45 Minuten nach Ende. Ruft man in dieser Zeit den Update-Knopf auf, steht dort
+„Gerade ist ein schlechter Zeitpunkt" — verboten wird nichts, aber man weiß es. Endet der
+Dienst nach Mitternacht, rechnet das Fenster trotzdem richtig.
+
+Dasselbe passiert, wenn für **heute schon Anwesenheit erfasst** ist: dann läuft der Abend
+gerade oder war eben, und ein Neustart mitten in der Liste wäre ärgerlich.
 
 Das Logo (PNG, JPEG, GIF, WebP oder SVG, höchstens 2 MB) liegt **in der Datenbank**, nicht
 als Datei daneben. Damit steckt es in jeder Datensicherung und ist nach einer
@@ -769,7 +788,24 @@ hier auch gibt — eine **ältere Sicherung wächst dadurch automatisch mit** un
 anschließend fehlende Dinge wie die QR-Token nachgetragen.
 
 Der Punkt ist nur sichtbar, solange **kein Zugang existiert**. Eine laufende Installation
-lässt sich damit also nicht überschreiben.
+lässt sich damit also nicht überschreiben — dafür gibt es `/restore`.
+
+**In eine laufende Installation** führt `/restore` (nur Jugendwart, im Menü unter *System*
+verlinkt). Die Seite listet auf, was auf dem USB-Stick und auf der Speicherkarte liegt,
+jeweils mit Datum und Größe; ist der gewünschte Stand woanders — in der Cloud, auf dem
+Rechner —, lässt sich die Datei stattdessen hochladen. Nötig sind das Passwort der Sicherung
+und ein Häkchen, dass der jetzige Bestand ersetzt wird.
+
+Vor dem Ersetzen schreibt die Software den **aktuellen** Stand als
+`…-vor-restore.db.enc` daneben — mit demselben Passwort. Wer sich in der Datei vergreift,
+steht also nicht ohne Rückweg da. Danach wird die eigene Sitzung beendet, denn die Anmeldung
+stammt aus der ersetzten Datenbank; man meldet sich mit den Zugangsdaten *aus der Sicherung*
+neu an.
+
+Das ist gedacht für kaputte **Daten** — 40 Teile falsch eingebucht, ein Mitglied
+versehentlich gelöscht. Für ein misslungenes **Update** braucht man es nicht: geht das schief,
+ist die Anwendung selbst hin und könnte diese Seite gar nicht mehr ausliefern. Dafür setzt der
+Update-Helfer von sich aus zurück (siehe „Updates").
 
 **Von Hand** geht es auch — erst entschlüsseln, dann die Datei an ihren Platz legen:
 
@@ -1078,16 +1114,18 @@ src/dates.js           Geburtsdatum aus Kurzform parsen und anzeigen
 src/sizes.js           Größen prüfen, nächstliegende finden, Nummer größer/kleiner
 src/size-catalog.js    Ausgangsbestand der Größenreihen (mit Quellenangaben)
 src/barcode.js         Barcode-Präfix an kurze Inventarnummern setzen
-src/backup.js          Datensicherung über die SQLite-Sicherungsfunktion
 src/api-auth.js        Token für die API prüfen und verwalten
 src/backup.js          Sicherung erzeugen und verschlüsseln
 src/restore.js         Sicherung entschlüsseln und einspielen
 src/tokens.js          Geheimnisse für die QR-Links
 src/settings.js        Stammdaten der Wehr und das Logo (in der Datenbank)
 src/dienst.js          Anwesenheit, Einschätzung, Einteilung mit Funktionen
-src/upload.js          Dateiannahme für Sicherung und Logo
+src/update.js          nach Neuem sehen und die Aktualisierung anfordern (nur die Markierung)
+src/upload.js          Dateiannahme für Sicherung, Logo und Wiederherstellung
 scripts/               Testdaten, HTTPS-Testinstanz, Installation, Deployment, Sicherung
-deploy/                Dienst-Datei und polkit-Regel als Vorlage (siehe install-pi.sh)
+scripts/update-helfer.sh  läuft als root ausserhalb des Dienstes: sichern, einspielen,
+                       neu starten, prüfen — und bei Misserfolg zurücksetzen
+deploy/                Dienst, polkit-Regel, Sicherungs- und Update-Einheiten als Vorlage
 src/model.js           Abfragen, Bereichs-, Lager- und Aufgabenlogik
 src/audit.js           Änderungsprotokoll
 src/routes/            eine Datei je Themenbereich
@@ -1103,6 +1141,12 @@ und geht die wichtigsten Abläufe durch — Ersteinrichtung, Rollen, Umkleideber
 Spinte, Lagerorte mit Mengenanlage, Barcode-Endpunkt, Tauschen mit und ohne Lagertreffer,
 Aufgaben, Suche, QR, Stammdaten mit Logo, A4-Etiketten und öffentlicher Lesezugriff.
 Die echte Datenbank wird nicht angefasst.
+
+Auch die Aktualisierung wird durchgespielt, ohne dass dabei etwas aktualisiert wird: `GIT_ORDNER`,
+`UPDATE_MARKE` und `UPDATE_STATUS` zeigen im Test in einen temporären Ordner. Dort legt der Test
+ein kleines Repository mit einem Commit Vorsprung an — geprüft werden also die echte Liste der
+Änderungen, die Warnung während der Übungszeit, die abgelegte Markierung und die Anzeige eines
+zurückgesetzten Versuchs. Der Helfer selbst läuft nie mit; das ist Sache von systemd.
 
 Auch das Herunterfahren wird geprüft: der Abschaltbefehl lässt sich über `ABSCHALT_BEFEHL`
 austauschen, im Test durch ein Skript, das eine Datei anlegt statt den Rechner abzuschalten.
@@ -1126,7 +1170,33 @@ Umgebungsvariablen `PI_HOST`, `PI_USER`, `PI_KEY` steht).
 
 ## Updates und was dabei zu beachten ist
 
-Es gibt zwei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
+Es gibt drei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
+
+### Über die Oberfläche (der bequemste Weg)
+
+Unter **System, Update & Herunterfahren** → *Nach Aktualisierung sehen* steht, was ein Update
+brächte: die Liste der Änderungen, jede mit ihrem Kurztext. Ein Klick auf *Jetzt
+aktualisieren* erledigt den Rest — Sicherung ziehen, neuen Stand holen, `npm ci`, Dienst neu
+starten, prüfen, ob die Seite wieder antwortet. Der Ablauf dauert eine Minute; die Anzeige
+meldet sich von selbst zurück, sobald der Dienst wieder da ist.
+
+**Geht etwas schief, setzt sich das von allein zurück.** Nach zwei erfolglosen Versuchen
+springt der Helfer per `git reset --hard` auf den Stand von vorher, installiert dessen
+Abhängigkeiten und startet neu. Danach steht auf der Seite, was passiert ist. Voraussetzung:
+einmalig `auf-git-umstellen.sh` (siehe unten) — ohne `.git` bleibt der Knopf aus und die Seite
+sagt auch, warum.
+
+Wichtig ist, wie die Rechte dabei aufgeteilt sind. Die Anwendung **kann sich nicht selbst neu
+starten** — `systemctl restart` würde genau den Prozess abschießen, der den Befehl absetzt,
+mitten in der Anfrage. Und wäre nach einem misslungenen Update die Anwendung selbst hin,
+könnte ausgerechnet sie keine Rettungsseite mehr ausliefern. Deshalb legt sie nur eine
+Markierung unter `/run/jf-spinte/` ab. Eine systemd-`.path`-Einheit sieht diese Datei und
+startet `update-helfer.sh` als root, **außerhalb** des Dienstes. Die Weboberfläche braucht
+dafür keinerlei Sonderrechte; `NoNewPrivileges=true` bleibt bestehen.
+
+Dass die Markierung unter `/run` liegt, ist Absicht: das ist eine RAM-Platte. Nach einem
+Stromausfall mitten im Vorgang ist die Anforderung weg und löst beim nächsten Start nicht
+versehentlich noch ein Update aus.
 
 ### Vom Projektordner aus (funktioniert sofort)
 
@@ -1137,7 +1207,7 @@ bash scripts/deploy-pi.sh
 Überträgt den letzten Commit per SSH und startet den Dienst neu. Voraussetzung: dieser
 Rechner ist im selben Netz wie der Pi. Steht der Pi im Gerätehaus, geht das nur dort.
 
-### Vom Pi aus (einmal einrichten, dann von überall)
+### Vom Pi aus per SSH (einmal einrichten, dann von überall)
 
 Die Installation auf dem Pi enthält kein `.git` — `deploy-pi.sh` überträgt die Dateien mit
 `git archive`, also ohne Versionsverwaltung. Einmalig umstellen:
@@ -1159,7 +1229,8 @@ installiert mit `npm ci` und prüft am Ende, ob die Oberfläche wieder antwortet
 läuft es ohne Rückfrage durch.
 
 Der Vorteil: du brauchst weder diesen Rechner noch den Projektordner — eine SSH-Sitzung
-genügt, notfalls vom Handy aus. Im selben Netz wie der Pi musst du trotzdem sein.
+genügt, notfalls vom Handy aus. Im selben Netz wie der Pi musst du trotzdem sein. Dieselbe
+Umstellung schaltet auch den Knopf in der Oberfläche frei.
 
 ### Warum `npm ci` und nicht `npm install`
 

@@ -7,6 +7,8 @@ const { execFile } = require('child_process');
 const express = require('express');
 const auth = require('../auth');
 const audit = require('../audit');
+const update = require('../update');
+const d = require('../dienst');
 const { DATA_DIR } = require('../db');
 
 const router = express.Router();
@@ -75,6 +77,14 @@ function sicherungsstand() {
   }
 }
 
+/** Wurde heute schon Anwesenheit erfasst? Dann laeuft gerade ein Uebungsabend. */
+function dienstHeute() {
+  const termin = d.terminByDatum(d.heute());
+  if (!termin) return null;
+  const liste = d.anwesenheit(termin.id).filter((m) => m.status);
+  return liste.length ? { termin, erfasst: liste.length } : null;
+}
+
 function zustand() {
   return {
     rechner: os.hostname(),
@@ -87,7 +97,60 @@ function zustand() {
 }
 
 router.get('/system', auth.requireJugendwart, (req, res) => {
-  res.render('system', { title: 'System', zustand: zustand(), sicherung: sicherungsstand() });
+  res.render('system', {
+    title: 'System',
+    zustand: zustand(),
+    sicherung: sicherungsstand(),
+    aktualisierung: { istGit: update.istGit(), status: update.status(), laeuft: update.inArbeit() },
+  });
+});
+
+// ------------------------------------------------------------ Aktualisierung
+
+/**
+ * Zeigt, was ein Update braechte. Das "git fetch" dahinter aendert nichts an
+ * den Dateien — es holt nur, was auf dem Server liegt.
+ */
+router.get('/system/update', auth.requireJugendwart, async (req, res, next) => {
+  try {
+    const laeuft = update.inArbeit();
+    res.render('update', {
+      title: 'Aktualisierung',
+      // Waehrend eine Aktualisierung laeuft, wird nicht noch einmal geholt.
+      pruefung: laeuft ? null : await update.pruefen(),
+      status: update.status(),
+      laeuft,
+      fenster: d.dienstfenster(),
+      // Ist heute schon Anwesenheit erfasst, laeuft der Uebungsabend gerade
+      // oder war eben — dann besser nicht neu starten.
+      heuteDienst: dienstHeute(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Nur der Stand, fuer die Anzeige waehrend des Neustarts. */
+router.get('/system/update/status.json', auth.requireJugendwart, (req, res) => {
+  res.json({ laeuft: update.inArbeit(), status: update.status() });
+});
+
+router.post('/system/update/starten', auth.requireJugendwart, (req, res) => {
+  if (update.inArbeit()) {
+    req.session.flash = { type: 'info', text: 'Es läuft bereits eine Aktualisierung.' };
+    return res.redirect('/system/update');
+  }
+  if (!update.istGit()) {
+    req.session.flash = {
+      type: 'warn',
+      text: 'Diese Installation ist kein Git-Arbeitsverzeichnis — siehe README, „Vom Pi aus".',
+    };
+    return res.redirect('/system/update');
+  }
+
+  update.anfordern(req.session.user.name);
+  audit.log(req, 'system', null, 'Aktualisierung angefordert', null);
+  res.redirect('/system/update');
 });
 
 router.post('/system/herunterfahren', auth.requireJugendwart, (req, res) => {

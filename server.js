@@ -100,6 +100,7 @@ app.use((req, res, next) => {
 // steht das Token aus dem Formular in req.body.
 app.use('/einrichtung/sicherung', require('./src/upload').sicherungHochladen);
 app.use('/stammdaten/logo', require('./src/upload').logoHochladen);
+app.use('/restore', require('./src/upload').restoreHochladen);
 
 app.use(auth.csrf);
 
@@ -155,6 +156,7 @@ app.use(require('./src/routes/backup'));
 app.use(require('./src/routes/settings'));
 app.use(require('./src/routes/dienst'));
 app.use(require('./src/routes/system'));
+app.use(require('./src/routes/restore'));
 app.use(require('./src/routes/etiketten'));
 app.use(require('./src/routes/history'));
 

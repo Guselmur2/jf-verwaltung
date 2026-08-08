@@ -34,6 +34,21 @@
              placeholder="<%= standard.slogan %>" autocomplete="off">
       <small>Kleine Zeile neben der Abteilung. Leer lassen, wenn nichts stehen soll.</small>
     </label>
+    <div class="formraster">
+      <label>
+        <span>Übungsabend beginnt</span>
+        <input type="time" name="dienst_beginn" value="<%= daten.dienst_beginn %>">
+      </label>
+      <label>
+        <span>Übungsabend endet</span>
+        <input type="time" name="dienst_ende" value="<%= daten.dienst_ende %>">
+      </label>
+    </div>
+    <small class="klein">
+      Daraus ergibt sich das Zeitfenster, in dem die Software vor einer Aktualisierung warnt —
+      10 Minuten vor Beginn bis 45 Minuten nach Ende. Mitten im Dienst will niemand einen
+      Neustart.
+    </small>
     <div class="formfuss">
       <button class="btn" type="submit">Speichern</button>
     </div>

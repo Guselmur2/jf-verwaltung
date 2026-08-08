@@ -46,7 +46,7 @@ sagen "  Adresse:  https://$ADRESSE"
 # ------------------------------------------------------------------ Pakete
 schritt "Pakete pruefen"
 FEHLT=""
-for paket in nodejs npm openssl polkitd avahi-daemon; do
+for paket in nodejs npm openssl polkitd avahi-daemon git; do
   dpkg -s "$paket" >/dev/null 2>&1 || FEHLT="$FEHLT $paket"
 done
 if [ -n "$FEHLT" ]; then
@@ -155,6 +155,27 @@ else
   sagen "     sudo sh -c 'printf \"%s\\n\" \"DEIN-PASSWORT\" > $PASSWORTDATEI'"
   sagen "     sudo chmod 600 $PASSWORTDATEI"
   sagen "     sudo systemctl enable --now jf-sicherung.timer"
+fi
+
+# ------------------------------------------------- Update aus der Oberflaeche
+# Der Dienst darf sich nicht selbst neu starten. Er legt darum nur eine
+# Markierung unter /run ab; diese .path-Einheit sieht sie und startet den
+# Helfer als root. Zwei getrennte Rechte statt einem Dienst, der alles kann.
+schritt "Aktualisierung ueber die Oberflaeche"
+for einheit in jf-update.path jf-update.service; do
+  sed -e "s|@BENUTZER@|$BENUTZER|g" -e "s|@ORDNER@|$ORDNER|g"     "$ORDNER/deploy/$einheit" > "/etc/systemd/system/$einheit"
+  chmod 644 "/etc/systemd/system/$einheit"
+done
+systemctl daemon-reload
+systemctl enable --now jf-update.path >/dev/null 2>&1
+sagen "   Wache auf /run/jf-spinte/update-anfordern eingeschaltet"
+
+if [ -d "$ORDNER/.git" ]; then
+  sagen "   Git-Arbeitsverzeichnis vorhanden — der Update-Knopf ist einsatzbereit."
+else
+  sagen "   Dieser Ordner ist kein Git-Arbeitsverzeichnis. Der Knopf \"Aktualisieren\""
+  sagen "   in der Oberflaeche bleibt aus, bis einmalig umgestellt wurde:"
+  sagen "     sudo ORDNER=$ORDNER scripts/auf-git-umstellen.sh"
 fi
 
 # ------------------------------------------------------------------ Start
