@@ -1189,8 +1189,8 @@ Es gibt drei Wege, und sie unterscheiden sich darin, **wo** du stehen musst.
 
 ### Über die Oberfläche (empfohlen)
 
-Unter **System, Update & Herunterfahren** → *Nach Aktualisierung sehen*. Ein Klick auf
-*Nach Neuem sehen* fragt beim Repository nach, danach steht die Liste der Änderungen da,
+Unter **System, Update & Herunterfahren** → *Zur Update-Seite*. Ein Klick auf
+*Nach Updates suchen* fragt beim Repository nach, danach steht die Liste der Änderungen da,
 jede mit ihrem Kurztext. *Jetzt aktualisieren* erledigt den Rest — Sicherung ziehen, neuen
 Stand holen, `npm ci`, Dienst neu starten, prüfen, ob die Seite wieder antwortet. Der Ablauf
 dauert eine Minute; die Anzeige meldet sich von selbst zurück, sobald der Dienst wieder da
@@ -1214,7 +1214,7 @@ Dass die Markierung unter `/run` liegt, ist Absicht: das ist eine RAM-Platte. Na
 Stromausfall mitten im Vorgang ist die Anforderung weg und löst beim nächsten Start nicht
 versehentlich noch ein Update aus.
 
-Auch das bloße Nachsehen („Nach Neuem sehen") läuft über den Helfer. `git fetch` müsste
+Auch die bloße Suche („Nach Updates suchen") läuft über den Helfer. `git fetch` müsste
 `.git/FETCH_HEAD` schreiben, der Dienst darf aber außer `data/` nirgends schreiben
 (`ProtectSystem=strict`). `.git` in `ReadWritePaths` freizugeben wäre keine Lösung: wer in
 `.git` schreiben kann, kann die Herkunftsadresse ändern oder Objekte unterschieben, und der

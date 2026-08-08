@@ -162,7 +162,7 @@
           if (meldung && wegSeit > 3) {
             meldung.textContent =
               wegSeit > 40
-                ? 'Seit über zwei Minuten keine Antwort. Bitte per SSH nachsehen.'
+                ? 'Seit über zwei Minuten keine Antwort. Bitte per SSH prüfen.'
                 : 'Der Dienst startet neu … (' + wegSeit * 3 + ' s)';
           }
         });

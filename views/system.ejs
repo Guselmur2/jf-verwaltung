@@ -80,12 +80,13 @@ sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git</pre>
     <p><a class="btn" href="/system/update">Fortschritt ansehen</a></p>
   <% } else { %>
     <p>
-      Holt den neuesten Stand aus dem Repository. <strong>Vorher wird gesichert</strong>, und
-      geht etwas schief, setzt die Software von selbst auf den vorherigen Stand zurück.
+      Holt den neuesten Stand aus dem Repository. <strong>Vorher wird automatisch
+      gesichert</strong>; schlägt das Update fehl, wird der vorherige Stand
+      wiederhergestellt.
     </p>
-    <p><a class="btn" href="/system/update">Nach Aktualisierung sehen</a></p>
+    <p><a class="btn" href="/system/update">Zur Update-Seite</a></p>
     <p class="klein">
-      Dort erst <em>Nach Neuem sehen</em> — gefragt wird beim Repository, verändert wird dabei
+      Dort zuerst auf <em>Nach Updates suchen</em> klicken — das fragt nur ab und verändert
       nichts.
     </p>
     <% if (aktualisierung.status) { %>

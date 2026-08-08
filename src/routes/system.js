@@ -148,7 +148,7 @@ router.get('/system/update/status.json', auth.requireJugendwart, (req, res) => {
  */
 router.post('/system/update/abgleichen', auth.requireJugendwart, (req, res) => {
   if (update.inArbeit()) {
-    req.session.flash = { type: 'info', text: 'Es läuft schon etwas.' };
+    req.session.flash = { type: 'info', text: 'Es läuft bereits ein Update oder eine Suche.' };
     return res.redirect('/system/update');
   }
   if (!update.istGit()) {

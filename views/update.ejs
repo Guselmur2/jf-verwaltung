@@ -21,28 +21,28 @@
     sobald es wieder antwortet. %>
 <% if (laeuft) { %>
   <section class="block" data-update-laeuft>
-    <h2><%= art === 'abgleich' ? 'Sehe nach' : 'Läuft gerade' %></h2>
+    <h2><%= art === 'abgleich' ? 'Suche nach Updates …' : 'Läuft gerade' %></h2>
     <p class="hinweis hinweis-info" data-update-meldung>
       <% const jetzt = art === 'abgleich' ? abgleich : status; %>
       <% if (jetzt) { %>
         <strong><%= SCHRITTE[jetzt.schritt] || jetzt.schritt %>:</strong> <%= jetzt.meldung || '…' %>
       <% } else { %>
-        Angefordert — der Helfer legt gleich los.
+        Gestartet — einen Moment.
       <% } %>
     </p>
     <% if (art === 'abgleich') { %>
       <p class="klein">
-        Dauert ein paar Sekunden. Es wird nur nachgefragt — an der Installation ändert sich
-        dabei nichts.
+        Das dauert ein paar Sekunden und ändert nichts an der Installation.
       </p>
     <% } else { %>
       <p class="klein">
         Der Dienst startet dabei neu, die Seite ist dann kurz nicht erreichbar. Das ist normal —
-        diese Anzeige meldet sich von selbst zurück. <strong>Bitte nicht den Strom trennen.</strong>
+        sobald er wieder antwortet, lädt die Seite von selbst neu.
+        <strong>Bitte nicht den Strom trennen.</strong>
       </p>
       <p class="klein">
-        Geht etwas schief, setzt der Helfer nach zwei Versuchen von selbst auf den vorherigen
-        Stand zurück. Dafür musst du nichts tun.
+        Schlägt das Update fehl, wird nach zwei Versuchen automatisch der vorherige Stand
+        wiederhergestellt.
       </p>
     <% } %>
   </section>
@@ -57,7 +57,7 @@
       <% } else if (status.ergebnis === 'zurueckgesetzt') { %>
         <strong>Zurückgesetzt.</strong> <%= status.meldung %>
       <% } else { %>
-        <strong>Fehlgeschlagen.</strong> <%= status.meldung || 'Kein Grund vermerkt.' %>
+        <strong>Fehlgeschlagen.</strong> <%= status.meldung || 'Keine Fehlermeldung vorhanden.' %>
       <% } %>
     </p>
     <p class="klein">
@@ -87,33 +87,33 @@
 %>
 <% if (!laeuft && pruefung && pruefung.moeglich) { %>
   <section class="block">
-    <h2>Beim Repository nachfragen</h2>
+    <h2>Nach Updates suchen</h2>
     <p class="klein">
       <% if (pruefung.abgeglichen) { %>
-        Zuletzt nachgesehen: <%= pruefung.abgeglichen.toLocaleString('de-DE') %>.
+        Zuletzt gesucht: <%= pruefung.abgeglichen.toLocaleString('de-DE') %> Uhr.
         <% if (pruefung.letzter && pruefung.letzter.ergebnis === 'fehler') { %>
-          <span class="warnwort">Dabei ging etwas schief: <%= pruefung.letzter.meldung %></span>
+          <span class="warnwort">Die letzte Suche ist fehlgeschlagen: <%= pruefung.letzter.meldung %></span>
         <% } %>
+        Die Anzeige unten entspricht diesem Stand.
       <% } else { %>
-        Es wurde noch nie nachgesehen.
+        Bisher wurde noch nicht nach Updates gesucht.
       <% } %>
-      Die Liste unten stammt von diesem Zeitpunkt.
     </p>
     <form method="post" action="/system/update/abgleichen" class="inline">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn btn-still" type="submit">Nach Neuem sehen</button>
+      <button class="btn btn-still" type="submit">Jetzt suchen</button>
     </form>
   </section>
 <% } %>
 
 <% if (!laeuft && pruefung && pruefung.moeglich && pruefung.unbekannt) { %>
   <section class="block">
-    <h2>Noch nichts abgeglichen</h2>
+    <h2>Noch nicht gesucht</h2>
     <p>
-      Diese Installation hat noch nie beim Repository nachgefragt. Ein Klick auf
-      <strong>Nach Neuem sehen</strong> holt den Stand — eingespielt wird dabei nichts.
+      Ob Updates vorliegen, ist noch nicht bekannt. Ein Klick auf
+      <strong>Nach Updates suchen</strong> fragt das ab; installiert wird dabei nichts.
     </p>
-    <p class="klein">Läuft gerade auf: <code><%= pruefung.stand %></code></p>
+    <p class="klein">Installierter Stand: <code><%= pruefung.stand %></code></p>
   </section>
 <% } %>
 
@@ -121,15 +121,15 @@
   <% if (pruefung.aktuell) { %>
     <section class="block">
       <h2>Alles aktuell</h2>
-      <p>Es gibt nichts Neues einzuspielen.</p>
-      <p class="klein">Stand: <code><%= pruefung.stand %></code></p>
+      <p>Die Software ist auf dem neuesten Stand.</p>
+      <p class="klein">Installiert: <code><%= pruefung.stand %></code></p>
     </section>
   <% } else { %>
     <% if (fenster.drin || heuteDienst) { %>
       <p class="hinweis hinweis-warn">
-        <strong>Gerade ist ein schlechter Zeitpunkt.</strong>
+        <strong>Ungünstiger Zeitpunkt:</strong>
         <% if (fenster.drin) { %>
-          Zwischen <%= fenster.von %> und <%= fenster.bis %> ist Übungszeit
+          zwischen <%= fenster.von %> und <%= fenster.bis %> ist Übungszeit
           (<%= fenster.dienst_beginn %>–<%= fenster.dienst_ende %> laut
           <a href="/stammdaten">Stammdaten</a>, plus <%= fenster.vorlauf %> Minuten davor und
           <%= fenster.nachlauf %> danach).
@@ -137,7 +137,8 @@
         <% if (heuteDienst) { %>
           Für heute ist bei <%= heuteDienst.erfasst %> Kindern schon Anwesenheit erfasst.
         <% } %>
-        Der Dienst wäre beim Neustart etwa eine Minute weg. Wenn es nicht eilt: später.
+        Während des Updates ist die Software etwa eine Minute nicht erreichbar. Wenn es nicht
+        eilt, lieber später aktualisieren.
       </p>
     <% } %>
 
@@ -159,9 +160,9 @@
       </form>
 
       <p class="klein">
-        Der Ablauf: Sicherung ziehen · neuen Stand holen · Abhängigkeiten installieren ·
-        Dienst neu starten · prüfen, ob die Seite antwortet. Klappt das nach zwei Versuchen
-        nicht, geht es von selbst auf <code><%= pruefung.stand %></code> zurück.
+        Der Ablauf: Sicherung erstellen · neuen Stand holen · Abhängigkeiten installieren ·
+        Dienst neu starten · prüfen, ob die Seite antwortet. Schlägt das nach zwei Versuchen
+        fehl, kehrt die Software automatisch zu <code><%= pruefung.stand %></code> zurück.
       </p>
     </section>
   <% } %>

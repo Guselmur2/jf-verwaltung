@@ -9,11 +9,11 @@
 <p class="hinweis hinweis-warn">
   <strong>Das ersetzt den gesamten Bestand.</strong> Alles, was seit der gewählten Sicherung
   dazugekommen ist, geht verloren — Mitglieder, Ausrüstung, Anwesenheit, Einschätzungen.
-  Der jetzige Stand wird vorher automatisch weggeschrieben, damit du zurückkannst.
+  Der jetzige Stand wird vorher automatisch gesichert, damit du zurückkannst.
 </p>
 
 <section class="block">
-  <h2>Was jetzt drin ist</h2>
+  <h2>Aktueller Bestand</h2>
   <div class="kennzahlen">
     <div class="kennzahl"><strong><%= bestand.mitglieder %></strong><span>Mitglieder</span></div>
     <div class="kennzahl"><strong><%= bestand.spinte %></strong><span>Spinte</span></div>
@@ -50,7 +50,8 @@
       <p class="klein">Neueste zuerst. Ist der USB-Stick nicht eingehängt, fehlen die Stände darauf.</p>
     <% } else { %>
       <p class="leer">
-        Keine Sicherungen gefunden. Steckt der USB-Stick? Sonst unten eine Datei hochladen.
+        Keine Sicherungen gefunden. Ist der USB-Stick angeschlossen? Alternativ unten eine
+        Datei hochladen.
       </p>
     <% } %>
 

@@ -354,7 +354,7 @@ Seite beschreibt auch, woran man das Ende erkennt (die Leuchte am Pi steht ruhig
 
 ### Aktualisieren
 
-**Nach Neuem sehen** fragt beim Repository nach, ohne etwas an der Installation zu ändern.
+**Nach Updates suchen** fragt beim Repository nach, ohne etwas an der Installation zu ändern.
 Danach steht auf der Seite, welche Änderungen anstehen, mit Kurztext je Änderung.
 
 ![Aktualisierung](bilder/update.png)

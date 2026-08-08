@@ -1805,7 +1805,7 @@ if (gitDa) {
   r = await req('/system/update');
   check('ohne Abgleich meldet die Seite alles aktuell', r.text.includes('Alles aktuell'));
   check('und kennt die neue Änderung noch nicht', !r.text.includes('Etiketten schmaler gesetzt'));
-  check('bietet aber das Nachfragen an', r.text.includes('Nach Neuem sehen'));
+  check('bietet aber das Nachfragen an', r.text.includes('Nach Updates suchen'));
 
   token = await csrf('/system/update');
   r = await req('/system/update/abgleichen', { method: 'POST', form: { _csrf: token } });
@@ -1817,7 +1817,7 @@ if (gitDa) {
     readFileSync(updateMarke, 'utf8').split('\n')[0]
   );
   r = await req('/system/update');
-  check('solange steht „Sehe nach" auf der Seite', r.text.includes('Sehe nach'));
+  check('solange steht „Sehe nach" auf der Seite', r.text.includes('Suche nach Updates'));
 
   // Ab hier den Helfer nachstellen: er holt vom Server und meldet das Ergebnis.
   unlinkSync(updateMarke);
@@ -1831,17 +1831,17 @@ if (gitDa) {
   await stammSpeichern({ dienst_beginn: uhrzeitIn(5), dienst_ende: uhrzeitIn(30) });
   r = await req('/system/update');
   check('nach dem Abgleich wird die Änderung aufgelistet', r.text.includes('Etiketten schmaler gesetzt'), r.status + '');
-  check('mit dem Zeitpunkt des Abgleichs', r.text.includes('Zuletzt nachgesehen'));
+  check('mit dem Zeitpunkt des Abgleichs', r.text.includes('Zuletzt gesucht'));
   check('als eine einzige Änderung gezählt', r.text.includes('<h2>1 Änderung</h2>'));
   check('mit Knopf zum Einspielen', r.text.includes('Jetzt aktualisieren'));
-  check('warnt während der Übungszeit', r.text.includes('Gerade ist ein schlechter Zeitpunkt'));
+  check('warnt während der Übungszeit', r.text.includes('Ungünstiger Zeitpunkt'));
   check('und nennt das Zeitfenster', r.text.includes('ist Übungszeit'));
 
   // Außerhalb der Übungszeit soll der Hinweis verschwinden.
   await stammSpeichern({ dienst_beginn: uhrzeitIn(240), dienst_ende: uhrzeitIn(300) });
   r = await req('/system/update');
   check('außerhalb der Übungszeit kein Zeitfenster-Hinweis', !r.text.includes('ist Übungszeit'));
-  check('und dann auch keine Warnung', !r.text.includes('Gerade ist ein schlechter Zeitpunkt'));
+  check('und dann auch keine Warnung', !r.text.includes('Ungünstiger Zeitpunkt'));
 
   // Ist für heute schon Anwesenheit erfasst, läuft der Abend gerade — dann warnt
   // die Seite auch außerhalb der eingestellten Zeiten.
