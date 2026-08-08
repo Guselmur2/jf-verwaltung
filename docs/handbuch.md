@@ -1,12 +1,8 @@
 # JF-Verwaltung — Handbuch
 
-Dieses Handbuch beschreibt die Bedienung der Software, Seite für Seite. Die Einrichtung
-(Installation, Pi, Updates) steht im [README](../README.md).
+Dieses Handbuch führt dich Schritt für Schritt durch die Software. Alles zur Einrichtung (Installation auf dem Pi, Updates etc.) findest du im [README](../README.md).
 
-> **Alle Namen, Größen und Einschätzungen auf den Bildern sind erfunden.** Sie stammen aus
-> einem Demo-Bestand, den [`scripts/doku-daten.js`](../scripts/doku-daten.js) erzeugt —
-> in einem öffentlichen Repository haben Daten echter Kinder nichts zu suchen.
-> Wie die Bilder entstehen, steht [am Ende](#bilder-neu-aufnehmen).
+> **Hinweis zu den Screenshots:** Alle Namen, Größen und Angaben auf den Bildern sind frei erfunden. Sie stammen aus einem Demobestand, den wir über [`scripts/doku-daten.js`](../scripts/doku-daten.js) erzeugen — echte Kinderdaten haben in einem öffentlichen Repository nichts zu suchen. Wie du die Bilder neu erzeugst, erfährst du [am Ende dieser Seite](#bilder-neu-aufnehmen).
 
 ## Inhalt
 
@@ -17,7 +13,7 @@ Dieses Handbuch beschreibt die Bedienung der Software, Seite für Seite. Die Ein
 - [Drucken: QR-Codes und Etiketten](#drucken-qr-codes-und-etiketten)
 - [Mitglieder](#mitglieder)
 - [Am Handy](#am-handy)
-- [Verwaltung](#verwaltung) — Stammdaten, Betreuer, Sicherung, Update
+- [Verwaltung](#verwaltung) — Stammdaten, Betreuer, Sicherung, Updates
 - [Dieses Handbuch in der Software](#dieses-handbuch-in-der-software)
 - [Bilder neu aufnehmen](#bilder-neu-aufnehmen)
 
@@ -25,21 +21,17 @@ Dieses Handbuch beschreibt die Bedienung der Software, Seite für Seite. Die Ein
 
 ## Anmeldung und Übersicht
 
-Ohne Anmeldung ist alles gesperrt, mit einer Ausnahme: die Seite, deren QR-Code man gerade
-gescannt hat.
+Ohne Anmeldung bleibt das System gesperrt. Einzige Ausnahme: Die Seite, deren QR-Code du direkt gescannt hast.
 
 ![Anmeldung](bilder/anmeldung.png)
 
-Nach der Anmeldung erscheint die Übersicht — eine Kachel je Spint, gruppiert nach
-Umkleidebereich. Auf jeder Kachel steht der Inhalt (Jacke 158, Hose 158, Helm,
-Handschuhe 8, Schuhe 39). Freie Spinte sind blass dargestellt. Oben stehen die Kennzahlen;
-gibt es ein defektes Teil, ist die Zahl rot.
+Nach dem Login landest du auf der Übersicht. Hier siehst du für jeden Spint eine Kachel, geordnet nach Umkleidebereich. Auf jeder Kachel steht der aktuelle Inhalt (z. B. Jacke 158, Hose 158, Helm, Handschuhe 8, Schuhe 39). Freie Spinte sind blasser dargestellt. Ganz oben findest du die Gesamtzahlen — sobald ein Teil defekt ist, wird die entsprechende Zahl rot hervorgehoben.
 
 ![Übersicht aller Spinte](bilder/uebersicht.png)
 
-Die Navigation fasst zwei Bereiche in Untermenüs zusammen, damit die Leiste am Handy nicht
-umbricht. Unter **Dienst** steht, was man am Übungsabend braucht, unter **Ausrüstung** die
-Verwaltung der Sachen. Die Zahl neben „Ausrüstung" ist die Anzahl der offenen Aufgaben.
+Die Navigation fasst einige Punkte in Untermenüs zusammen, damit die Leiste auf Smartphones übersichtlich bleibt:
+* **Dienst:** Alles, was du direkt am Übungsabend brauchst.
+* **Ausrüstung:** Die Verwaltung von Spinten und Material. Die kleine Zahl daneben zeigt dir die offenen Aufgaben an.
 
 ![Menü „Dienst"](bilder/navigation-dienst.png)
 
@@ -47,157 +39,120 @@ Verwaltung der Sachen. Die Zahl neben „Ausrüstung" ist die Anzahl der offenen
 
 ## Der Übungsabend
 
-### Anwesenheit
+### Anwesenheit erfassen
 
-Ein Tipp je Kind, ohne Speichern-Knopf. Antippen wechselt durch
+Hier reicht ein einfacher Tipp auf das jeweilige Kind – ganz ohne Speichern-Knopf. Jedes Antippen schaltet einen Status weiter:
 **da → entschuldigt → fehlt → offen**.
 
 ![Anwesenheitsliste](bilder/anwesenheit.png)
 
-Zwei Hinweise für den Alltag:
+**Tipps für die Praxis:**
+* **Der schnellste Weg:** Zuerst oben auf **„alle da“** tippen und anschließend nur die wenigen Kinder anpassen, die fehlen oder entschuldigt sind.
+* **Gleichzeitig erfassen:** Mehrere Betreuer können die Liste parallel auf ihren Handys nutzen. Die Seite synchronisiert sich alle 15 Sekunden. Wenn du ein Kind angetippt hast, wird direkt der gewählte Status übertragen (nicht bloß ein „einen Schritt weiter“). So überschreibst du nicht versehentlich die Eingabe eines Kollegen, falls deine Ansicht noch nicht aktualisiert war.
 
-* Am schnellsten geht meist: erst **„alle da"**, dann die wenigen antippen, die fehlen.
-* Es können mehrere Betreuer gleichzeitig erfassen. Die Seite holt sich alle 15 Sekunden
-  den Stand der anderen. Ein Tipp schickt dabei den Zielzustand und nicht „einen weiter" —
-  sonst könnte eine veraltete Seite ein „da" versehentlich auf „entschuldigt" stellen.
+*Hinweis zu „Offen“:* Das bedeutet lediglich, dass für das Kind heute noch nichts eingetragen wurde. Das ist nicht mit „fehlt“ gleichzusetzen.
 
-„Offen" bedeutet: noch nichts erfasst. Das ist etwas anderes als „fehlt" — am Anfang des
-Abends steht noch bei allen „offen", und das sagt nichts über die Kinder aus.
+### Anwesenheitsquote
 
-### Anwesenheit über die Zeit
-
-Die Quote je Kind über alle Termine, dazu die Beteiligung je Abend.
+Hier siehst du die Beteiligungsquote einzelner Kinder über das gesamte Jahr hinweg sowie die Gesamtzahl der Anwesenden pro Übungsabend.
 
 ![Anwesenheit über die Zeit](bilder/anwesenheit-quoten.png)
 
 ### Einschätzung
 
-Die Grundlage für die Einteilung. Die Seite öffnet zunächst ohne Werte:
+Diese Seite dient als Grundlage für die spätere Einteilung. Wenn du sie aufrufst, bleiben die Noten zunächst verdeckt:
 
 ![Einschätzung, zugeklappt](bilder/einschaetzung.png)
 
-Die Werte werden erst nach einem Klick angezeigt. So steht nichts über die Kinder auf dem
-Bildschirm, wenn sie beim Erfassen daneben stehen.
+Erst nach einem Klick werden die Werte sichtbar. Das verhindert, dass Jugendliche neugierige Blicke auf die Noten werfen, wenn sie neben dem Handy stehen.
 
 ![Einschätzung, geöffnet](bilder/einschaetzung-offen.png)
 
-Bewertet wird auf drei Achsen, jeweils 1–5:
+Die Bewertung erfolgt auf einer Skala von 1 bis 5 in drei Bereichen:
 
-| Achse | Frage |
+| Bereich | Frage |
 |---|---|
-| Erfahrung | Wie viel kann er/sie schon? |
-| Zupacken | Körperlich, praktisch, Schlauch und Leiter |
-| Anleiten | Übernimmt, hilft anderen, bleibt ruhig |
+| **Erfahrung** | Wie viel Vorwissen und Können bringt das Kind mit? |
+| **Zupacken** | Wie klappt es praktisch/körperlich (Schläuche, Leitern etc.)? |
+| **Anleiten** | Übernimmt das Kind Verantwortung, hilft es anderen und bleibt ruhig? |
 
-Eine Gesamtnote gibt es absichtlich nicht, denn daraus würde eine Rangliste. Ein Kind mit
-5/2/4 ist nicht „besser" als eines mit 2/5/3, es ist anders einsetzbar. Die Werte erscheinen
-weder auf den QR-Seiten am Spint noch in der API. Voreingestellt ist überall 3; was man
-nicht anfasst, bleibt neutral.
+Eine Gesamtnote gibt es bewusst nicht, um starre Ranglisten zu vermeiden. Ein Kind mit den Werten 5/2/4 ist nicht „besser“ als eines mit 2/5/3 – es setzt nur andere Schwerpunkte. Die Werte sind privat: Sie tauchen weder auf den QR-Seiten am Spint noch in der API auf. Standardmäßig steht alles auf 3.
 
-Ein Klick setzt einen Wert — es gibt keinen Speichern-Knopf.
+Ein Klick auf die Zahl übernimmt den Wert direkt – ein Speichern ist nicht nötig.
 
 ### Wer kann welche Funktion?
 
-Führungsfunktionen können nur wenige Kinder, das lässt sich nicht wegrechnen. Wichtig ist
-die zweite Stufe `übt`: sie heißt „soll das lernen". Ohne sie bekämen immer dieselben zwei
-Kinder den Gruppenführer, und die anderen kämen nie dran.
+Führungsfunktionen erfordern Praxis. Damit nicht immer dieselben zwei Jugendlichen als Gruppenführer eingeteilt werden, gibt es die Zwischenstufe **`übt`** („soll das lernen“). 
 
 ![Eignung und „Nicht zusammen"](bilder/einschaetzung-eignung.png)
 
-Darunter steht **„Nicht zusammen"**: zwei Namen, die nicht in dieselbe Einheit sollen. Die
-Einteilung hält sie auseinander, solange es rechnerisch möglich ist, und meldet es, wenn
-nicht.
+Darunter findest du das Feld **„Nicht zusammen“**: Hier kannst du Paare festlegen, die nicht im selben Trupp oder derselben Einheit eingesetzt werden sollen. Die automatische Einteilung berücksichtigt das, solange es mathematisch möglich ist, und gibt eine Warnung aus, wenn es nicht klappt.
 
-### Einteilung
+### Einteilung vorschlagen
 
-Aus der Anwesenheit von heute werden Einheiten gebildet. Die Aufstellungen folgen der
-FwDV 3: **Gruppe** (9), **Staffel** (6), **Trupp** (3) oder freie Einteilung ohne
-Funktionen.
+Aus den heute anwesenden Kindern baut die Software automatisch Einheiten nach FwDV 3 auf: **Gruppe** (9 Personen), **Staffel** (6 Personen), **Trupp** (3 Personen) oder eine **freie Einteilung** ohne feste Funktionen.
 
 ![Einteilung mit Funktionen](bilder/einteilung.png)
 
-Die Kürzel sind die üblichen: **GF** Gruppenführer, **MA** Maschinist, **Me** Melder,
-**AF/AM** Angriffstrupp, **WF/WM** Wassertrupp, **SF/SM** Schlauchtrupp.
+Es kommen die gewohnten Kürzel zum Einsatz: **GF** (Gruppenführer), **MA** (Maschinist), **Me** (Melder), **AF/AM** (Angriffstrupp), **WF/WM** (Wassertrupp), **SF/SM** (Schlauchtrupp).
 
-Im Bild haben Lea Bruns und Ben Adler den Gruppenführer, beide mit Stufe `übt`. Die beiden
-Routinierten (Jonas Kern, Emma Lindner) hatten die Funktion beim letzten Mal — deshalb sind
-jetzt die Übenden an der Reihe. `neu` markiert eine Funktion, die ein Kind noch nie hatte.
+* **Rotation:** Kinder mit dem Status `übt` werden bevorzugt eingeteilt, wenn erfahrene Kinder die Rolle beim letzten Mal schon innehatten. Neue Funktionen werden mit `neu` markiert.
+* **Maschinist:** Gilt hier nicht als echte Führungsfunktion, da die Betreuer fahren und die Pumpe bedienen. Der Posten eignet sich ideal für Schnupperkinder (1-zu-1-Betreuung).
 
-Der **Maschinist** zählt nicht als Führungsfunktion: Fahren und Pumpe bedienen die
-Betreuer, das Kind assistiert. Dieser Platz eignet sich für Kinder, die erst schnuppern,
-weil dort meist eine 1-zu-1-Betreuung besteht.
+**Speichern & Synchronisation:**
+Eine neue Einteilung entsteht erst, wenn du aktiv auf den Knopf drückst. Das verhindert, dass sich der Vorschlag plötzlich ändert, während du ihn gerade vorliest. Erst nach dem Speichern fließt die Einteilung in die Historie für das nächste Mal ein.
 
-Eine neue Einteilung entsteht nur auf Knopfdruck — sonst stünde bei jedem Aufruf der Seite
-eine andere da als die, die man gerade vorgelesen hat. Gespeichert wird, was auf dem
-Bildschirm steht; erst dann zählt die Einteilung für die Rotation beim nächsten Mal.
-
-Das gilt je Gerät: öffnen zwei Betreuer die Seite auf ihren Handys und würfeln beide, sieht
-jeder seinen eigenen Vorschlag. Speichert der eine, während der andere seine Seite noch
-offen hat, fragt die Software beim zweiten Speichern nach, statt die erste Einteilung
-stillschweigend zu ersetzen — mit beiden Einteilungen nebeneinander zur Auswahl.
+Jedes Gerät arbeitet zunächst unabhängig: Wenn zwei Betreuer gleichzeitig würfeln, sieht jeder seinen eigenen Vorschlag. Speichert der erste Betreuer ab, erkennt die Software beim zweiten Versuch den Konflikt und bietet beide Einteilungen nebeneinander zum Vergleich an, statt etwas zu überschreiben.
 
 ---
 
 ## Spinte und Ausrüstung
 
-### Ein Spint
+### Einen Spint bearbeiten
 
-Die Seite zu einem Spint zeigt, wer ihn benutzt, was drin liegt und was noch fehlt.
+Hier siehst du, wer den Spint nutzt, was aktuell darin liegt und was noch fehlt.
 
 ![Spint bearbeiten](bilder/spint-bearbeiten.png)
 
-Die Auswahl „Neues Teil eintragen" ist zweigeteilt: oben steht, was noch fehlt, unten, was
-schon im Spint liegt. So legt man nicht versehentlich eine zweite Jacke an.
+Beim Eintragen neuer Teile zeigt das Menü oben an, was laut Soll-Ausstattung noch fehlt, und unten das, was bereits vorhanden ist. So verhinderst du doppelte Einträge.
 
 ### Der QR-Code am Spint
 
-Der Aufkleber an der Spinttür führt auf diese Seite. Sie ist ohne Anmeldung erreichbar,
-weil Kinder und Eltern kein Passwort haben.
+Der Aufkleber an der Spinttür führt direkt auf eine vereinfachte Übersichtsseite. Sie ist ohne Login aufrufbar, damit auch Kinder und Eltern sie nutzen können.
 
 ![Spint-Seite ohne Anmeldung](bilder/spint-qr-anonym.png)
 
-Die Seite zeigt nur das eigene Mitglied und den eigenen Inhalt — keine Navigation, keine
-Links zu anderen Seiten. Im QR-Code steht deshalb auch nicht die laufende Nummer, sondern
-ein zufälliger Token (`/s/t8exz96cepde` statt `/s/1`). Mit fortlaufenden Nummern könnte
-sonst jeder im WLAN die übrigen Spinte durchprobieren und bekäme Namen und Kleidergrößen
-aller Jugendlichen.
+Aus Datenschutzgründen zeigt diese Seite ausschließlich den Spintinhalt des jeweiligen Kindes – ohne Navigation oder Links zu anderen Daten. Die URL nutzt einen zufälligen Token (z. B. `/s/t8exz96cepde`), damit niemand durch Durchprobieren von Nummern an fremde Daten gelangt.
 
-Lagerorte funktionieren genauso:
+Lagerorte funktionieren nach demselben Prinzip:
 
 ![Lagerort-Seite ohne Anmeldung](bilder/lagerort-qr-anonym.png)
 
-### Tauschen und Bestellen
+### Kleidung tauschen und bestellen
 
-Wenn ein Kind aus der Jacke herausgewachsen ist:
+Ist ein Kind aus seiner Jacke oder Hose herausgewachsen, klickst du auf **Tauschen**:
 
 ![Tauschen](bilder/tauschen.png)
 
-Die Software sucht zuerst im Lager. Liegt dort etwas Passendes, wird getauscht und der
-Lagerort genannt. Liegt nichts da, entsteht eine **Bestellung**. Vor dem Tausch kommt eine
-Sicherheitsabfrage, weil danach ein echtes Teil in einen anderen Schrank gehört.
+Das System prüft automatisch das Lager. Ist eine passende Größe vorrätig, wird das Teil getauscht und der Lagerort angezeigt. Ist nichts da, erstellt die Software automatisch eine **Bestellung**. Aus Sicherheitsgründen musst du den Tausch noch einmal bestätigen.
 
-### Aufgaben
+### Aufgabenliste
 
-Alle offenen Bestellungen und Tauschaufträge an einer Stelle. Offene Bestellungen stehen
-zusätzlich am Spint, damit nicht ein zweiter Betreuer dasselbe Paar Handschuhe noch einmal
-bestellt.
+Hier laufen alle offenen Tauschaufträge und Nachbestellungen zusammen. Offene Bestellungen werden auch direkt am Spint angezeigt, damit nichts doppelt geordert wird.
 
 ![Aufgaben](bilder/aufgaben.png)
 
-Taucht ein verlorenes Teil wieder auf, gibt es **„Doch gefunden"**: das nimmt die
-Bestellung zurück und legt das ausgemusterte Teil in einem Schritt zurück in den Spint.
+Sollte ein verloren geglaubtes Teil wieder auftauchen, klickst du auf **„Doch gefunden“**. Das storniert die Nachbestellung und legt das Teil direkt wieder in den Spint zurück.
 
 ### Suche
 
-Ein Feld für alles: Namen, Spintnummern, Größen, Inventarnummern. Mehrere Wörter werden
-gemeinsam gesucht.
+Das Suchfeld verarbeitet alles: Namen, Spintnummern, Größen oder Inventarnummern. Bei mehreren Begriffen wird die Suche kombiniert.
 
 ![Suche](bilder/suche.png)
 
-### Ausgemustert
+### Ausgemustertes Material
 
-Ausgemusterte Teile werden nicht gelöscht. Sie bleiben hier einsehbar und lassen sich
-zurückholen.
+Alte oder defekte Teile werden nicht gelöscht. Sie bleiben im Archiv einsehbar und können bei Bedarf wieder aktiviert werden.
 
 ![Ausgemustert](bilder/ausgemustert.png)
 
@@ -205,38 +160,29 @@ zurückholen.
 
 ## Das Lager
 
-### Einbuchen und Bestand
+### Material einbuchen
 
-Es gibt zwei Arten einzubuchen:
-
-* **Sammelposten** — mehrere gleiche Teile ohne Inventarnummer, z. B. sechs Paar
-  Handschuhe Größe 8 in einem Formular.
-* **Einzelteil** — ein Stück mit eigener Inventarnummer, auch per Scanner.
+Für das Einbuchen gibt es zwei Wege:
+* **Sammelposten:** Mehrere identische Teile ohne Einzelnummer (z. B. 6 Paar Handschuhe Größe 8).
+* **Einzelteil:** Gegenstände mit eigener Inventarnummer (auch per Barcode-Scanner).
 
 ![Lager](bilder/lager.png)
 
-Auf dem Bild steht das Einbuchen oben, weil der Bestand gerade erfasst wird. Ist die
-Ersterfassung abgeschlossen, schaltet man bei den Lagerorten den **Erfassungsmodus** aus —
-dann steht der Bestand vorn und das Einbuchen weiter unten.
+Tipp: Wenn du den Erstbestand komplett erfasst hast, kannst du bei den Lagerorten den **Erfassungsmodus ausschalten**. Dadurch rückt die Bestandsliste nach oben und das Eingabeformular nach unten.
 
-### Lagerorte
+### Lagerorte verwalten
 
-Jeder Lagerort bekommt einen eigenen QR-Code. Einer kann als **Standard** markiert werden:
-neue Teile ohne gewähltes Ziel landen dort.
+Jeder Lagerort erhält einen eigenen QR-Code. Ein Ort kann als **Standard** markiert werden – dorthin wandern alle neu eingebuchten Teile automatisch, sofern nichts anderes angegeben ist.
 
 ![Lagerorte](bilder/lagerorte.png)
 
-### Arten und Größen
+### Kleidungsarten und Größenreihen
 
-Hier stehen die Ausrüstungsarten, ihre Größenreihen und die Barcode-Präfixe der
-Inventarnummern.
+Hier legst du Kategorien, Größenraster und die Präfixe für Barcodes fest.
 
 ![Arten und Größen](bilder/arten-groessen.png)
 
-Die Größenreihen entsprechen den echten Etiketten: Kleidung läuft nach Körpergröße
-(116–176 cm) und geht danach in Konfektionsgrößen über — nach 176 folgt 44, nicht 182.
-Handschuhe und Schuhe haben eigene Reihen. Wird eine Größe eingetippt, die es in der Reihe
-nicht gibt, fragt die Software nach, statt sie stillschweigend zu übernehmen.
+Die Größen orientieren sich an echten Etiketten: Dienstkleidung läuft primär nach Körpergröße (116–176 cm) und geht danach fließend in Konfektionsgrößen über (auf 176 folgt Größe 44, nicht 182). Handschuhe und Stiefel nutzen eigene Skalen. Tippst du eine abweichende Größe ein, hakt die Software zur Sicherheit nach.
 
 ---
 
@@ -244,62 +190,48 @@ nicht gibt, fragt die Software nach, statt sie stillschweigend zu übernehmen.
 
 ### QR-Aufkleber
 
-Kleine Aufkleber für Spinte und Lagerorte, mehrere je Blatt.
+Erzeugt Bogen mit kleinen Aufklebern für Spinte und Lagerorte.
 
 ![QR-Aufkleber](bilder/qr-aufkleber.png)
 
-### Das Spint-Etikett
+### Spint-Etiketten
 
-Ein Etikett für die Spinttür: Name der Wehr und Logo oben, der Name des Kindes groß,
-seitlich der QR-Code mit dem Hinweis „Was ist hier drin?", unten **JUGENDFEUERWEHR** — zur
-Abgrenzung von der Kinderfeuerwehr, wenn beide dasselbe Logo tragen.
+Große Schilder für die Spinttür mit Feuerwehrname, Logo, Namen des Kindes, QR-Code und dem Schriftzug **JUGENDFEUERWEHR** (zur deutlichen Unterscheidung von der Kinderfeuerwehr).
 
 ![Spint-Etikett](bilder/etikett.png)
 
-Über **Etiketten je Seite** wird die Größe gewählt. Ein Etikett auf A4 ist für die meisten
-Spinte zu groß, zwei je Seite passen in der Regel. Die Schrift skaliert mit, und der Name
-wird nach der tatsächlichen Buchstabenbreite umbrochen, damit auch Namen wie „Hofmann"
-nicht zerrissen werden.
+Über die Einstellung **Etiketten je Seite** bestimmst du die Größe. In der Regel passen zwei Etiketten ideal auf ein A4-Blatt. Die Schrift passt sich automatisch an, und lange Nachnamen werden sauber umbrochen.
 
 ![Etikettenbogen, zwei je Seite](bilder/etiketten-bogen.png)
 
-Im Druckdialog **„Tatsächliche Größe"** wählen (100 %, nicht „An Seite anpassen") und
-Hintergrundgrafiken einschalten, sonst fehlen die roten Balken. Das Etikett hält von selbst
-Abstand zur Blattkante, um den nicht druckbaren Rand muss man sich nicht kümmern.
+**Wichtig für den Druck:**
+Wähle im Druckdialog deines Browsers **„Tatsächliche Größe“ (100 %)** und aktiviere **„Hintergrundgrafiken“**, damit die roten Farbbalken mitgedruckt werden. Der Randabstand wird vom Etikett selbst eingehalten.
 
-Die Adresse im QR-Code ist einstellbar. Sie muss von den Handys erreichbar sein, also
-Hostname oder feste IP des Raspberry Pi.
+Die Adresse im QR-Code muss im lokalen Netz erreichbar sein (z. B. die IP-Adresse oder der Hostname des Raspberry Pi).
 
 ---
 
 ## Mitglieder
 
-Name, Geburtsdatum, Geschlecht, Telefon, Notiz.
+Hier verwaltest du Namen, Geburtsdaten, Telefonnummern und Notizen.
 
 ![Mitglieder](bilder/mitglieder.png)
 
-Das Geburtsdatum darf in Kurzform eingegeben werden: aus `5.5.16` wird `05.05.2016`, aus
-`23.5.87` wird `23.05.1987`. Das Geschlecht bestimmt den Umkleidebereich des Spints. Beim
-ersten Mitglied eines weiteren Geschlechts fragt die Software einmal, wie die Bereiche
-aufgeteilt werden sollen.
+**Praktisch:** Geburtsdaten kannst du abgekürzt eingeben (aus `5.5.16` wird automatisch `05.05.2016`). Das Geschlecht bestimmt den Umkleidebereich. Sobald du das erste Mitglied eines neuen Geschlechts anlegst, fragt dich das System einmalig nach der gewünschten Zuordnung der Umkleiden.
 
 ---
 
 ## Am Handy
 
-Alle Seiten funktionieren am Handy — am Übungsabend hat in der Umkleide niemand einen
-Laptop dabei.
+Alle Funktionen lassen sich auf dem Smartphone bedienen – ideal für die Umkleide am Übungsabend.
 
-| Anwesenheit | Ein Spint | Nach dem Scannen |
+| Anwesenheit | Spintansicht | Nach dem Scannen |
 |---|---|---|
 | ![Anwesenheit am Handy](bilder/handy-anwesenheit.png) | ![Spint am Handy](bilder/handy-spint.png) | ![QR-Seite am Handy](bilder/handy-spint-qr.png) |
 
-Der Barcode-Scan nutzt die Handykamera. Der Browser gibt die Kamera nur über **HTTPS**
-frei, deshalb stellt `install-pi.sh` ein Zertifikat aus. Weil es selbstsigniert ist, warnt
-der Browser beim ersten Aufruf; nach dem Bestätigen kommt die Warnung nicht wieder.
+Der Barcode-Scan nutzt die Kamera deines Handys. Da moderne Browser den Kamerazugriff nur über eine verschlüsselte Verbindung (**HTTPS**) erlauben, erstellt das Installationsskript (`install-pi.sh`) ein Zertifikat. Die einmalige Browser-Warnung wegen des selbstsignierten Zertifikats kannst du einfach bestätigen.
 
-Die Darstellung folgt der Einstellung des Geräts — auf dunkel gestellten Handys erscheinen
-die Seiten dunkel:
+Auch der Darkmode deines Handys wird automatisch unterstützt:
 
 ![Übersicht in dunkler Darstellung](bilder/uebersicht-dunkel.png)
 
@@ -307,115 +239,75 @@ die Seiten dunkel:
 
 ## Verwaltung
 
-Die folgenden Seiten sieht nur der **Jugendwart**. Betreuer pflegen Spinte, Ausrüstung,
-Mitglieder und Arten; Zugänge, Rollen und Systemeinstellungen bleiben beim Jugendwart. Es
-muss immer mindestens ein aktiver Jugendwart übrig bleiben, die Software lässt den letzten
-nicht löschen oder sperren.
+Diese Bereiche sind dem **Jugendwart** vorbehalten. Betreuer haben Zugriff auf Spinte, Ausrüstung und Mitglieder, aber nicht auf Benutzerrechte oder Systemeinstellungen. Der letzte aktive Jugendwart kann weder gelöscht noch gesperrt werden.
 
 ### Stammdaten
 
-Name der Wehr, Abteilung, Leitspruch, Logo und die Zeiten des Übungsabends.
+Hier hinterlegst du Feuerwehrname, Abteilung, Logo und die Zeiten des Übungsabends.
 
 ![Stammdaten](bilder/stammdaten.png)
 
-Aus Beginn und Ende ergibt sich das Zeitfenster, in dem die Software vor einem Neustart
-warnt: 10 Minuten vor Beginn bis 45 Minuten nach Ende. Ein Update ist in dieser Zeit
-weiterhin möglich, es wird nur deutlich davon abgeraten.
+Aus den Übungszeiten leitet die Software ein Schutzfenster ab (10 Minuten vor Beginn bis 45 Minuten nach Ende). In dieser Zeit warnt das System vor Server-Neustarts oder Updates, um den laufenden Dienst nicht zu stören.
 
-Das Logo (PNG, JPEG, GIF, WebP oder SVG) liegt in der Datenbank, nicht als Datei daneben.
-Dadurch ist es in jeder Sicherung enthalten und nach einer Wiederherstellung sofort wieder
-da.
+Das Logo wird direkt in der Datenbank gespeichert. Dadurch ist es automatisch in jeder Datensicherung enthalten.
 
-### Betreuer
+### Betreuerzugänge
 
 ![Betreuer verwalten](bilder/betreuer.png)
 
 ### Datensicherung
 
-Eine Sicherung ist eine einzelne Datei mit allem: Mitglieder, Spinte, Ausrüstung, Aufgaben,
-Anwesenheit, Einschätzungen, Logo.
+Eine Sicherung besteht aus einer einzigen Datei, die den kompletten Datenbestand enthält (Mitglieder, Ausrüstung, Protokolle, Logo etc.).
 
 ![Datensicherung](bilder/sicherung.png)
 
-Sicherungen sind **immer verschlüsselt**, eine unverschlüsselte Ausgabe gibt es nicht — in
-der Datei stehen Namen, Geburtsdaten und Einschätzungen von Kindern. Verwendet wird das
-Format von `openssl enc` (AES-256-CBC, PBKDF2). So lässt sich eine Sicherung auch ohne
-diese Software öffnen, falls sie einmal nicht mehr läuft:
+**Sicherheit:** Da die Datei sensible Daten von Jugendlichen enthält, wird sie **immer stark verschlüsselt** (AES-256-CBC via OpenSSL). Du kannst eine Sicherung im Notfall auch ohne die Software über die Kommandozeile entpacken:
 
 ```bash
-openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-08-08-2241-s1.db.enc -out spinte.db
+openssl enc -d -aes-256-cbc -pbkdf2 -in spinte-2026-08-08-2241-s2.db.enc -out spinte.db
 ```
 
-Drei Wege: über diese Seite, nachts automatisch auf einen USB-Stick, oder per Doppelklick
-vom Windows-Rechner.
+Sicherungen lassen sich manuell herunterladen, nachts automatisch auf einen USB-Stick schreiben oder per Skript sichern.
 
-### System, Update und Herunterfahren
+### System, Updates und Herunterfahren
 
 ![Systemseite](bilder/system.png)
 
-Vor dem Stromziehen immer über diese Seite **herunterfahren**: wird dem Pi im Betrieb der
-Strom getrennt, kann die Speicherkarte Schaden nehmen und damit der ganze Bestand. Die
-Seite beschreibt auch, woran man das Ende erkennt (die Leuchte am Pi steht ruhig auf rot).
+**Wichtig:** Bevor du dem Raspberry Pi den Strom ziehst, fahre ihn immer über den Button **Herunterfahren** herunter. Einfaches Steckerziehen kann die Speicherkarte beschädigen. Sobald die rote LED am Pi dauerhaft ruhig leuchtet, ist das Gerät sicher ausgeschaltet.
 
-### Aktualisieren
+### Software aktualisieren
 
-**Nach Updates suchen** fragt beim Repository nach, ohne etwas an der Installation zu ändern.
-Danach steht auf der Seite, welche Änderungen anstehen, mit Kurztext je Änderung.
+Klicke auf **Nach Updates suchen**, um im Repository nach neuen Versionen zu schauen. Dabei wird noch nichts verändert.
 
 ![Aktualisierung](bilder/update.png)
 
-Das Nachfragen ist ein eigener Knopf und passiert nicht automatisch beim Aufruf der Seite.
-Der Grund: die Weboberfläche darf am Programmordner nichts verändern, auch nicht an der
-Versionsverwaltung — sonst könnte eine Sicherheitslücke in ihr dem nächsten Update fremden
-Code unterschieben. Nachgefragt wird deshalb von demselben Helfer, der später auch
-einspielt.
+Mit **Jetzt aktualisieren** startet der Prozess: Das System erstellt eine Sicherung, lädt den neuen Stand herunter, aktualisiert Abhängigkeiten und startet den Dienst neu. Sollte dabei etwas schiefgehen, stellt ein Hintergrund-Wächter automatisch den vorherigen Zustand wieder her.
 
-**Jetzt aktualisieren** führt dann aus: Sicherung ziehen, neuen Stand holen, Abhängigkeiten
-installieren, Dienst neu starten, prüfen, ob die Seite antwortet. Schlägt das nach zwei
-Versuchen fehl, stellt der Helfer selbständig den vorherigen Stand wieder her.
+*(Details zum Ablauf findest du im [README](../README.md#updates-und-was-dabei-zu-beachten-ist)).*
 
-Der Ablauf ist bewusst zweigeteilt: die Anwendung kann sich nicht selbst neu starten, und
-eine defekte Anwendung könnte keine Fehlerseite mehr anzeigen. Sie legt deshalb nur eine
-Markierung ab; ein systemd-Wächter startet daraufhin den Helfer als root außerhalb des
-Dienstes. Einzelheiten im [README](../README.md#updates-und-was-dabei-zu-beachten-ist).
+### Sicherung wiederherstellen
 
-### Sicherung zurückspielen
-
-Für den Fall, dass Daten kaputtgegangen sind — etwa 40 Teile falsch eingebucht oder ein
-Mitglied versehentlich gelöscht.
+Sollten Daten versehentlich gelöscht oder falsch eingelesen worden sein, kannst du hier alte Stände wieder einspielen.
 
 ![Sicherung einspielen](bilder/restore.png)
 
-Die Seite listet die Sicherungen vom USB-Stick und von der Speicherkarte auf; eine Datei
-von woanders lässt sich hochladen. Vor dem Ersetzen legt die Software den aktuellen Stand
-als `…-vor-restore.db.enc` daneben ab, sodass sich auch eine falsch gewählte Sicherung
-wieder rückgängig machen lässt. Nach dem Einspielen wird man abgemeldet, weil die eigene
-Anmeldung aus der ersetzten Datenbank stammt.
+Das System zeigt dir Sicherungen vom USB-Stick sowie der internen Speicherkarte an; eigene Dateien kannst du hochladen. Bevor ein altes Backup eingespielt wird, sichert die Software den aktuellen Zustand als `...-vor-restore.db.enc`. So kannst du den Schritt im Zweifel rückgängig machen.
 
-### Schema-Fassung
+### Schema-Versionen
 
-Jede Sicherung enthält die Fassung des Datenbankschemas — im Dateinamen
-(`spinte-2026-08-08-2012-s1.db.enc`) und in der Datei selbst. Beim Einspielen wird
-verglichen:
-
-* **Ältere** Sicherung: wird eingespielt und auf den aktuellen Stand gehoben.
-* **Neuere** Sicherung: wird abgelehnt; erst die Software aktualisieren, dann einspielen.
-
-Ohne diese Prüfung würden beim Einspielen einer neueren Sicherung die Spalten verloren
-gehen, die die ältere Software noch nicht kennt — ohne Fehlermeldung. Einzelheiten in
-[Datenbank und Schema-Fassungen](datenbank.md).
+Jede Sicherung enthält die genaue Version der Datenbankstruktur — im Dateinamen (das `-s2` in `spinte-2026-08-08-2241-s2.db.enc`) und in der Datei selbst. Vor einem Stick voller Sicherungen erkennst du damit ohne Passwort, welche zu welchem Softwarestand gehört. Beim Einspielen prüft das System:
+* **Ältere Backups:** Werden eingespielt und automatisch auf den neuesten Stand gebracht.
+* **Neuere Backups:** Werden abgelehnt. Aktualisiere in diesem Fall zuerst die Software, bevor du das Backup einspielst.
 
 ### API-Zugänge
 
-Zugriff für andere Systeme, lesend oder schreibend, per Token. Gespeichert wird nur der
-Hash; im Klartext wird der Token genau einmal angezeigt, direkt nach dem Anlegen.
+Hier erstelle ich Tokens für externe Systeme. Der Token wird aus Sicherheitsgründen nur ein einziges Mal beim Anlegen im Klartext angezeigt; in der Datenbank wird lediglich ein Hash gespeichert.
 
 ![API-Zugänge](bilder/api-zugaenge.png)
 
 ### Änderungsverlauf
 
-Wer hat wann was geändert — damit sich Fragen wie „wo ist die Jacke 158 hin?" beantworten
-lassen.
+Das Protokoll zeigt lückenlos, wer wann welche Änderung vorgenommen hat – ideal, um nachzuvollziehen, wo verschwundenes Material geblieben ist.
 
 ![Änderungsverlauf](bilder/verlauf.png)
 
@@ -423,36 +315,19 @@ lassen.
 
 ## Dieses Handbuch in der Software
 
-Das Handbuch liegt nicht nur im Repository, sondern auch in der laufenden Installation:
-unter *eigener Name → Handbuch*. Es wird bei jedem Update mit aktualisiert, die laufende
-Fassung zeigt also immer das passende Handbuch — auch im Gerätehaus ohne Internet.
+Das Handbuch lässt sich auch direkt in der laufenden Anwendung unter *[Dein Name] → Handbuch* aufrufen. Es ist somit auch im Gerätehaus ohne Internetverbindung verfügbar und entspricht immer exakt deiner installierten Version.
 
 ![Handbuch in der Oberfläche](bilder/handbuch.png)
 
-Oben stehen der Stand der Software und die Schema-Fassung. Über die drei Schaltflächen
-erreicht man die beiden anderen Dokumente: die technische Beschreibung (das README) und die
-Beschreibung der Datenbank-Fassungen. Sichtbar ist das alles nur für angemeldete Benutzer.
+---
 
 ## Bilder neu aufnehmen
 
-Alle Bilder in diesem Handbuch werden automatisch erzeugt. Nach einer Änderung an der
-Oberfläche:
+Die Screenshots im Handbuch lassen sich automatisiert neu erzeugen. Nach Änderungen an der Oberfläche führst du einfach folgende Befehle aus:
 
 ```bash
 node scripts/doku-daten.js --force
-```
-
-```bash
 node scripts/doku-bilder.js
 ```
 
-Das erste Skript legt den Demo-Bestand in `data-doku/` an: 14 erfundene Kinder, 14 Spinte,
-75 Teile, sieben Übungsabende — mit offenen Aufgaben und halb gefüllten Spinten, damit die
-Bilder den normalen Betrieb zeigen und keine leeren Seiten.
-
-Das zweite Skript startet den Server auf diesem Bestand und steuert Chrome im Kopflos-Modus
-über das DevTools-Protokoll. Eine zusätzliche Abhängigkeit braucht es dafür nicht, Node
-bringt seit Fassung 22 einen WebSocket mit. Die Bilder landen in `docs/bilder/`.
-
-`data-doku/` steht in `.gitignore`. Der Demo-Bestand selbst wird nicht mitgeliefert, nur
-das Skript, das ihn erzeugt.
+Das erste Skript baut eine Demodatenbank in `data-doku/` auf (14 Kinder, 14 Spinte, 75 Ausrüstungsteile und beispielhafte Übungsabende). Das zweite Skript startet Chrome im Headless-Modus, steuert die Seiten an und speichert die Screenshots direkt in `docs/bilder/`.
