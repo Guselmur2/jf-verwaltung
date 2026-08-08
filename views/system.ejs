@@ -64,9 +64,17 @@
   <% if (!aktualisierung.istGit) { %>
     <p class="klein">
       Diese Installation lässt sich noch nicht aus der Oberfläche aktualisieren — sie ist kein
-      Git-Arbeitsverzeichnis. Einmalig umstellen, dann geht es:
+      Git-Arbeitsverzeichnis. Einmalig umstellen, dann geht es. Beides <strong>in der
+      SSH-Sitzung auf dem Pi</strong> eingeben, nicht in der Eingabeaufforderung von Windows:
     </p>
-    <pre class="befehl">sudo sh /opt/jf-spinte/scripts/auf-git-umstellen.sh https://github.com/NAME/REPO.git</pre>
+    <%# Das Umstell-Skript liegt bei einer alten Installation noch gar nicht auf dem Pi —
+        es kam erst mit einer neueren Fassung dazu. Darum erst holen, dann starten. %>
+    <pre class="befehl">curl -fsSL https://raw.githubusercontent.com/NAME/REPO/main/scripts/auf-git-umstellen.sh -o /tmp/auf-git-umstellen.sh
+sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git</pre>
+    <p class="klein">
+      <code>NAME/REPO</code> durch euer Repository ersetzen. Datenbank, Zertifikat und
+      Einstellungen bleiben dabei unberührt.
+    </p>
   <% } else if (aktualisierung.laeuft) { %>
     <p class="hinweis hinweis-info">Es läuft gerade eine Aktualisierung.</p>
     <p><a class="btn" href="/system/update">Fortschritt ansehen</a></p>

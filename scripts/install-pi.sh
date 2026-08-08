@@ -175,7 +175,7 @@ if [ -d "$ORDNER/.git" ]; then
 else
   sagen "   Dieser Ordner ist kein Git-Arbeitsverzeichnis. Der Knopf \"Aktualisieren\""
   sagen "   in der Oberflaeche bleibt aus, bis einmalig umgestellt wurde:"
-  sagen "     sudo ORDNER=$ORDNER scripts/auf-git-umstellen.sh"
+  sagen "     sudo ORDNER=$ORDNER sh $ORDNER/scripts/auf-git-umstellen.sh <REPO-URL>"
 fi
 
 # ------------------------------------------------------------------ Start

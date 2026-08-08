@@ -1216,11 +1216,24 @@ Rechner ist im selben Netz wie der Pi. Steht der Pi im Gerätehaus, geht das nur
 ### Vom Pi aus per SSH (einmal einrichten, dann von überall)
 
 Die Installation auf dem Pi enthält kein `.git` — `deploy-pi.sh` überträgt die Dateien mit
-`git archive`, also ohne Versionsverwaltung. Einmalig umstellen:
+`git archive`, also ohne Versionsverwaltung.
+
+> **Alles Folgende läuft auf dem Pi**, also in der SSH-Sitzung — nicht in der Eingabe­auf­forderung
+> von Windows. Dort gibt es kein `sh`, und die Fehlermeldung sagt genau das.
+
+Einmalig umstellen. Das Umstell-Skript liegt bis dahin **nicht** auf dem Pi — es kam erst mit
+einer neueren Fassung dazu, und die soll ja gerade eingespielt werden. Darum wird es zuerst
+geholt:
 
 ```bash
-sudo sh /opt/jf-spinte/scripts/auf-git-umstellen.sh https://github.com/NAME/REPO.git
+curl -fsSL https://raw.githubusercontent.com/NAME/REPO/main/scripts/auf-git-umstellen.sh -o /tmp/auf-git-umstellen.sh
 ```
+
+```bash
+sudo sh /tmp/auf-git-umstellen.sh https://github.com/NAME/REPO.git
+```
+
+(Wer mag, schaut vorher mit `less /tmp/auf-git-umstellen.sh` hinein — es läuft gleich als root.)
 
 Das legt ein Arbeitsverzeichnis an und gleicht es mit dem Repository ab. Datenbank,
 Zertifikat, `node_modules` und `deploy.config` bleiben unberührt — sie stehen in
